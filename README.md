@@ -7,11 +7,10 @@
 
 ## v12 FINAL RELEASE — Shared-input 2–5 Twin Comparator
 
-The default route `/` (also `/v12`) now opens a **2–5 selectable 3D ground-policy arena**.
+The default route `/` (also `/v11`) opens the **v11 three-perspective application**, and the full
+Evidence Lab is at **`/v11/evidence`**. The **2–5 selectable 3D ground-policy arena** is at **`/v12`**.
 All five policy worlds simulate concurrently on **one server-owned tick clock**.
-Changing visible cards **does not pause, reset or alter any policy state**.
-The original v11 three-perspective application remains at **`/v11`**, and the full
-Evidence Lab is at **`/v11/evidence`**. The app serves two API groups:
+Changing visible cards **does not pause, reset or alter any policy state**. The app serves two API groups:
 
 - `/v11/api/*` powers the three twins and their Evidence Lab.
 - `/v12/api/*` powers the five-policy arena.

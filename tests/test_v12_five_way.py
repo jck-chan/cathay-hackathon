@@ -159,7 +159,7 @@ def test_live_start_pause_speed_measurement(arena):
 def test_http_endpoints_and_guards():
  from fusion_app import app
  c=TestClient(app)
- assert 'v12 — Final Five-World' in c.get('/').text
+ assert 'v12 — Final Five-World' in c.get('/v12').text
  assert c.get('/v12.js').status_code==200
  assert c.get('/v12.css').status_code==200
  assert c.get('/v11').status_code==200

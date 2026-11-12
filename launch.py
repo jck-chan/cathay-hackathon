@@ -6,7 +6,7 @@ if __name__ == '__main__':
     port=int(os.environ.get('RELAY_PORT','8766'))
     print('\n  RELAY FUSION v12.0 · five-policy shared-input arena / legacy three twins')
     print(f'  Interface: http://127.0.0.1:{port}/')
-    print(f'  Old 3 twins: http://127.0.0.1:{port}/v11')
+    print(f'  5-way arena: http://127.0.0.1:{port}/v12')
     print(f'  Evidence:   http://127.0.0.1:{port}/v11/evidence')
     print(f'  API docs:  http://127.0.0.1:{port}/docs')
     print(f'  MCP:       http://127.0.0.1:{port}/mcp (Streamable HTTP)')

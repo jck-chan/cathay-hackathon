@@ -111,6 +111,7 @@ async def v11_local_request_guard(request: Request, call_next):
     return response
 
 
+@app.get('/',include_in_schema=False)
 @app.get('/v11',include_in_schema=False)
 def v11_home():
     return FileResponse(ROOT/'static'/'v11.html',media_type='text/html',headers={'Cache-Control':'no-store'})
@@ -144,7 +145,6 @@ def v11_export_chart(filename:str):
 # It is intentionally isolated from the separate /v11 airline-network lab;
 # no invented causal claim connects the two independent experiments.
 # -------------------------------------------------------------------------
-@app.get('/',include_in_schema=False)
 @app.get('/v12',include_in_schema=False)
 def v12_home():
     return FileResponse(ROOT/'static'/'v12.html',media_type='text/html',headers={'Cache-Control':'no-store'})
