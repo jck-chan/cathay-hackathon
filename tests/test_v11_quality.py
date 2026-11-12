@@ -181,7 +181,8 @@ def test_v11_recompute_caps_abusive_large_runs_and_does_not_advance_clock():
 def test_v11_visual_contract_retains_old_three_tabs():
     root=Path(__file__).resolve().parents[1]
     text=(root/'static'/'v11.html').read_text(encoding='utf-8')
-    assert text.count('data-tab="')==3
+    assert [t for t in ('ground','tower','customer','chat') if f'data-tab="{t}"' in text]==['ground','tower','customer','chat']
+    assert text.count('data-tab="')==4  # three twins + AI chat
     assert 'v10_scene.js' in text and '/v10_ui.js' in text
     assert 'Evidence & KPIs' in text
     assert 'v11_research' not in text  # no fake animations claiming an optimizer ran

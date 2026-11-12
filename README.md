@@ -52,6 +52,26 @@ Reset stays in the dashboard and REST API. The Evidence Lab, benchmark runs,
 the five-world arena, and the standalone research API are outside the MCP tool
 list. Orders, reviews, and ground work through MCP are synthetic.
 
+### AI chat tab
+
+`/v11#chat` is a chat with an agent that operates the three twins. The harness
+is in `v11/chat.py`: a LangChain agent whose tools are read from the MCP server
+at startup, so adding, removing or changing an MCP tool needs no harness change.
+One extra local tool, `create_artifact`, renders an interactive HTML panel in
+the chat; the panel runs in a sandboxed frame and reaches the simulation only
+through `POST /v11/api/chat/tool`, which accepts MCP tool names. The agent can
+also write `<relay-twin view="ground|tower|customer" />` in a reply to embed a
+live twin (`/v11?embed=…`).
+
+`POST /v11/api/chat` speaks the Vercel AI SDK UI message stream protocol, so an
+AI SDK `useChat` client can use it as well as the bundled tab.
+
+| Setting | Meaning |
+|---|---|
+| `ANTHROPIC_API_KEY` | Model credentials, from the environment or a `.env` file in the project folder. |
+| `RELAY_CHAT_MODEL` | Claude model ID (default `claude-opus-5-5`), or `demo` for a scripted offline model that needs no key. |
+| `RELAY_CHAT_EFFORT` | Thinking effort: `low`, `medium` (default), `high`, `xhigh` or `max`. |
+
 Five policies: FCFS, v10 urgency heuristic, v11 observable triage, experimental
 `RELAY + Model A` / `RELAY + EDF`. These latter two are **staging dispatch selectors**,
 not AI foundation models or integrated three-paper controllers.

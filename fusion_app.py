@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from v11.api import conductor, router as v11_router
+from v11.chat import chat_runtime, router as v11_chat_router
 from v11.mcp_server import LEGACY_MCP_PATH, MCP_PATH, MCPTransport, create_mcp_server
 from v12.arena import FiveWorldArena
 from v12.policies import LABELS as V12_LABELS
@@ -21,12 +22,13 @@ ROOT = Path(__file__).resolve().parent
 async def lifespan(app: FastAPI):
     mcp = create_mcp_server()
     transport = mcp.streamable_http_app()
-    async with mcp.session_manager.run():
-        yield {'relay_mcp_transport': transport}
+    async with mcp.session_manager.run(), chat_runtime(mcp) as chat:
+        yield {'relay_mcp_transport': transport, 'relay_chat': chat}
 
 
 app = FastAPI(title='RELAY Fusion', version='12.0', lifespan=lifespan)
 app.include_router(v11_router)
+app.include_router(v11_chat_router)
 V12 = FiveWorldArena(conductor.lab, seed=9099)
 
 app.mount('/aircraft', StaticFiles(directory=ROOT / 'static' / 'aircraft'), name='aircraft')
@@ -64,6 +66,14 @@ def v10_css():
 @app.get('/v10_scene.js',include_in_schema=False)
 def v10_scene():
     return FileResponse(ROOT/'static'/'v10_scene.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
+
+@app.get('/v11_chat.css',include_in_schema=False)
+def v11_chat_css():
+    return FileResponse(ROOT/'static'/'v11_chat.css',media_type='text/css',headers={'Cache-Control':'no-store'})
+
+@app.get('/v11_chat.js',include_in_schema=False)
+def v11_chat_js():
+    return FileResponse(ROOT/'static'/'v11_chat.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
 
 @app.get('/v10_ui.js',include_in_schema=False)
 def v10_ui():
