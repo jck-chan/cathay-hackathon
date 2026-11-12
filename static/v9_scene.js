@@ -290,14 +290,14 @@ class GLWorld {
   const bx = (...args) => this.box(...args);
   const wet = this.weather === 'STORM' ? .72 : this.weather === 'RAIN' ? .84 : 1;
   const tone = c => c.map(v => v * wet);
-  const {ground, runway, taxiway, apron, road, terminal, coldStore, yard, cold, hold, crew, depot, truckLane} = layout;
+  const {ground, runway, taxiway, apron, road, terminal, coldStore, yard, cold, hold, crew, depot, truckRoad} = layout;
   const concrete = tone([.62, .67, .68]), asphalt = tone([.25, .31, .35]), white = [.92, .95, .93], yellow = [.93, .76, .25];
 
   bx(ground.x, -.47, 0, ground.width, .94, ground.depth, [.34, .49, .41]);
 
   // Landside road and cargo terminal: every admitted order arrives here by truck.
-  bx(truckLane + .5, .02, 0, 5.2, .06, ground.depth, asphalt);
-  for (let z = -22; z <= 22; z += 3) this.paint(truckLane - .9, z, .1, 1.3, white);
+  bx(truckRoad.x, .02, 0, truckRoad.width, .06, ground.depth, asphalt);
+  for (let z = -22; z <= 22; z += 3) this.paint(truckRoad.x, z, .1, 1.3, white);
   const levels = this.sceneControls.warehouseLevels || 6;
   const height = 2.2 + levels * .55;
   bx(terminal.x, height / 2, terminal.z, terminal.width, height, terminal.depth, [.74, .82, .84]);
@@ -592,10 +592,10 @@ class GLWorld {
   c.translate(originX, originY);
   c.scale(scale, scale);
   const rect = (x, z, width, depth, fill) => { c.fillStyle = fill; c.fillRect(x - width / 2, z - depth / 2, width, depth); };
-  const {ground, runway, taxiway, apron, road, terminal, coldStore, hold, truckLane} = layout;
+  const {ground, runway, taxiway, apron, road, terminal, coldStore, hold, truckRoad} = layout;
   const ops = this.ops;
   rect(ground.x, 0, ground.width, ground.depth, '#a9c4b3');
-  rect(truckLane + .5, 0, 5.2, ground.depth, '#5c6f77');
+  rect(truckRoad.x, 0, truckRoad.width, ground.depth, '#5c6f77');
   rect(-5.1, .4, 21.4, 24, '#c3cdcd');
   rect(apron.x, 0, apron.width, apron.depth, '#93a3a8');
   rect(road.x, 0, road.width, apron.depth - 1, '#75878d');

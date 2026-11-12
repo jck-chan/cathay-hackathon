@@ -28,7 +28,9 @@ const layout = {
   coldStore: {x: -4.6, z: -12.9, width: 19.2, depth: 4.6},
   crew: {x: 1.2, z: 9.6},
   depot: {x: -3.4, z: 9.9},
-  truckLane: -32.4,
+  // Landside road: trucks travel in the west lane and pull into the kerbside lane to unload.
+  truckRoad: {x: -31.9, width: 5.2},
+  truckLane: -33.2,
   ordersPerFlight: 12,
 };
 
@@ -332,8 +334,8 @@ class GroundOps {
     for (let i = 0; i < count; i++) {
       const bay = terminal.z - 5 + ((this.trucks.length * 2 + i * 3) % 5) * 2.5;
       this.trucks.push({
-        path: makePath([[truckLane, 27 + i * 4], [truckLane, bay + 4], [truckLane + 1.3, bay + 1.5],
-          [truckLane + 1.3, bay - 1.5], [truckLane, bay - 4], [truckLane, -27]], 1.2),
+        path: makePath([[truckLane, 27 + i * 4], [truckLane, bay + 4], [truckLane + 2.6, bay + 1.5],
+          [truckLane + 2.6, bay - 1.5], [truckLane, bay - 4], [truckLane, -27]], 1.2),
         s: 0, stopAt: 27 + i * 4 - bay + .3, dwell: 1.1, loaded: true,
       });
     }
