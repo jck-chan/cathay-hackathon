@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[1]
 GATEWAY_URL = 'https://ai-gateway.vercel.sh'   # Vercel AI Gateway, Anthropic Messages format
-GATEWAY_MODEL = 'google/gemini-3.8-flash'
+GATEWAY_MODEL = 'google/gemini-4-hydrogen'
 DIRECT_MODEL = 'claude-opus-5-5'
 DEMO_MODEL = 'demo'
 MAX_ARTIFACT_BYTES = 200_000

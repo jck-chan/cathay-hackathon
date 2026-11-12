@@ -101,7 +101,7 @@ AI SDK `useChat` client can use it as well as the bundled tab.
 | Setting | Meaning |
 |---|---|
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway key, from the environment or a `.env` file in the project folder. Model calls go to `https://ai-gateway.vercel.sh`. |
-| `RELAY_CHAT_MODEL` | Gateway model ID (default `google/gemini-3.8-flash`), or `demo` for a scripted offline model that needs no key. |
+| `RELAY_CHAT_MODEL` | Gateway model ID (default `google/gemini-4-hydrogen`), or `demo` for a scripted offline model that needs no key. |
 | `ANTHROPIC_API_KEY` | Used only when no gateway key is set: calls Anthropic directly (default model `claude-opus-5-5`). |
 | `RELAY_CHAT_EFFORT` | Thinking effort for Claude models: `low`, `medium` (default), `high`, `xhigh` or `max`. |
 
