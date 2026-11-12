@@ -24,7 +24,9 @@ from mcp.shared.memory import create_connected_server_and_client_session
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_MODEL = 'claude-opus-5-5'
+GATEWAY_URL = 'https://ai-gateway.vercel.sh'   # Vercel AI Gateway, Anthropic Messages format
+GATEWAY_MODEL = 'anthropic/claude-opus-5.5'
+DIRECT_MODEL = 'claude-opus-5-5'
 DEMO_MODEL = 'demo'
 MAX_ARTIFACT_BYTES = 200_000
 
@@ -76,13 +78,21 @@ def create_artifact(title: str, html: str) -> dict[str, Any]:
 create_artifact.extras = {'eager_input_streaming': True}
 
 
+def gateway_key() -> str | None:
+    return os.environ.get('AI_GATEWAY_API_KEY') or os.environ.get('VERCEL_OIDC_TOKEN')
+
+
 def build_model(name: str):
     if name == DEMO_MODEL:
         from .chat_demo import ScriptedChatModel
         return ScriptedChatModel()
     from langchain_anthropic import ChatAnthropic
+    # With a gateway key every call goes through Vercel AI Gateway; without one,
+    # ChatAnthropic falls back to ANTHROPIC_API_KEY and Anthropic's own endpoint.
+    route = {'api_key': gateway_key(), 'base_url': GATEWAY_URL} if gateway_key() else {}
     return ChatAnthropic(
         model=name,
+        **route,
         max_tokens=32000,
         thinking={'type': 'adaptive', 'display': 'summarized'},
         output_config={'effort': os.environ.get('RELAY_CHAT_EFFORT', 'medium')},
@@ -99,13 +109,14 @@ class ChatRuntime:
         self.session = session
         self.mcp_tool_names = {t.name for t in mcp_tools}
         self.tools = [*mcp_tools, create_artifact]
-        self.model_name = os.environ.get('RELAY_CHAT_MODEL', DEFAULT_MODEL)
+        self.provider = 'Vercel AI Gateway' if gateway_key() else 'Anthropic API'
+        self.model_name = os.environ.get('RELAY_CHAT_MODEL') or (GATEWAY_MODEL if gateway_key() else DIRECT_MODEL)
         self._agent = None
 
     @property
     def configured(self) -> bool:
         return self.model_name == DEMO_MODEL or bool(
-            os.environ.get('ANTHROPIC_API_KEY') or os.environ.get('ANTHROPIC_AUTH_TOKEN'))
+            gateway_key() or os.environ.get('ANTHROPIC_API_KEY') or os.environ.get('ANTHROPIC_AUTH_TOKEN'))
 
     @property
     def agent(self):
@@ -264,7 +275,7 @@ async def ui_message_stream(runtime: ChatRuntime, messages: list[BaseMessage]) -
     try:
         if not runtime.configured:
             raise RuntimeError(
-                'No model credentials. Set ANTHROPIC_API_KEY (environment or .env) and restart, '
+                'No model credentials. Set AI_GATEWAY_API_KEY (environment or .env) and restart, '
                 'or set RELAY_CHAT_MODEL=demo for the scripted offline model.')
         async for chunk, _ in runtime.agent.astream({'messages': messages}, stream_mode='messages'):
             for event in stream.feed(chunk):
@@ -314,7 +325,7 @@ async def chat(body: ChatRequest, request: Request):
 @router.get('/config')
 def chat_config(request: Request):
     runtime = runtime_of(request)
-    return {'model': runtime.model_name, 'configured': runtime.configured,
+    return {'model': runtime.model_name, 'provider': runtime.provider, 'configured': runtime.configured,
             'demo': runtime.model_name == DEMO_MODEL, 'tools': [t.name for t in runtime.tools]}
 
 

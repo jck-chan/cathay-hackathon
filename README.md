@@ -68,8 +68,9 @@ AI SDK `useChat` client can use it as well as the bundled tab.
 
 | Setting | Meaning |
 |---|---|
-| `ANTHROPIC_API_KEY` | Model credentials, from the environment or a `.env` file in the project folder. |
-| `RELAY_CHAT_MODEL` | Claude model ID (default `claude-opus-5-5`), or `demo` for a scripted offline model that needs no key. |
+| `AI_GATEWAY_API_KEY` | Vercel AI Gateway key, from the environment or a `.env` file in the project folder. Model calls go to `https://ai-gateway.vercel.sh`. |
+| `RELAY_CHAT_MODEL` | Gateway model ID (default `anthropic/claude-opus-5.5`), or `demo` for a scripted offline model that needs no key. |
+| `ANTHROPIC_API_KEY` | Used only when no gateway key is set: calls Anthropic directly (default model `claude-opus-5-5`). |
 | `RELAY_CHAT_EFFORT` | Thinking effort: `low`, `medium` (default), `high`, `xhigh` or `max`. |
 
 Five policies: FCFS, v10 urgency heuristic, v11 observable triage, experimental

@@ -83,8 +83,8 @@ class ScriptedChatModel(BaseChatModel):
                     ('tool', ('create_artifact', {'title': 'Simulation control panel', 'html': PANEL}))]
         return [('text', 'The panel above drives the shared clock, so the three twins follow every click. '
                          'Here is the ground twin:\n\n<relay-twin view="ground" />\n\n'
-                         '**Note:** this reply came from the scripted demo model. Set `ANTHROPIC_API_KEY` '
-                         'and unset `RELAY_CHAT_MODEL` to talk to Claude.')]
+                         '**Note:** this reply came from the scripted demo model. Set `AI_GATEWAY_API_KEY` '
+                         'and unset `RELAY_CHAT_MODEL` to use a real model.')]
 
     async def _astream(self, messages, stop=None, run_manager=None, **kwargs) -> AsyncIterator[ChatGenerationChunk]:
         message_id = f'demo-{uuid.uuid4().hex[:10]}'

@@ -415,8 +415,8 @@ thread.addEventListener('click', event => {
   }
 });
 fetch('/v11/api/chat/config').then(r => r.json()).then(config => {
-  $('chatModel').textContent = config.demo ? 'Scripted demo model · no credentials needed' : config.configured ? config.model
-    : `${config.model} · no credentials found. Set ANTHROPIC_API_KEY, or RELAY_CHAT_MODEL=demo`;
+  $('chatModel').textContent = config.demo ? 'Scripted demo model · no credentials needed' : config.configured ? `${config.model} · ${config.provider}`
+    : 'No model key found. Add AI_GATEWAY_API_KEY (Vercel AI Gateway) to .env and restart, or run with RELAY_CHAT_MODEL=demo';
   $('chatModel').classList.toggle('warn', !config.configured);
 }).catch(() => { $('chatModel').textContent = 'Chat service unavailable'; });
 
