@@ -106,6 +106,7 @@ html,body{background:#eaf1f1}
 }
 .shared-simulation .simulation-actions,
 .shared-simulation .simulation-status { justify-content: flex-end; }
+.shared-simulation #auditBtn { margin-inline-start: 12px; }
 .shared-simulation .evidence-link { text-decoration: none; }
 
 .simulation-controls {

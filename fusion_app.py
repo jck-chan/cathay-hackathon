@@ -19,9 +19,19 @@ from v12.arena import FiveWorldArena
 from v12.policies import LABELS as V12_LABELS
 
 ROOT = Path(__file__).resolve().parent
+
+
+def relay_public_domains() -> set[str]:
+    return {
+        'cathay.ckchan.com',
+        os.getenv('RELAY_PUBLIC_DOMAIN', '').strip().lower(),
+        os.getenv('RAILWAY_PUBLIC_DOMAIN', '').strip().lower(),
+    } - {''}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    mcp = create_mcp_server()
+    mcp = create_mcp_server(relay_public_domains())
     transport = mcp.streamable_http_app()
     async with mcp.session_manager.run(), chat_runtime(mcp) as chat:
         yield {'relay_mcp_transport': transport, 'relay_chat': chat}
@@ -104,11 +114,13 @@ async def v11_request_guard(request: Request, call_next):
         origin = request.headers.get('origin')
         fetch_site = request.headers.get('sec-fetch-site')
         host = request.headers.get('host', '').lower()
-        public_domain = (os.getenv('RELAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PUBLIC_DOMAIN', '')).strip().lower()
-        if host and host == public_domain:
+        if host in relay_public_domains():
             # Railway terminates TLS before forwarding to the container.
-            expected_origin = f'https://{public_domain}'
-            allowed = origin == expected_origin or (origin is None and fetch_site == 'same-origin')
+            expected_origin = f'https://{host}'
+            native_mcp = request.url.path in (MCP_PATH, LEGACY_MCP_PATH) and fetch_site is None
+            allowed = origin == expected_origin or (
+                origin is None and (fetch_site == 'same-origin' or native_mcp)
+            )
         else:
             allowed = request.url.hostname in ('127.0.0.1', 'localhost', 'testserver') and (
                 origin is None or origin == f'http://{host}'

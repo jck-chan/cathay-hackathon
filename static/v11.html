@@ -184,7 +184,7 @@
 </section>
 <section class="screen customer" id="customer-screen" aria-label="Customer shipment journey">
 <div class="cx-shell">
-<header class="cx-header"><div><div class="eyebrow">CUSTOMER WORKSPACE</div><h1>Shipment tracking</h1><p>Shipment status, arrival estimates, and route updates.</p></div><button class="btn primary" id="newOrderBtn">+ New shipment</button></header>
+<header class="cx-header"><h1>Shipment tracking</h1><button class="btn primary" id="newOrderBtn">+ New shipment</button></header>
 <div class="cx-layout">
 <aside class="cx-portfolio"><div class="cx-section-heading"><h2>Your shipments</h2><span id="portfolioCount">0</span></div><label class="search-field"><span aria-hidden="true">⌕</span><input id="filterShipments" placeholder="Search AWB or destination" aria-label="Search shipments"></label><div id="portfolioItems" class="portfolio-items"></div><p class="cx-note">Demo portfolio · shared with Ground and Control Tower</p></aside>
 <div class="cx-detail">
@@ -194,7 +194,16 @@
 <aside class="cx-context"><div class="cx-map"><div class="cx-map-heading"><span class="eyebrow">GLOBAL CONNECTIONS</span><span class="cx-map-badge">Route preview</span></div><canvas id="customerGlobe" data-style="customer" tabindex="0" aria-label="Illustrative route globe. Drag or use arrow keys to rotate. Press Home to reset." aria-describedby="globeHelp"></canvas><div class="cx-map-caption"><span class="eyebrow">SELECTED SHIPMENT</span><b id="globeRoute">— → —</b></div><button type="button" class="cx-globe-reset" id="globeReset" aria-label="Reset globe to selected route">↺ Reset view</button></div><p class="cx-note" id="globeHelp">Drag or use arrow keys to explore. Illustrative routes, not live aircraft positions.</p><div class="cx-explainer"><span class="eyebrow">ABOUT THIS VIEW</span><h3>Status and confirmation</h3><p>Ground progress comes from the shared simulation. Route proposals remain tentative until carrier confirmation.</p><span class="cx-demo">● Synthetic demo</span></div></aside>
 </div></div></section>
 <section class="screen chat" id="chat-screen" aria-label="AI chat">
-  <div class="chat-head"><span class="chat-model" id="chatModel"></span><button class="chat-new" id="chatNew" type="button">New chat</button></div>
+  <div class="chat-actions">
+    <button class="chat-action" id="chatMcp" type="button" aria-haspopup="dialog">Connect via MCP</button>
+    <button class="chat-action" id="chatNew" type="button">New chat</button>
+  </div>
+  <dialog class="chat-mcp" id="chatMcpDialog" aria-labelledby="chatMcpTitle">
+    <h2 id="chatMcpTitle">MCP server URL</h2>
+    <p>Add this URL to your MCP client using Streamable HTTP.</p>
+    <code id="chatMcpUrl"></code>
+    <form method="dialog"><button class="chat-action" autofocus>Close</button></form>
+  </dialog>
   <div class="chat-scroll" id="chatScroll"><div class="chat-thread" id="chatThread"></div></div>
   <form class="chat-composer" id="chatForm">
     <textarea id="chatInput" rows="1" placeholder="Ask about the simulation, or ask for a control panel" aria-label="Message"></textarea>

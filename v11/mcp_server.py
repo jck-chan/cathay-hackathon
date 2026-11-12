@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Annotated, Any, Literal
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
 from starlette.concurrency import run_in_threadpool
@@ -69,13 +70,24 @@ class MCPTransport:
         await transport(scope, receive, send)
 
 
-def create_mcp_server() -> FastMCP:
+def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
+    public_hosts = sorted(public_domains or ())
+    local_hosts = ['127.0.0.1', 'localhost', '[::1]', 'testserver']
     mcp = FastMCP(
         'RELAY Three Twins',
         instructions=INSTRUCTIONS,
         streamable_http_path=MCP_PATH,
         stateless_http=True,
         json_response=True,
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=[*local_hosts, *(f'{host}:*' for host in local_hosts), *public_hosts],
+            allowed_origins=[
+                *(f'http://{host}' for host in local_hosts),
+                *(f'http://{host}:*' for host in local_hosts),
+                *(f'https://{host}' for host in public_hosts),
+            ],
+        ),
     )
     read_only = ToolAnnotations(readOnlyHint=True, openWorldHint=False)
 
