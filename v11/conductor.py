@@ -97,7 +97,6 @@ class Conductor:
             self.completed_ticks+=max(0,delta)
             self.last_tick=self.lab.t
             self.last_clock=self.lab.store.clock()
-            self._record('CLOCK',f'Advanced {delta} actual simulated tick(s), 10 min each',ticks=delta)
     def _advance(self,count):
         start=time.perf_counter()
         # WEATHER IS A TRANSPARENT SYNTHETIC CAPACITY SCENARIO, NOT A

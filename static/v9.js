@@ -99,7 +99,49 @@ function showPop(id) {
 }
 function explainIntro(){return '<p><b>Scope:</b> 30 days of generated data; staging queue + finite MILP + one-step Bayesian model. No airline inventory booking, ULD safety certificate or real customer notifications.</p>'}
 function details(title,body){drawer(title,explainIntro()+body)}
-async function showEvidence(kind){if(kind==='events'){details('Live input → process → output',`<h3>Unified conductor</h3>${(state?.unified_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind)} · Tick ${e.tick}</b>${esc(e.message)}<br><small>${esc(e.at)} · sequence ${e.seq}</small></div>`).join('')}`);return}
+const EVENT_STREAM_TITLE='Event stream';
+const EVENT_TYPES=new Map([
+ ['READY',['Simulation ready','○','neutral']],
+ ['PLAY',['Simulation started','▶','neutral']],
+ ['PAUSE',['Simulation paused','Ⅱ','neutral']],
+ ['RESET',['Simulation reset','↺','neutral']],
+ ['SPEED',['Speed changed','»','neutral']],
+ ['MODE',['Review mode changed','⇄','neutral']],
+ ['TUNE',['Scenario adjusted','⚙︎','neutral']],
+ ['WEATHER',['Weather changed','☁︎','blue']],
+ ['DISRUPTION',['Disruption','⚠︎','red']],
+ ['RECOVERY_WINDOW',['Recovery window','↑','green']],
+ ['ARRIVAL',['Cargo inbound','↓','blue']],
+ ['ORDER',['New shipment','⊕','blue']],
+ ['COMPLETED',['Ground work completed','✓','green']],
+ ['MODEL',['Decision recalculated','◇','purple']],
+ ['AUTO_SHADOW',['Auto-approved in sandbox','✦','purple']],
+ ['REVIEW_REQUIRED',['Review needed','!','amber']],
+ ['REVIEW',['Supervisor review','≡','amber']],
+ ['TASK',['Handoff updated','↗','green']],
+ ['ERROR',['Engine error','×','red']],
+]);
+function streamEvents(s){return (s?.unified_events||[]).filter(e=>e.kind!=='CLOCK')}
+function eventStreamMarkup(events){
+ const rows=events.slice().reverse().map(e=>{
+  const [label,icon,tone]=EVENT_TYPES.get(e.kind)||[String(e.kind||'Event').replaceAll('_',' '),'•','neutral'];
+  return `<li class="event-stream-row ledger-row">
+    <span class="event-stream-icon" data-tone="${tone}" aria-hidden="true">${icon}</span>
+    <div><b>${esc(label)}</b><p>${esc(e.message)}</p>
+      <small><time datetime="${esc(e.at||'')}">${esc(when(e.at))}</time> · Tick ${esc(e.tick)}</small>
+    </div>
+  </li>`;
+ });
+ return '<p>Times use the simulation clock.</p>'+(rows.length
+  ? '<ul class="event-stream-list">'+rows.join('')+'</ul>'
+  : '<p>No events recorded yet.</p>');
+}
+async function showEvidence(kind){if(kind==='events'){
+ const events=streamEvents(state);
+ drawer(EVENT_STREAM_TITLE,eventStreamMarkup(events));
+ $('drawerContent').dataset.seq=String(events.at(-1)?.seq||0);
+ return;
+}
  if(kind==='journey'){let c=state?.customer_projection;details('Customer journey · '+(c?.awb||'—'),`<p>Observed synthetic milestones stay separate from simulated ground actions and tentative routing.</p>${(c?.journey_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind||e.code)} · ${e.observed?'Recorded synthetic source':'Simulated overlay'}</b>${esc(e.message)}<br><small>${esc(when(e.at))} · ${esc(e.authority)}</small></div>`).join('')}`);return}
  if(kind==='math'||['model_i','model_ii','model_iii'].includes(kind)){let d=state?.decision||{},k=kind==='math'?'model_iii':kind;details(kind==='math'?'Mathematical decision trace':'Inspect '+k.toUpperCase(),`<p>Model I = bounded 2D arrangement; Model II = one-step Bayesian verification; Model III = finite-column capacity MILP.</p><pre>${esc(JSON.stringify(kind==='math'?d:d[k]||{},null,2))}</pre><button class="btn soft" id="fullEvidence">Load source provenance ↗</button>`);return}
  if(kind==='audit'||kind==='source'){details(kind==='audit'?'Runtime integrity audit':'OAG / dataset provenance','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(kind==='audit'?'/v11/api/audit':'/v11/api/evidence');$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
@@ -184,10 +226,13 @@ function v9Render(s){let badge=document.querySelector('.brand small');if(badge&&
    el.dispatchEvent(new Event('input'));
  }
  let t9=new Date(s.clock);if(!Number.isNaN(+t9))lightHour=(t9.getUTCHours()+8+t9.getUTCMinutes()/60+t9.getUTCSeconds()/3600)%24;worlds.forEach(w=>{w.state=p[w.name]||{objects:[]};w.sceneControls={...cfg,handlers:s.resources?.handlers??cfg.handlers,stands:s.resources?.stands??cfg.stands,cold_bays:s.resources?.cold_bays??cfg.cold_bays,configured:cfg,...v9VisualSettings};w.weather=cfg.weather||'CLEAR';w.simTick=s.tick;w.running=!!v.running;w.requestedSpeed=v.speed_target||1;w.actualTicksPerSecond=tps;w.incident=Boolean(s.latest_event&&s.tick>=0);w.autoOrbit=v9Orbit});
- let events=(s.unified_events||[]).filter(e=>!['CLOCK'].includes(e.kind));let last=events.at(-1)?.seq||0;
+ let events=streamEvents(s);let last=events.at(-1)?.seq||0;
  if(last>v9LastEvent){const arrivals=events.filter(e=>e.seq>v9LastEvent);v9LastEvent=last;const mount=$('eventLive');const fresh=arrivals.slice(-3);if(mount)for(let e of fresh){const el=document.createElement('div');el.innerHTML=v9LogCard(e);el.className='v9-event-animation';mount.prepend(el);while(mount.children.length>3)mount.lastElementChild.remove();setTimeout(()=>{el.classList.add('aging')},4800)}}
  // Live drawers must re-render IN PLACE, without requiring close/reopen.
- if(!$('drawer').hidden&&$('drawerTitle').textContent.startsWith('Live input')){let html='<h3>Latest source → decision → task events</h3>'+((s.unified_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind)} · tick ${e.tick}</b>${esc(e.message)}<br><small>${esc(e.at)} · #${e.seq}</small></div>`).join(''));let c=$('drawerContent');if(c.dataset.seq!==String(v9LastEvent)){c.innerHTML=html;c.dataset.seq=String(v9LastEvent)}}
+ if(!$('drawer').hidden&&$('drawerTitle').textContent===EVENT_STREAM_TITLE){
+  const content=$('drawerContent'),seq=String(last);
+  if(content.dataset.seq!==seq){content.innerHTML=eventStreamMarkup(events);content.dataset.seq=seq}
+ }
  if(!$('drawer').hidden&&$('drawerTitle').textContent.startsWith('Customer journey')){const c=s.customer_projection;if(c&&$('drawerContent').dataset.journeySeq!==String(c.journey_events?.length||0)){let box=$('drawerContent');box.innerHTML='<p>Live synthetic customer milestones; internal approval does not confirm an airline route.</p>'+((c.journey_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind)}</b>${esc(e.message)}<br><small>${esc(when(e.at))} · ${esc(e.authority)}</small></div>`).join(''));box.dataset.journeySeq=String(c.journey_events?.length||0)}}
  if(s.tick!==v9LastTick){v9LastTick=s.tick;$('tickPill').classList.remove('tick-flash');void $('tickPill').offsetWidth;$('tickPill').classList.add('tick-flash')}
 }
