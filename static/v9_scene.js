@@ -81,7 +81,10 @@ const accents = {fcfs: [.72, .52, .24], relay: [.05, .55, .50]};
 const urgencyColors = [[.16, .66, .50], [.96, .76, .22], [.97, .52, .16], [.90, .20, .18]];
 const urgencyCss = ['#1f9f7c', '#d99a12', '#e2711d', '#d63a33'];
 const effect = {surface: 0, shadow: 1, sky: 2, light: 3};
-const SURFACE = .07;
+// Height of ground paint. Pavement slabs each sit at their own height below this, and
+// overlapping markings use the `lift` layers, so no two surfaces are ever coplanar.
+const SURFACE = .09;
+const LAYER = .005;
 // Until the user drags, the camera frames the flow for the card's shape: landside → runway
 // left-to-right in a wide card, near-to-far in a tall one.
 const CAMERA = {yaw: 1.32, pitch: .86, zoom: 1, panX: 0, panZ: 0, custom: false};
@@ -311,7 +314,7 @@ class GLWorld {
   this.glow(dark > .35, () => bx(east + .06, 2.05, terminal.z, .06, .12, terminal.depth - 1, [.98, .9, .62]));
 
   // Staging yard. A container holds one slot from admission until the policy dispatches it.
-  bx(-5.1, .01, .4, 21.4, .1, 24, concrete);
+  bx(-5.1, 0, .4, 21.4, .1, 24, concrete);
   for (let row = 0; row < yard.rows; row++) {
    const z = yard.z + row * yard.rowPitch;
    this.paint(-4.6, z, 19.4, 1.02, tone([.55, .60, .62]));
@@ -344,19 +347,19 @@ class GLWorld {
   bx(crew.x + 2.1, 1.05, crew.z + 2.5, 6.4, 2.1, 1.6, [.84, .86, .8]);
   bx(crew.x + 2.1, 2.16, crew.z + 2.1, 6.8, .12, 2.6, [.92, .62, .2]);
   this.paint(depot.x, depot.z, 5.2, 2.2, tone([.5, .56, .58]));
-  for (const side of [-1, 1]) this.paint(depot.x, depot.z + side * 1.1, 5.2, .06, yellow);
+  for (const side of [-1, 1]) this.paint(depot.x, depot.z + side * 1.1, 5.2, .06, yellow, 0, LAYER);
 
   // Apron, service road, taxiway and runway.
-  bx(apron.x, .012, 0, apron.width, .1, apron.depth, tone([.45, .52, .55]));
+  bx(apron.x, .005, 0, apron.width, .1, apron.depth, tone([.45, .52, .55]));
   this.paint(road.x, 0, road.width, apron.depth - 1, tone([.33, .40, .44]));
-  for (let z = -19; z <= 19; z += 2.6) this.paint(road.x, z, .07, 1.2, white);
-  bx(taxiway.x, .012, 0, taxiway.width + 1.2, .1, 44, tone([.38, .45, .48]));
+  for (let z = -19; z <= 19; z += 2.6) this.paint(road.x, z, .07, 1.2, white, 0, LAYER);
+  bx(taxiway.x, .01, 0, taxiway.width + 1.2, .1, 44, tone([.38, .45, .48]));
   this.paint(taxiway.x, 0, .1, 42, yellow);
   for (const z of [-20.2, 20.4]) {
-   bx((taxiway.x + runway.x) / 2, .012, z, runway.x - taxiway.x, .1, 3.4, tone([.38, .45, .48]));
-   this.paint((taxiway.x + runway.x) / 2, z, runway.x - taxiway.x - 3, .1, yellow);
+   bx((taxiway.x + runway.x) / 2, .015, z, runway.x - taxiway.x, .1, 3.4, tone([.38, .45, .48]));
+   this.paint((taxiway.x + runway.x) / 2 + .2, z, runway.x - taxiway.x - 3.6, .1, yellow, 0, LAYER);
   }
-  bx(runway.x, .014, 0, runway.width, .1, runway.half * 2, tone([.21, .27, .31]));
+  bx(runway.x, .02, 0, runway.width, .1, runway.half * 2, tone([.21, .27, .31]));
   for (let z = -14; z <= 14; z += 4) this.paint(runway.x, z, .18, 2.2, white);
   for (const side of [-1, 1]) {
    this.paint(runway.x + side * (runway.width / 2 - .3), 0, .1, runway.half * 2 - 1, white);
@@ -398,11 +401,12 @@ class GLWorld {
    const {x, z} = stand;
    const closed = stand.configured && !stand.open;
    const line = closed ? red : stand.configured ? amber : [.5, .56, .58];
-   this.paint(x + 2.6, z, 9.6, .08, line);
+   this.paint(x + 2.3, z, 9, .08, line);
    this.paint(x - 3.3, z, .1, 1.6, line);
    for (const side of [-1, 1]) this.paint(x + .4, z + side * 2.95, 7.4, .06, closed ? red : cream);
    if (closed) {
-    for (const rot of [.62, -.62]) this.paint(x, z, 6.4, .34, red, rot, .004);
+    this.paint(x, z, 6.4, .34, red, .62, LAYER);
+    this.paint(x, z, 6.4, .34, red, -.62, LAYER * 2);
     for (let k = 0; k < 5; k++) {
      this.box(x - 3.6, .3, z - 2.4 + k * 1.2, .26, .5, .26, [.98, .45, .1]);
      this.box(x - 3.6, .36, z - 2.4 + k * 1.2, .28, .1, .28, [.98, .98, .98]);
@@ -421,7 +425,7 @@ class GLWorld {
     this.paint(11.35, barZ, 2.6, .5, [.2, .25, .28]);
     if (job) {
      const fill = clamp(job.shown, 0, 1) * 2.5;
-     this.glow(true, () => this.paint(10.1 + fill / 2, barZ, fill, .4, urgencyColors[this.ops.urgency(job)], 0, .004));
+     this.glow(true, () => this.paint(10.1 + fill / 2, barZ, fill, .4, urgencyColors[this.ops.urgency(job)], 0, LAYER));
     }
    }
    if (!stand.staffed && !stand.sides[-1]) {
@@ -478,7 +482,7 @@ class GLWorld {
   gl.uniform1f(this.uni.effect, effect.shadow);
   const blob = (x, z, w, d, heading, alpha) => {
    gl.uniform1f(this.uni.intensity, alpha);
-   this.drawMesh(this.planeMesh, mat.model(x, SURFACE + .012, z, w, 1, d, -heading), [0, 0, 0]);
+   this.drawMesh(this.planeMesh, mat.model(x, SURFACE + LAYER * 3, z, w, 1, d, -heading), [0, 0, 0]);
   };
   for (const {pose} of aircraft) {
    const x = pose.x - pose.y * .24, z = pose.z + pose.y * .15;
@@ -658,7 +662,7 @@ class GLWorld {
    Math.sin(pitch) * distance + 3,
    Math.sin(angle) * Math.cos(pitch) * distance,
   ];
-  return {projection: mat.perspective(.82, aspect, .1, 320), view: mat.look(eye, [focusX, 0, 1])};
+  return {projection: mat.perspective(.82, aspect, 2, 420), view: mat.look(eye, [focusX, 0, 1])};
  }
 
  // Feed the latest server snapshot to the operations model, then advance it by one frame.
