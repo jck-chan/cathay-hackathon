@@ -314,6 +314,7 @@ function applyEvent(message, event) {
   const parts = message.parts, byId = id => parts.findLast(p => p.id === id), byCall = id => parts.findLast(p => p.toolCallId === id);
   let part = null;
   switch (event.type) {
+    case 'start': if (event.messageId) message.id = event.messageId; return;  // the server keys its history on this id
     case 'start-step': parts.push({type: 'step-start'}); return;
     case 'text-start': case 'reasoning-start':
       parts.push(part = {type: event.type.split('-')[0], id: event.id, text: '', state: 'streaming', _started: performance.now()}); break;

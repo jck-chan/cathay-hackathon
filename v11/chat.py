@@ -25,10 +25,15 @@ from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[1]
 GATEWAY_URL = 'https://ai-gateway.vercel.sh'   # Vercel AI Gateway, Anthropic Messages format
-GATEWAY_MODEL = 'anthropic/claude-opus-5.5'
+GATEWAY_MODEL = 'google/gemini-3.8-flash'
 DIRECT_MODEL = 'claude-opus-5-5'
 DEMO_MODEL = 'demo'
 MAX_ARTIFACT_BYTES = 200_000
+MAX_THREADS = 64
+# History is only cut once it passes HISTORY_LIMIT characters (~4 per token), and
+# then in whole HISTORY_BLOCK steps, so the cut point stays put for many turns.
+HISTORY_LIMIT = 600_000
+HISTORY_BLOCK = 300_000
 
 SYSTEM_PROMPT = """You are the operations copilot inside RELAY, a local synthetic air-cargo simulation at Hong Kong (HKG). Three digital twins share one clock and one data store: the Ground Twin (3D apron and staging, FCFS baseline beside RELAY dispatch), the Control Tower (decisions, reviews, team handoffs) and the Customer Twin (shipments on a route globe). The person you are talking to is operating that simulation and sees your reply in a chat tab next to the twins.
 
@@ -90,13 +95,36 @@ def build_model(name: str):
     # With a gateway key every call goes through Vercel AI Gateway; without one,
     # ChatAnthropic falls back to ANTHROPIC_API_KEY and Anthropic's own endpoint.
     route = {'api_key': gateway_key(), 'base_url': GATEWAY_URL} if gateway_key() else {}
-    return ChatAnthropic(
-        model=name,
-        **route,
-        max_tokens=32000,
-        thinking={'type': 'adaptive', 'display': 'summarized'},
-        output_config={'effort': os.environ.get('RELAY_CHAT_EFFORT', 'medium')},
-    )
+    if is_claude(name):
+        thinking = {'thinking': {'type': 'adaptive', 'display': 'summarized'},
+                    'output_config': {'effort': os.environ.get('RELAY_CHAT_EFFORT', 'medium')}}
+    else:  # the gateway maps a thinking budget onto other providers' reasoning controls
+        thinking = {'thinking': {'type': 'enabled', 'budget_tokens': 4096}}
+    return ChatAnthropic(model=name, max_tokens=32000, **route, **thinking)
+
+
+def is_claude(name: str) -> bool:
+    return 'claude' in name
+
+
+def message_size(message: BaseMessage) -> int:
+    return len(str(message.content)) + len(str(getattr(message, 'tool_calls', '')))
+
+
+def trim_history(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """Keep the whole history while it is small; past the limit, drop the oldest
+    turns up to a HISTORY_BLOCK boundary. The same turns are dropped on every
+    request until the next boundary, which keeps the cached prefix stable."""
+    total = sum(map(message_size, messages))
+    if total <= HISTORY_LIMIT:
+        return messages
+    drop = -(-(total - HISTORY_LIMIT) // HISTORY_BLOCK) * HISTORY_BLOCK
+    seen = 0
+    for index, message in enumerate(messages):
+        if seen >= drop and isinstance(message, HumanMessage):
+            return messages[index:]
+        seen += message_size(message)
+    return messages[-1:]
 
 
 class ChatRuntime:
@@ -112,6 +140,24 @@ class ChatRuntime:
         self.provider = 'Vercel AI Gateway' if gateway_key() else 'Anthropic API'
         self.model_name = os.environ.get('RELAY_CHAT_MODEL') or (GATEWAY_MODEL if gateway_key() else DIRECT_MODEL)
         self._agent = None
+        # chat id -> (UI message ids, exact LangChain messages). Replaying the exact
+        # messages, reasoning included, makes each request extend the previous one
+        # byte for byte, which is what provider prompt caches match on.
+        self.threads: dict[str, tuple[list[str], list[BaseMessage]]] = {}
+
+    def history(self, chat_id: str | None, ui_messages: list[dict[str, Any]]) -> list[BaseMessage]:
+        ids, stored = self.threads.get(chat_id, ([], []))
+        *earlier, last = ui_messages
+        if stored and ids == [m.get('id') for m in earlier] and last.get('role') == 'user':
+            return trim_history(stored + to_langchain([last]))
+        return trim_history(to_langchain(ui_messages))   # new chat, restart, or edited history
+
+    def remember(self, chat_id: str | None, ui_ids: list[str], messages: list[BaseMessage]) -> None:
+        if chat_id:
+            self.threads.pop(chat_id, None)
+            self.threads[chat_id] = (ui_ids, messages)
+            while len(self.threads) > MAX_THREADS:
+                self.threads.pop(next(iter(self.threads)))
 
     @property
     def configured(self) -> bool:
@@ -121,7 +167,12 @@ class ChatRuntime:
     @property
     def agent(self):
         if self._agent is None:
-            self._agent = create_agent(build_model(self.model_name), self.tools, system_prompt=self.system_prompt)
+            middleware = []
+            if is_claude(self.model_name):  # Claude needs explicit cache breakpoints; Gemini caches prefixes itself
+                from langchain_anthropic.middleware import AnthropicPromptCachingMiddleware
+                middleware.append(AnthropicPromptCachingMiddleware(unsupported_model_behavior='ignore'))
+            self._agent = create_agent(build_model(self.model_name), self.tools,
+                                       system_prompt=self.system_prompt, middleware=middleware)
         return self._agent
 
     async def call_tool(self, name: str, arguments: dict[str, Any]) -> Any:
@@ -269,19 +320,28 @@ def sse(event: dict[str, Any] | str) -> str:
     return f'data: {event if isinstance(event, str) else json.dumps(event, default=str)}\n\n'
 
 
-async def ui_message_stream(runtime: ChatRuntime, messages: list[BaseMessage]) -> AsyncIterator[str]:
-    yield sse({'type': 'start', 'messageId': uuid.uuid4().hex})
+async def ui_message_stream(runtime: ChatRuntime, chat_id: str | None, ui_messages: list[dict[str, Any]]) -> AsyncIterator[str]:
+    reply_id = uuid.uuid4().hex
+    yield sse({'type': 'start', 'messageId': reply_id})
     stream = UIStream()
+    runtime.threads.pop(chat_id, None)   # stays forgotten unless this turn finishes cleanly
+    final = None
     try:
         if not runtime.configured:
             raise RuntimeError(
                 'No model credentials. Set AI_GATEWAY_API_KEY (environment or .env) and restart, '
                 'or set RELAY_CHAT_MODEL=demo for the scripted offline model.')
-        async for chunk, _ in runtime.agent.astream({'messages': messages}, stream_mode='messages'):
-            for event in stream.feed(chunk):
+        messages = runtime.history(chat_id, ui_messages)
+        async for mode, payload in runtime.agent.astream({'messages': messages}, stream_mode=['messages', 'values']):
+            if mode == 'values':
+                final = payload['messages']
+                continue
+            for event in stream.feed(payload[0]):
                 yield sse(event)
         for event in stream.finish_step():
             yield sse(event)
+        if final:
+            runtime.remember(chat_id, [m.get('id') for m in ui_messages] + [reply_id], final)
     except Exception as exc:  # surfaced in the chat instead of dropping the connection
         for event in stream.finish_step():
             yield sse(event)
@@ -317,7 +377,7 @@ async def chat(body: ChatRequest, request: Request):
     """Run one agent turn. Body and response follow the AI SDK UI message stream protocol."""
     runtime = runtime_of(request)
     return StreamingResponse(
-        ui_message_stream(runtime, to_langchain(body.messages)),
+        ui_message_stream(runtime, body.id, body.messages),
         media_type='text/event-stream',
         headers={'x-vercel-ai-ui-message-stream': 'v1', 'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 

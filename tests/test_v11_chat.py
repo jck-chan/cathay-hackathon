@@ -45,6 +45,18 @@ def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch):
                 text = ''.join(e['delta'] for e in events if e['type'] == 'text-delta')
                 assert '<relay-twin view="ground" />' in text
 
+                # The next turn replays the stored messages exactly, reasoning included,
+                # so the request prefix is unchanged and provider caches can hit.
+                runtime = state['relay_chat']
+                ids, stored = runtime.threads['c1']
+                assert ids == ['u1', events[0]['messageId']]
+                reply = {'id': events[0]['messageId'], 'role': 'assistant', 'parts': []}
+                follow_up = {'id': 'u2', 'role': 'user', 'parts': [{'type': 'text', 'text': 'Again'}]}
+                history = runtime.history('c1', [user, reply, follow_up])
+                assert history[:len(stored)] == stored and history[-1].content == 'Again'
+                assert any(b.get('type') == 'thinking' for m in stored if isinstance(m.content, list) for b in m.content)
+                assert len(runtime.history('c1', [{**user, 'id': 'edited'}, reply, follow_up])) == 2  # falls back to a rebuild
+
                 stepped = await client.post('/v11/api/chat/tool', json={'name': 'ground_step_simulation', 'arguments': {'count': 2}})
                 assert stepped.json()['result']['tick'] == 2 == conductor.snapshot()['tick']
                 assert (await client.post('/v11/api/chat/tool', json={'name': 'create_artifact'})).status_code == 404
@@ -72,3 +84,15 @@ def test_ui_history_replays_tool_calls_without_reasoning():
     assert [c['id'] for c in history[1].tool_calls] == ['t1']
     assert json.loads(history[2].content) == {'tick': 3}
     assert 'hidden' not in json.dumps([m.content for m in history])
+
+
+def test_history_is_whole_until_large_then_cut_at_stable_boundaries():
+    from langchain_core.messages import AIMessage, HumanMessage
+    from v11 import chat
+
+    def turns(count):
+        return [m for i in range(count) for m in (HumanMessage(f'q{i}'), AIMessage('x' * 99_996))]
+
+    assert chat.trim_history(turns(5)) == turns(5)
+    starts = {n: chat.trim_history(turns(n))[0].content for n in range(7, 12)}
+    assert starts == {7: 'q3', 8: 'q3', 9: 'q3', 10: 'q6', 11: 'q6'}

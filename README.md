@@ -69,9 +69,15 @@ AI SDK `useChat` client can use it as well as the bundled tab.
 | Setting | Meaning |
 |---|---|
 | `AI_GATEWAY_API_KEY` | Vercel AI Gateway key, from the environment or a `.env` file in the project folder. Model calls go to `https://ai-gateway.vercel.sh`. |
-| `RELAY_CHAT_MODEL` | Gateway model ID (default `anthropic/claude-opus-5.5`), or `demo` for a scripted offline model that needs no key. |
+| `RELAY_CHAT_MODEL` | Gateway model ID (default `google/gemini-3.8-flash`), or `demo` for a scripted offline model that needs no key. |
 | `ANTHROPIC_API_KEY` | Used only when no gateway key is set: calls Anthropic directly (default model `claude-opus-5-5`). |
-| `RELAY_CHAT_EFFORT` | Thinking effort: `low`, `medium` (default), `high`, `xhigh` or `max`. |
+| `RELAY_CHAT_EFFORT` | Thinking effort for Claude models: `low`, `medium` (default), `high`, `xhigh` or `max`. |
+
+The harness is built for prompt caching. The system prompt and tool list never
+change between requests, and the server keeps each chat's exact messages, so
+every turn re-sends the previous request unchanged and appends to it. History
+is only cut once it passes about 150k tokens, and then at fixed block
+boundaries so the cut does not move on every turn.
 
 Five policies: FCFS, v10 urgency heuristic, v11 observable triage, experimental
 `RELAY + Model A` / `RELAY + EDF`. These latter two are **staging dispatch selectors**,
