@@ -82,13 +82,18 @@ function updateMathText(s){const d=s.decision||{},i=d.model_i||{},ii=d.model_ii|
  id('v10MathCaption').textContent=`Model I is bounded 2D, II is one-step Bayesian, III uses finite-column MILP${Number.isFinite(gap)?' (gap '+(gap*100).toFixed(2)+'%)':''}. No cluster mutation execution is implied.`;
 }
 function render(s,context={}){now=s;selected=context.selectedAwb||selected;
- const v=s.v8||{},seq=v.sequence||0;
- const events=(s.unified_events||[]).filter(x=>x.seq>lastSeq).sort((a,b)=>a.seq-b.seq);
- if(lastSeq<0){ // Don't replay a backlog as a surprise notification when opening the app.
-   lastSeq=seq;
- } else {for(let e of events.slice(-13))pushEvent(e);lastSeq=seq;}
- if(s.tick!==lastTick){lastTick=s.tick;id('v10Heartbeat').classList.remove('v10-beat');void id('v10Heartbeat').offsetWidth;id('v10Heartbeat').classList.add('v10-beat');}
- counts(s);updateMathText(s);if(context.globe?.setRoutes)context.globe.setRoutes(s.shipment_objects||[],selected);if(context.globe){context.globe.running=Boolean(v.running);context.globe.requestedSpeed=Number(v.speed_target)||1;}
+ const v=s.v8||{};
+ const heartbeat=id('v10Heartbeat');
+ if(heartbeat){
+  const seq=v.sequence||0;
+  const events=(s.unified_events||[]).filter(x=>x.seq>lastSeq).sort((a,b)=>a.seq-b.seq);
+  if(lastSeq<0){ // Don't replay a backlog as a surprise notification when opening the app.
+    lastSeq=seq;
+  } else {for(let e of events.slice(-13))pushEvent(e);lastSeq=seq;}
+  if(s.tick!==lastTick){lastTick=s.tick;heartbeat.classList.remove('v10-beat');void heartbeat.offsetWidth;heartbeat.classList.add('v10-beat');}
+  counts(s);
+ }
+ updateMathText(s);if(context.globe?.setRoutes)context.globe.setRoutes(s.shipment_objects||[],selected);if(context.globe){context.globe.running=Boolean(v.running);context.globe.requestedSpeed=Number(v.speed_target)||1;}
  if(!id('drawer').hidden){const title=id('drawerTitle')?.textContent||'';if(title.startsWith('Inspect MODEL')||title.startsWith('Mathematical decision trace')){
   const source=title.includes('MODEL I')?'model_i':title.includes('MODEL II')?'model_ii':'model_iii',content=id('drawerContent');
   if(content.dataset.version!==String(s.snapshot_version)+'/'+(s.decision?.id||'')){

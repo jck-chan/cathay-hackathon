@@ -32,12 +32,28 @@ async def main():
       const result=await window.backend_request(opt.method||'GET',String(url),opt.body||null);
       return {ok:result.ok,status:result.status,json:async()=>result.body};
   }}''')
-  for file in ('v6_scene.js','v9_scene.js','v12.js'):
+  for file in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','v9_scene.js','v12.js'):
    await page.add_script_tag(content=(ROOT/'static'/file).read_text())
   facts['http_status']=200 # HTML extracted from actual v12 served source; endpoint separately tested
   await page.wait_for_function("document.querySelectorAll('.world').length===3",timeout=20000)
   await page.wait_for_timeout(1600)
   facts['three_worlds']=await page.locator('.world').count()
+  facts['flight_follows_path']=await page.evaluate("""() => {
+    const {poseAt, transform, lapDuration} = RelayFlight;
+    for (let i = 0; i < 512; i++) {
+      const time = i * lapDuration / 512;
+      const pose = poseAt(time);
+      const before = poseAt(time - .001);
+      const after = poseAt(time + .001);
+      const delta = [after.x - before.x, after.y - before.y, after.z - before.z];
+      const length = Math.hypot(...delta);
+      const forward = transform(pose, 1);
+      const alignment = delta.reduce((sum, value, axis) => sum + value * forward[axis], 0) / length;
+      if (!(length < .013 && alignment > .999)) return false;
+    }
+    const start = poseAt(0), end = poseAt(lapDuration);
+    return Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z) < 1e-6;
+  }""")
   facts['webgl_count']=await page.evaluate("Array.from(document.querySelectorAll('.world canvas')).filter(c=>!!c.getContext('webgl2')).length")
   facts['root_scroll']=await page.evaluate('document.documentElement.scrollHeight > window.innerHeight+10')
   await page.screenshot(path=str(ROOT/'reports/V12_BROWSER_THREE_WORLDS.png'))
@@ -61,6 +77,7 @@ async def main():
   facts['page_errors']=errors
   print('VISUAL QA FACTS',json.dumps(facts,indent=2),flush=True)
   assert facts['three_worlds']==3 and facts['five_worlds']==5 and facts['two_worlds']==2
+  assert facts['flight_follows_path']
   assert facts['two_disabled_controls']==2
   assert facts['webgl_count']>=2 and facts['five_webgl_count']>=2
   assert not errors,errors

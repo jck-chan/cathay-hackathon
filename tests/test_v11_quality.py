@@ -244,6 +244,11 @@ def test_v11_frontend_static_assets_available_and_scope_labels_present():
         for path in ('/v10.css','/v10_scene.js','/v10_ui.js','/v9_scene.js'):
             r=client.get(path)
             assert r.status_code==200 and len(r.content)>1000
+        # Running v11 servers already serve /v10.css before the new controls ship.
+        page = client.get('/v11').text
+        assert 'href="/v10.css"' in page
+        assert 'href="/v11.css"' not in page
+        assert '.simulation-controls {' in client.get('/v10.css').text
         doc=client.get('/v11/evidence').text
         assert 'NOT airline ROI' in doc or 'not a claim of airline ROI' in doc
         assert 'Model I' in doc and 'Model II' in doc and 'Model III' in doc

@@ -7,6 +7,7 @@ const clip=(v,a,b)=>Math.min(b,Math.max(a,v));
 const PreviousWorld=window.RelayV6.GroundScene;
 class FlowWorld extends PreviousWorld {
   constructor(canvas,name){super(canvas,name);this.motionTime=0;this.lastMotionFrame=null;this.visualTempo=1;this.bursts=[];this.previousCompleted=null;this.lastObjectIds=new Set();this.flowParticles=[];this.fxSeq=0;this.shiftPhase=0;
+     if(this.airport&&this.gl)return;
      const layer=document.createElement('canvas');layer.className='v10-kinetic';layer.setAttribute('aria-hidden','true');
      canvas.parentElement.appendChild(layer);this.kineticLayer=layer;
   }
@@ -38,7 +39,7 @@ class FlowWorld extends PreviousWorld {
   }
   slotCargo(objects,simTime){
     super.slotCargo(objects,simTime);
-    if(!this.gl)return;
+    if(!this.gl||this.airport)return;
     const jobs=Array.isArray(objects)?objects:[],waiting=jobs.filter(j=>j.status==='WAIT'),active=jobs.filter(j=>j.status==='MOVING'),done=Number(this.state?.completed||0);
     const m=this.motionTime,s=Math.sin,pi=Math.PI;
     // Conveyor queue: visible only with actual outstanding work. Cargo circulates within staging;
@@ -60,28 +61,6 @@ class FlowWorld extends PreviousWorld {
       else {x=8+12*((p-.60)/.4);z=-9.9-row*.85;heading=0;}
       this.tug(x,z,heading,this.name==='relay'?[.045,.68,.54]:[.70,.51,.31],true);
       if(i<5){let u=(m*.14+i*.21)%1;this.box(-7+u*11,1.0,-11+i*.3,.78,.9,.8,j.cold?[.24,.73,.80]:[.88,.72,.49]);}
-    }
-    // Aircraft storyboard: stands are configured capacity; these taxi, land and depart
-    // on pre-defined schematic lanes. They are explicitly NOT real flight telemetry.
-    const availableStands=clip(this.sceneControls.stands||3,1,6);
-    const movingLoad=active.length;
-    const traffic=clip(Math.ceil((movingLoad+(done>0?1:0))/2),0,5);
-    for(let i=0;i<traffic;i++){
-      const f=(m*.040+i/traffic)%1;
-      let x,z,heading,alt=0;
-      if(f<.20){x=-35+29*(f/.20);z=17+i*.45;heading=0;alt=10*(1-f/.20);}
-      else if(f<.43){x=-6+28*((f-.20)/.23);z=17+i*.45;heading=0;alt=0;}
-      else if(f<.62){x=22;z=17+i*.45-29*((f-.43)/.19);heading=-pi/2;alt=0;}
-      else if(f<.78){x=22;z=-12+i*.45;heading=0;alt=0;}
-      else if(f<.90){x=22+10*((f-.78)/.12);z=-12+i*.45+29*((f-.78)/.12);heading=1.24;alt=0;}
-      else {x=32+27*((f-.90)/.10);z=17+i*.45;heading=0;alt=15*((f-.90)/.10);}
-      this.aircraft(x,z,heading,[.96,.98,.98],i%2?[.10,.53,.56]:[.06,.44,.50],alt<.7,alt);
-    }
-    // Distinct aircraft on an illustrative upper flight corridor, travelling offstage.
-    for(let i=0;i<Math.min(5,Math.max(2,availableStands));i++){
-      const f=(m*.019+i/Math.max(2,availableStands))%1;
-      const out=i%2===0;
-      this.aircraft(out?-47+94*f:47-94*f, out?-24:25, out?0:pi,[.91,.97,.98],i%2?[.18,.48,.51]:[.08,.43,.49],false,12+i*2.4);
     }
     // Work completion celebratory lights are triggered ONLY by a larger completed count.
     if(this.previousCompleted===null)this.previousCompleted=done;

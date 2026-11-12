@@ -10,12 +10,12 @@ let state=null,selectedAwb=null,currentTab='ground',pollBusy=false,actionBusy=fa
 const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs'),new RelayV6.GroundScene($('relayWorld'),'relay')],globe=new RelayV6.CustomerGlobe($('customerGlobe'));
 function toast(message,bad=false){let t=$('toast');t.textContent=message;t.classList.toggle('error',bad);t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3700)}
 async function api(path,method='GET',payload){let c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);try{let r=await fetch(path,{method,signal:c.signal,cache:'no-store',headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});let t=await r.text();let o;try{o=JSON.parse(t)}catch{o={detail:t.slice(0,250)}}if(!r.ok)throw Error(typeof o.detail==='string'?o.detail:JSON.stringify(o.detail||o).slice(0,270));return o}finally{clearTimeout(tm)}}
-function showTab(name){if(!['ground','tower','customer'].includes(name))return;currentTab=name;$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);}
+function showTab(name){if(!['ground','tower','customer'].includes(name))return;currentTab=name;const controls=$('groundControls');if(controls){closePops();controls.hidden=name!=='ground'}$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);}
 function drawer(title,html){txt('drawerTitle',title);$('drawerContent').innerHTML=html;$('drawer').hidden=false;$('backdrop').hidden=false;$('closeDrawer').focus()}
 function closeDrawer(){$('drawer').hidden=true;$('backdrop').hidden=true}
 function statusLabel(d){if(!d)return 'Preparing model';if(d.stale)return 'Recalculation required';if(d.approval_blocked_external_evidence)return 'Verify flight observation';if(d.model_ii?.cases?.some(x=>x.action==='HOLD'))return 'Hold & verify dimensions';let n=d.proposed_actions?.length||0;if(n)return 'Review '+n+' recovery option'+(n!==1?'s':'');return 'Continue current plan'}
 function render(s){state=s;const v=s.v8||{},d=s.decision||{},baseline=s.policies?.fcfs||{},relay=s.policies?.relay||{};
- txt('clock',when(s.clock));txt('simTime',when(s.clock));txt('liveState',v.running?'RUNNING':'PAUSED');$('statusPulse').classList.toggle('on',v.running);
+ txt('clock',when(s.clock));if(s.clock&&$('simulationControls'))$('clock').dateTime=s.clock;txt('simTime',when(s.clock));txt('liveState',v.running?'RUNNING':'PAUSED');$('statusPulse').classList.toggle('on',v.running);
  txt('achieved',`${num(v.actual_ticks_per_second,1)} ticks/s actual`);$('speed').value=String(v.speed_target||1);
  $('globalPlay').textContent=v.running?'❚❚ Pause all':'▶ Start all';txt('tickPill','TICK '+s.tick);txt('ordersNumber',s.work_orders_total);txt('queuesNumber',relay.waiting);txt('crewNumber',s.resources.handlers);
  $('autonomy').value=v.mode||'AUTO_SHADOW';txt('navCount',(d.proposed_actions||[]).length);txt('groundNarrative',v.worker_error?'Simulation error: '+v.worker_error:'One operational clock · Three synchronized perspectives · Scenario version '+s.snapshot_version);
@@ -66,8 +66,20 @@ async function fetchState(){if(pollBusy)return;pollBusy=true;try{const d=await a
 async function action(path,body,success){if(actionBusy)return;actionBusy=true;try{const d=await api(path,'POST',body);render(d.state||d);if(success)toast(success)}catch(e){toast(e.message,true)}finally{actionBusy=false}}
 async function ctrl(actionName,more={}){await action('/v11/api/control',{action:actionName,...more},actionName==='start'?'All three Twins are now running on one clock':actionName==='pause'?'Shared simulation paused':null)}
 function advanceConfig(){return {rate:+$('rate').value,chaos:+$('chaos').value,handlers:+$('crew').value,cold_bays:+$('cold').value,stands:+$('stands').value,weather:$('weather').value}}
-function closePops(){for(let id of ['settingsPop','incidentPop'])$(id).hidden=true}
-function showPop(id){let was=$(id).hidden;closePops();$(id).hidden=!was}
+function setPop(id, open) {
+ const panel = $(id);
+ if (!panel) return;
+ panel.hidden = !open;
+ document.querySelector(`[aria-controls="${id}"]`)?.setAttribute('aria-expanded',String(open));
+}
+function closePops() {
+ for (const id of ['settingsPop','incidentPop','viewSettingsPop']) setPop(id,false);
+}
+function showPop(id) {
+ const open = $(id).hidden;
+ closePops();
+ setPop(id,open);
+}
 function explainIntro(){return '<p><b>Scope:</b> 30 days of generated data; staging queue + finite MILP + one-step Bayesian model. No airline inventory booking, ULD safety certificate or real customer notifications.</p>'}
 function details(title,body){drawer(title,explainIntro()+body)}
 async function showEvidence(kind){if(kind==='events'){details('Live input → process → output',`<h3>Unified conductor</h3>${(state?.unified_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind)} · Tick ${e.tick}</b>${esc(e.message)}<br><small>${esc(e.at)} · sequence ${e.seq}</small></div>`).join('')}`);return}
@@ -84,12 +96,20 @@ $('stepOnce').addEventListener('click',()=>ctrl('step',{count:1}));
 $('resetBtn').addEventListener('click',()=>{if(confirm('Reset synthetic orders, decisions and ground states for all three Twins?'))ctrl('reset',{seed:2048})});
 $('settingsBtn').addEventListener('click',()=>showPop('settingsPop'));
 $('injectBtn').addEventListener('click',()=>showPop('incidentPop'));
-$$('[data-close]').forEach(x=>x.addEventListener('click',()=>$(x.dataset.close).hidden=true));
+$('viewSettingsBtn')?.addEventListener('click',()=>showPop('viewSettingsPop'));
+$$('[data-close]').forEach(button=>button.addEventListener('click',()=>{
+ setPop(button.dataset.close,false);
+ document.querySelector(`[aria-controls="${button.dataset.close}"]`)?.focus();
+}));
+$('simulationControls')?.addEventListener('click',event=>{
+ if(!event.target.closest('.control-anchor'))closePops();
+});
+if($('simulationControls'))$('ground-screen').addEventListener('pointerdown',closePops);
 for(let id of ['rate','crew','cold','stands','chaos']){$(id).addEventListener('input',()=>txt(({rate:'rateN',crew:'crewN',cold:'coldN',stands:'standsN',chaos:'chaosN'})[id],id==='chaos'?Math.round(+$('chaos').value*100)+'%':$(''+id).value))}
 $('applySettings').addEventListener('click',()=>{closePops();ctrl('tune',advanceConfig())});
 $$('[data-incident]').forEach(b=>b.addEventListener('click',()=>{closePops();action('/v11/api/incident',{kind:b.dataset.incident},'Disruption propagated to all three views')}));
-$('seeDecision').addEventListener('click',()=>showTab('tower'));
-$('whyGround').addEventListener('click',()=>showEvidence('math'));
+$('seeDecision')?.addEventListener('click',()=>showTab('tower'));
+$('whyGround')?.addEventListener('click',()=>showEvidence('math'));
 $('logsBtn').addEventListener('click',()=>showEvidence('events'));
 $('allEvents').addEventListener('click',()=>showEvidence('events'));
 $('viewMath').addEventListener('click',()=>showEvidence('math'));
@@ -107,7 +127,13 @@ $('filterShipments').addEventListener('input',()=>{if(state)renderCustomer(state
 $('newOrderBtn').addEventListener('click',newOrderForm);
 $('fullJourney').addEventListener('click',()=>showEvidence('journey'));
 $('backdrop').addEventListener('click',closeDrawer);$('closeDrawer').addEventListener('click',closeDrawer);
-document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();closePops()}});
+document.addEventListener('keydown',e=>{
+ if(e.key!=='Escape')return;
+ const open = document.querySelector('.control-popover:not([hidden])');
+ closeDrawer();
+ closePops();
+ if(open)document.querySelector(`[aria-controls="${open.id}"]`)?.focus();
+});
 $('drawerContent').addEventListener('click',async e=>{if(e.target.id==='fullEvidence')showEvidence('source')});
 $('drawerContent').addEventListener('submit',async e=>{if(e.target.id!=='orderForm')return;e.preventDefault();const raw=Object.fromEntries(new FormData(e.target).entries());for(let k of ['weight_kg','length_cm','width_cm','height_cm'])raw[k]=+raw[k];try{let out=await api('/v11/api/order','POST',raw);selectedAwb=out.awb;render(out.state);closeDrawer();toast('New synthetic order '+out.awb+' linked to all three Twins')}catch(x){toast(x.message,true)}});
 function animate(t){const dt=Math.min(Math.max(t-drawStart,0),250);drawStart=t;recordV9Fps(dt);if(state?.v8.running)lightHour=(lightHour+dt/1000*Math.max(0,state.v8.actual_ticks_per_second||0)/6)%24;
@@ -115,12 +141,12 @@ function animate(t){const dt=Math.min(Math.max(t-drawStart,0),250);drawStart=t;r
 
 // V9 presentation-only integration: observable ticks are server-authoritative.
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-let v9LastEvent=0,v9LastTick=-1,v9VisualSettings={ambientVehicles:4,warehouseLevels:7},v9FrameStart=performance.now(),v9FrameCount=0,v9Fps=0,v9Orbit=true;
+let v9LastEvent=0,v9LastTick=-1,v9VisualSettings={ambientVehicles:4,warehouseLevels:7},v9FrameStart=performance.now(),v9FrameCount=0,v9Fps=0,v9Orbit=false;
 function recordV9Fps(dt){v9FrameCount++;if(performance.now()-v9FrameStart>=1000){v9Fps=Math.round(v9FrameCount*1000/(performance.now()-v9FrameStart));v9FrameCount=0;v9FrameStart=performance.now();txt('renderFps',v9Fps)}}
 function v9LogCard(e){let label=({'DISRUPTION':'Disruption','MODEL':'Decision recalculated','AUTO_SHADOW':'Auto review','ORDER':'New order','TASK':'Handoff','CLOCK':'Clock advance','TUNE':'Resources updated','ERROR':'Simulation error'})[e.kind]||e.kind;return `<div class="v9-toast-item ${e.kind==='ERROR'||e.kind==='DISRUPTION'?'warn':''}"><span class="v9-event-dot"></span><div><strong>${esc(label)}</strong><small>${esc(e.message).slice(0,100)}</small></div><span class="v9-event-tick">T${e.tick}</span></div>`}
-function v9Render(s){let badge=document.querySelector('.brand small');if(badge)badge.textContent=worlds[0].gl?'DIGITAL TWIN / V10 · WebGL2':'DIGITAL TWIN / V10 · Canvas fallback';let v=s.v8||{},cfg=v.config||{},p=s.policies||{},tps=Math.max(0,Number(v.actual_ticks_per_second||0)),req=Math.max(1,Number(v.target_ticks_per_second||.5));
+function v9Render(s){let badge=document.querySelector('.brand small');if(badge&&!$('simulationControls'))badge.textContent=worlds[0].gl?'DIGITAL TWIN / V10 · WebGL2':'DIGITAL TWIN / V10 · Canvas fallback';let v=s.v8||{},cfg=v.config||{},p=s.policies||{},tps=Math.max(0,Number(v.actual_ticks_per_second||0)),req=Math.max(1,Number(v.target_ticks_per_second||.5));
  const actual=tps/.5;txt('speedActual',num(actual,1)+'×');txt('speedRequested',String(v.speed_target||1)+'×');txt('speedScope',`Tick ${s.tick} · ${num(tps,2)} completed ticks/s · ${v.running?'running':'paused'}`);
- let bar=$('speedBar');if(bar)bar.style.width=clamp(100*tps/req,0,100)+'%';$('simHeartbeat').classList.toggle('on',Boolean(v.running));
+ let bar=$('speedBar');if(bar)bar.style.width=clamp(100*tps/req,0,100)+'%';$('simHeartbeat')?.classList.toggle('on',Boolean(v.running));
  txt('flowArrivals',s.work_orders_total||0);txt('flowActive',(p.fcfs?.active||0)+(p.relay?.active||0));txt('flowFinished',p.relay?.completed||0);
  const selectedWeather=v.weather_mode==='AUTO'?'AUTO':(cfg.weather||'CLEAR');if($('weather').value!==selectedWeather&&document.activeElement!==$('weather'))$('weather').value=selectedWeather;
  for(let [id,key] of [['rate','rate'],['crew','handlers'],['cold','cold_bays'],['stands','stands'],['chaos','chaos']]){let el=$(id);if(!el||document.activeElement===el)continue;let n=cfg[key];if(n!=null&&String(el.value)!==String(n))el.value=n}

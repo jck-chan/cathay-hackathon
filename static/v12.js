@@ -5,17 +5,21 @@ const $=x=>document.getElementById(x), safe=x=>String(x??'—').replace(/[&<>"']
 const names={FCFS:'FCFS',RELAY_V10:'RELAY v10',RELAY_V11:'RELAY v11',A_CRITICAL:'RELAY + Model A',A_EDF:'RELAY + EDF'};
 const colors={FCFS:'#b98b40',RELAY_V10:'#517c9d',RELAY_V11:'#128d78',A_CRITICAL:'#a06dc3',A_EDF:'#d97061'};
 const keys=Object.keys(names);let visible=['FCFS','RELAY_V11','A_CRITICAL'],last=null,worlds={},viewMode='3D',pending=false,latestSeq=-1,lastTick=-1,history={},toastTimer;
-let frameId=0,lastPoll=0;let prevFrame=0;
+let flightTime=0,lastFrame=null,lastPaint=-Infinity,needsPaint=true;
 function notify(txt){let el=$('toast');el.textContent=txt;el.classList.add('active');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('active'),2500)}
 async function api(path,opt={}){const r=await fetch(path,{cache:'no-store',...opt});const data=await r.json();if(!r.ok)throw Error(data.detail||`HTTP ${r.status}`);return data}
-let commandQueue=Promise.resolve();function act(action,options={}){const next=commandQueue.then(async()=>{const data=await api('/v12/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...options})});update(data);return data});commandQueue=next.catch(()=>{});return next.catch(e=>{notify('Action failed: '+e.message);throw e})}
+let commandQueue=Promise.resolve();function act(action,options={}){const next=commandQueue.then(async()=>{const data=await api('/v12/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...options})});if(action==='reset')flightTime=0;update(data);return data});commandQueue=next.catch(()=>{});return next.catch(e=>{notify('Action failed: '+e.message);throw e})}
 const csv=(v,n=0)=>Number(v||0).toLocaleString('en',{minimumFractionDigits:n,maximumFractionDigits:n});
 function buildSelectors(){let host=$('policyChoices');host.replaceChildren();for(const key of keys){let lab=document.createElement('label');lab.className='choice'+(visible.includes(key)?' active':'');lab.style.setProperty('--accent',colors[key]);lab.innerHTML=`<input type="checkbox" value="${key}" ${visible.includes(key)?'checked':''}><i></i>${safe(names[key])}`;let input=lab.querySelector('input');input.disabled=visible.length===2&&visible.includes(key);input.addEventListener('change',()=>{if(input.checked)visible.push(key);else visible=visible.filter(k=>k!==key);visible=keys.filter(k=>visible.includes(k));buildSelectors();layout();if(last)update(last);});host.appendChild(lab)}$('visibleCount').textContent=`${visible.length}/5`}
-function layout(){let host=$('grid');host.className=`world-grid count-${visible.length}`;for(const [key,world] of Object.entries(worlds))if(!visible.includes(key)){world.host.remove();delete worlds[key]}
- for(const key of visible){if(!worlds[key]){let div=document.createElement('article');div.className='world';div.style.setProperty('--accent',colors[key]);div.dataset.policy=key;div.innerHTML=`<canvas aria-label="${safe(names[key])} animated 3D ground scene"></canvas><div class="world-top"><div class="world-title"><b>${safe(names[key])}</b><span>Identical work-order stream</span></div><div class="world-rank">RANK —</div></div><button class="inspect">Inspect ↗</button><div class="world-bottom"><div class="metric"><span>Live cost*</span><b class="cost">0</b></div><div class="metric"><span>On-time cohort</span><b class="ontime">—</b></div><div class="metric"><span>Active · Queue</span><b class="queue">0 · 0</b></div></div>`;host.append(div);const canvas=div.querySelector('canvas');let scene=null;try{scene=new window.RelayV6.GroundScene(canvas,key==='FCFS'?'fcfs':'relay');scene.setMode(viewMode);}catch(e){console.error('3D context error',e);div.insertAdjacentHTML('beforeend','<div class="world-center">3D unavailable in this browser</div>')};worlds[key]={host:div,canvas,scene};div.querySelector('.inspect').addEventListener('click',()=>detailPolicy(key));}
+function layout(){let host=$('grid');host.className=`world-grid count-${visible.length}`;for(const [key,world] of Object.entries(worlds))if(!visible.includes(key)){world.scene?.dispose();world.host.remove();delete worlds[key]}
+ for(const key of visible){if(!worlds[key]){let div=document.createElement('article');div.className='world';div.style.setProperty('--accent',colors[key]);div.dataset.policy=key;div.innerHTML=`<canvas aria-label="${safe(names[key])} animated 3D ground scene"></canvas><div class="world-top"><div class="world-title"><b>${safe(names[key])}</b><span>Identical work-order stream</span></div><div class="world-rank">RANK —</div></div><button class="inspect">Inspect ↗</button><div class="world-bottom"><div class="metric"><span>Live cost*</span><b class="cost">0</b></div><div class="metric"><span>On-time cohort</span><b class="ontime">—</b></div><div class="metric"><span>Active · Queue</span><b class="queue">0 · 0</b></div></div>`;host.append(div);const canvas=div.querySelector('canvas');let scene=null;try{scene=new window.RelayV6.GroundScene(canvas,key==='FCFS'?'fcfs':'relay');scene.setMode(viewMode);scene.autoOrbit=false;}catch(e){console.error('3D context error',e);div.insertAdjacentHTML('beforeend','<div class="world-center">3D unavailable in this browser</div>')};worlds[key]={host:div,canvas,scene};div.querySelector('.inspect').addEventListener('click',()=>detailPolicy(key));}
   host.append(worlds[key].host)}
+ needsPaint=true;
  $('viewSwitch').textContent=viewMode==='3D'?'2D ↑':'3D ◈';}
-function update(s){last=s;let active=!!s.running;$('pulse').className='pulse'+(active?' on':'');$('runText').textContent=active?'ALL RUNNING':'ALL PAUSED';$('tick').textContent=String(s.tick).padStart(5,'0');$('speedMeasured').textContent=`Verified ${csv(s.actual_ticks_per_second,2)} ticks/s`;
+function update(s){
+ if (last && s.tick < last.tick) flightTime=0;
+ needsPaint=true;
+ last=s;let active=!!s.running;$('pulse').className='pulse'+(active?' on':'');$('runText').textContent=active?'ALL RUNNING':'ALL PAUSED';$('tick').textContent=String(s.tick).padStart(5,'0');$('speedMeasured').textContent=`Verified ${csv(s.actual_ticks_per_second,2)} ticks/s`;
  $('speedStatus').textContent=`${s.speed_requested||1}× / ${csv(2*(s.actual_ticks_per_second||0),1)}×`;
  $('speed').value=s.speed_requested;$('wx').textContent=s.weather;$('orderCount').textContent=csv(s.common_orders_generated);
  $('scenario').value=s.scenario;
@@ -30,7 +34,27 @@ function update(s){last=s;let active=!!s.running;$('pulse').className='pulse'+(a
  if(s.error)notify('Simulation error: '+s.error);
 }
 async function poll(){try{let s=await api('/v12/api/state');update(s)}catch(e){$('runText').textContent='BACKEND OFFLINE';console.warn(e)}}
-function animation(t){frameId=requestAnimationFrame(animation);if(window.RELAY_QA_NO_RENDER)return;const fps=last?.running?(visible.length>=5?9:visible.length>=4?12:visible.length>=3?14:20):2;if(t-prevFrame<1000/fps)return;prevFrame=t;for(let key of visible){let scene=worlds[key]?.scene;if(!scene)continue;try{scene.render(t)}catch(e){console.error('Scene rendering failed',key,e);worlds[key].scene=null}}}
+function animation(t) {
+ requestAnimationFrame(animation);
+ const dt = Math.min(.15, (t - (lastFrame ?? t)) / 1000);
+ lastFrame = t;
+ if (window.RELAY_QA_NO_RENDER) return;
+ if (last?.running) flightTime += dt;
+ if (t - lastPaint < 32) return;
+ const cameraChanged = visible.some(key => worlds[key]?.scene?.interaction.lastInput > lastPaint);
+ if (!last?.running && !needsPaint && !cameraChanged) return;
+ lastPaint = t;
+ needsPaint = false;
+ for (const key of visible) {
+  const world = worlds[key];
+  try { world.scene?.render(t, flightTime); }
+  catch (error) {
+   console.error('Scene rendering failed', key, error);
+   world.scene = null;
+   world.host.insertAdjacentHTML('beforeend','<div class="world-center">Scene unavailable in this browser</div>');
+  }
+ }
+}
 function reveal(title,html){$('drawerTitle').textContent=title;$('drawerBody').innerHTML=html;$('dim').hidden=false;$('drawer').hidden=false}
 function hide(){$('drawer').hidden=true;$('dim').hidden=true}
 function metric(label,value){return `<div class="row"><span>${safe(label)}</span><b>${safe(value)}</b></div>`}
@@ -55,5 +79,6 @@ $('scenario').onchange=async e=>{let was=last?.running;try{await act('pause');aw
 $('settingsBtn').onclick=settingsDrawer;$('incidentBtn').onclick=incidentDrawer;$('eventsBtn').onclick=eventDrawer;$('benchmarkBtn').onclick=benchmarkDrawer;
 $('viewSwitch').onclick=()=>{viewMode=viewMode==='3D'?'2D':'3D';for(let w of Object.values(worlds))w.scene?.setMode(viewMode);$('viewSwitch').textContent=viewMode==='3D'?'2D ↑':'3D ◈'};
 $('closeDrawer').onclick=hide;$('dim').onclick=hide;document.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
-buildSelectors();layout();poll();setInterval(()=>poll(),750);frameId=requestAnimationFrame(animation);
+window.addEventListener('resize',()=>{needsPaint=true});
+buildSelectors();layout();poll();setInterval(()=>poll(),750);requestAnimationFrame(animation);
 })();

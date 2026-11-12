@@ -17,14 +17,14 @@ with sync_playwright() as p:
   HTMLCanvasElement.prototype.getContext=function(type,...args){
    if(type!=='webgl2')return native.call(this,type,...args);
    const gl={VERTEX_SHADER:35633,FRAGMENT_SHADER:35632,COMPILE_STATUS:35713,LINK_STATUS:35714,ARRAY_BUFFER:34962,STATIC_DRAW:35044,DEPTH_TEST:2929,CULL_FACE:2884,TRIANGLES:4,FLOAT:5126,COLOR_BUFFER_BIT:16384,DEPTH_BUFFER_BIT:256};
-   for(const n of ['createShader','createProgram','createBuffer'])gl[n]=()=>({});
-   for(const n of ['shaderSource','compileShader','attachShader','linkProgram','useProgram','bindBuffer','bufferData','enable','disable','cullFace','viewport','clearColor','clear','uniformMatrix4fv','uniform3f','uniform1f','enableVertexAttribArray','vertexAttribPointer'])gl[n]=()=>{};
-   gl.getShaderParameter=()=>true;gl.getProgramParameter=()=>true;gl.getUniformLocation=()=>({});gl.drawArrays=()=>window.__v9Draws++;
+   for(const n of ['createShader','createProgram','createBuffer','createVertexArray'])gl[n]=()=>({});
+   for(const n of ['shaderSource','deleteShader','compileShader','attachShader','linkProgram','useProgram','bindVertexArray','bindBuffer','bufferData','enable','disable','cullFace','viewport','clearColor','clear','uniformMatrix4fv','uniform3f','uniform1f','enableVertexAttribArray','vertexAttribPointer'])gl[n]=()=>{};
+   gl.isContextLost=()=>false;gl.getShaderParameter=()=>true;gl.getProgramParameter=()=>true;gl.getUniformLocation=()=>({});gl.drawArrays=()=>window.__v9Draws++;
    return gl;
   };
  }""")
  page.evaluate("v=>{window.fixture=v;window.fetch=async()=>({ok:true,status:200,text:async()=>JSON.stringify(window.fixture)})}",data)
- for f in ['v6_scene.js','v9_scene.js','v9.js']:page.add_script_tag(content=(root/'static'/f).read_text())
+ for f in ['v6_scene.js','aircraft/model.js','aircraft/flight.js','v9_scene.js','v9.js']:page.add_script_tag(content=(root/'static'/f).read_text())
  page.wait_for_timeout(550)
  print('draw calls',page.evaluate('window.__v9Draws'),'errors',errors)
  assert page.evaluate('window.__v9Draws')>250

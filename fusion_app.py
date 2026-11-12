@@ -8,6 +8,7 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from v11.api import conductor, router as v11_router
@@ -27,6 +28,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title='RELAY Fusion', version='12.0', lifespan=lifespan)
 app.include_router(v11_router)
 V12 = FiveWorldArena(conductor.lab, seed=9099)
+
+app.mount('/aircraft', StaticFiles(directory=ROOT / 'static' / 'aircraft'), name='aircraft')
 
 # Frontend assets shared by the three-twin views.
 @app.get('/v8', include_in_schema=False)
