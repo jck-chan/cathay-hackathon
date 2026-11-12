@@ -9,7 +9,7 @@ if __name__ == '__main__':
     print(f'  Old 3 twins: http://127.0.0.1:{port}/v11')
     print(f'  Evidence:   http://127.0.0.1:{port}/v11/evidence')
     print(f'  API docs:  http://127.0.0.1:{port}/docs')
-    print(f'  MCP:       http://127.0.0.1:{port}/v11/mcp (Streamable HTTP)')
+    print(f'  MCP:       http://127.0.0.1:{port}/mcp (Streamable HTTP)')
     print('  SYNTHETIC SHADOW MODE / ONE SERVER-OWNED CLOCK + THREE TWIN VIEWS · NATIVE WebGL2 GROUND + LIVE MATH VISUALS + MULTI-ROUTE GLOBE + BOUNDED V5 MATH · OAG-compatible mock, NO real airline commands\n')
     if os.environ.get('RELAY_NO_BROWSER') != '1':
         threading.Timer(3,lambda:webbrowser.open(f'http://127.0.0.1:{port}/')).start()

@@ -1,2 +1,2 @@
 [mcp_servers.control-simulator]
-url = "http://127.0.0.1:8766/v11/mcp"
+url = "http://127.0.0.1:8766/mcp"

@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from v11.api import conductor, router as v11_router
-from v11.mcp_server import MCP_PATH, MCPTransport, create_mcp_server
+from v11.mcp_server import LEGACY_MCP_PATH, MCP_PATH, MCPTransport, create_mcp_server
 from v12.arena import FiveWorldArena
 from v12.policies import LABELS as V12_LABELS
 
@@ -194,4 +194,5 @@ def v12_benchmark_data():
     return json.loads(p.read_text(encoding='utf-8'))
 
 
-app.add_route(MCP_PATH, MCPTransport(), methods=['GET', 'POST', 'DELETE'], include_in_schema=False)
+for mcp_path in (MCP_PATH, LEGACY_MCP_PATH):
+    app.add_route(mcp_path, MCPTransport(), methods=['GET', 'POST', 'DELETE'], include_in_schema=False)

@@ -35,17 +35,18 @@ Put new agent code under `v11/agents/` and use the HTTP routes defined in
 From the project folder, run `sh run_unix.sh` on macOS or Linux, or run
 `run_windows.bat` on Windows. These scripts install the required packages and
 start the same server that serves the dashboard. Leave the server running and
-add `http://127.0.0.1:8766/v11/mcp` to a local harness using **Streamable HTTP**.
+add `http://127.0.0.1:8766/mcp` to a local harness using **Streamable HTTP**.
 The local server requires no token. If you set `RELAY_PORT`, use that port in
-the URL.
+the URL. The older `/v11/mcp` URL still works.
 
-| Area | MCP tools |
-|---|---|
-| Shared state | `get_state` |
-| Control centre | `set_review_mode`, `recalculate_decision`, `review_decision`, `mark_task_done` |
-| Ground | `configure_environment`, `inject_incident` |
-| Customer | `place_order`, `track_shipment` |
-| Playback | `start_simulation`, `pause_simulation`, `step_simulation`, `set_playback_speed` |
+Each tool name starts with the view it belongs to. The server sends the same
+guide to the harness in the `instructions` field of its MCP `initialize` reply.
+
+| View | Prefix | MCP tools |
+|---|---|---|
+| Ground environment | `ground_` | `ground_start_simulation`, `ground_pause_simulation`, `ground_step_simulation`, `ground_set_playback_speed`, `ground_configure_environment`, `ground_inject_incident` |
+| Control centre | `control_` | `control_get_state`, `control_set_review_mode`, `control_recalculate_decision`, `control_review_decision`, `control_mark_task_done` |
+| Customer | `customer_` | `customer_place_order`, `customer_track_shipment` |
 
 Reset stays in the dashboard and REST API. The Evidence Lab, benchmark runs,
 the five-world arena, and the standalone research API are outside the MCP tool
