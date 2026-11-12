@@ -346,8 +346,9 @@ class GLWorld {
   // Crew shelter and tug depot.
   bx(crew.x + 2.1, 1.05, crew.z + 2.5, 6.4, 2.1, 1.6, [.84, .86, .8]);
   bx(crew.x + 2.1, 2.16, crew.z + 2.1, 6.8, .12, 2.6, [.92, .62, .2]);
-  this.paint(depot.x, depot.z, 5.2, 2.2, tone([.5, .56, .58]));
-  for (const side of [-1, 1]) this.paint(depot.x, depot.z + side * 1.1, 5.2, .06, yellow, 0, LAYER);
+  this.paint(depot.x, depot.z, depot.width, depot.depth, tone([.5, .56, .58]));
+  for (const side of [-1, 1]) this.paint(depot.x, depot.z + side * depot.depth / 2, depot.width, .06, yellow, 0, LAYER);
+  this.paint(depot.x - depot.width / 2, depot.z, .06, depot.depth, yellow, 0, LAYER);
 
   // Apron, service road, taxiway and runway.
   bx(apron.x, .005, 0, apron.width, .1, apron.depth, tone([.45, .52, .55]));
@@ -592,7 +593,7 @@ class GLWorld {
   c.translate(originX, originY);
   c.scale(scale, scale);
   const rect = (x, z, width, depth, fill) => { c.fillStyle = fill; c.fillRect(x - width / 2, z - depth / 2, width, depth); };
-  const {ground, runway, taxiway, apron, road, terminal, coldStore, hold, truckRoad} = layout;
+  const {ground, runway, taxiway, apron, road, terminal, coldStore, hold, depot, truckRoad} = layout;
   const ops = this.ops;
   rect(ground.x, 0, ground.width, ground.depth, '#a9c4b3');
   rect(truckRoad.x, 0, truckRoad.width, ground.depth, '#5c6f77');
@@ -605,6 +606,9 @@ class GLWorld {
   rect(terminal.x, terminal.z, terminal.width, terminal.depth, '#dbe7e8');
   rect(coldStore.x, coldStore.z, coldStore.width, coldStore.depth, '#9fd3e2');
   rect(hold.x + 4.2, hold.z, 10, 1.5, '#dcb9b4');
+  rect(depot.x, depot.z, depot.width, depot.depth, '#808f94');
+  for (const side of [-1, 1]) rect(depot.x, depot.z + side * depot.depth / 2, depot.width, .06, '#edc240');
+  rect(depot.x - depot.width / 2, depot.z, .06, depot.depth, '#edc240');
   for (const stand of ops.stands) {
    const closed = stand.configured && !stand.open;
    rect(stand.x + .4, stand.z, 7.4, 5.6, closed ? '#d9a6a0' : stand.configured ? '#a9b8bc' : '#9aa9ad');

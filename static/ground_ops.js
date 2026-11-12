@@ -27,7 +27,7 @@ const layout = {
   terminal: {x: -23.2, z: -.4, width: 13, depth: 15},
   coldStore: {x: -4.6, z: -12.9, width: 19.2, depth: 4.6},
   crew: {x: 1.2, z: 9.6},
-  depot: {x: -3.4, z: 9.9},
+  depot: {x: -2.1, z: 10.65, width: 4, depth: 2.2},
   // Landside road: trucks travel in the west lane and pull into the kerbside lane to unload.
   truckRoad: {x: -31.9, width: 5.2},
   truckLane: -33.2,
@@ -314,8 +314,9 @@ class GroundOps {
       stand.sides[job.side] = null;
       doneTick = Math.min(tick, job.seenTick + Math.round((1 - job.progress) * job.duration));
       const stop = tugStop(stand, job.side);
-      this.returns.push({path: makePath([[stop.x - 1.4, stop.z], [layout.road.x, stop.z],
-        [layout.road.x, 8.2], [layout.depot.x + 2, layout.depot.z]], 1.1), s: 0});
+      const {depot, road} = layout;
+      this.returns.push({path: makePath([[stop.x - 1.4, stop.z], [road.x, stop.z],
+        [road.x, depot.z], [depot.x, depot.z]], 1.1), s: 0});
       if (this.returns.length > 14) this.returns.shift();
     } else {
       // Dispatched and completed between two snapshots: credit the least-loaded open stand.
