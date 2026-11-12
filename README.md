@@ -51,6 +51,39 @@ Reset stays in the dashboard and REST API. The Evidence Lab, benchmark runs,
 the five-world arena, and the standalone research API are outside the MCP tool
 list. Orders, reviews, and ground work through MCP are synthetic.
 
+#### Agent workflow (MCP)
+
+The MCP `initialize.instructions` field contains the operational playbook,
+and all 13 tools have independent, context-rich descriptions. An agent can
+follow this example without referring to application source code:
+
+1. **Inspect and pause:** `control_get_state`, `ground_pause_simulation`,
+   `control_set_review_mode(mode="MANUAL_REVIEW")`.
+2. **Create and track:** `customer_place_order` returns a synthetic AWB;
+   pass it to `customer_track_shipment`. The request is not a booking.
+3. **Stress the scenario:** change resources/weather with
+   `ground_configure_environment`, or inject an event through
+   `ground_inject_incident` (the server selects the affected entity).
+4. **Recompute and review:** `control_recalculate_decision`, then read
+   `control_get_state.decision` for its ID, **decision.snapshot_version**,
+   warnings, status, model outputs and scope. Only then call
+   `control_review_decision` with a matching ID/version. Do not use the
+   top-level snapshot version in place of the decision's own version.
+5. **Follow dependent work:** inspect `tasks[].depends_on_task_id`, and
+   use `control_mark_task_done` only for appropriate synthetic tasks.
+6. **Advance and verify:** `ground_step_simulation(count=3)` while paused
+   (10 simulated minutes per tick), then read state and track the AWB again.
+   New ticks may replace the current decision, even after prior approval.
+
+**Interpretation:** Model I is bounded 2D placement, not aircraft-certified
+3D loading; Model II is a one-step uncertainty gate, not full sequential
+Bayesian control; Model III is finite-candidate routing MILP, not a carrier
+booking or an unbounded optimum. Ground staging completion is not a flight
+milestone; approval and tentative arrival do not change confirmed customer
+ETA. `AUTO_SHADOW` auto-reviews eligible sandbox proposals;
+`MANUAL_REVIEW` requires explicit approval; `ADVISORY` disables
+automatic review. All views and MCP clients share mutable state.
+
 ### AI chat tab
 
 `/v11#chat` is a chat with an agent that operates the three twins. The harness

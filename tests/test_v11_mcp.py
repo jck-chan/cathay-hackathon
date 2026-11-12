@@ -31,7 +31,22 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                         assert initialized.serverInfo.name == 'RELAY Three Twins'
                         for prefix in ('ground_*', 'control_*', 'customer_*'):
                             assert prefix in initialized.instructions
-                        tools = {tool.name for tool in (await session.list_tools()).tools}
+                        advertised = (await session.list_tools()).tools
+                        tools = {tool.name for tool in advertised}
+                        descriptions = {tool.name: tool.description or '' for tool in advertised}
+                        # Agents should learn the end-to-end workflow from MCP
+                        # initialization and individual tool metadata alone.
+                        for phrase in ('customer_place_order', 'ground_inject_incident',
+                                       'control_review_decision', 'ground_step_simulation',
+                                       'AUTO_SHADOW', 'MANUAL_REVIEW', 'ADVISORY',
+                                       'Model I', 'Model II', 'Model III', 'v12'):
+                            assert phrase in initialized.instructions
+                        for name, description in descriptions.items():
+                            assert len(description) >= 100, name
+                            assert 'synthetic' in description.lower() or 'simulated' in description.lower(), name
+                        assert 'expected_snapshot_version' in descriptions['control_review_decision']
+                        assert 'depends_on_task_id' in descriptions['control_mark_task_done']
+                        assert 'PAUSED' in descriptions['ground_step_simulation']
                         assert all(name.startswith(('ground_', 'control_', 'customer_')) for name in tools)
                         assert tools == {
                             'control_get_state', 'customer_track_shipment', 'customer_place_order', 'ground_inject_incident',
