@@ -98,7 +98,7 @@ class NetworkGlobe extends window.RelayV6.CustomerGlobe{
  setRoute(a,b){this.route=[ports[a]?a:'HKG',ports[b]?b:'NRT'];if(this.selected!==b){this.selected=b;this.focusAirport(b)}}
  setRoutes(shipments,selected){
    const list=(shipments||[]).filter(j=>ports[j.destination]&&j.destination!=='HKG');
-   this.routes=list.slice(0,50).map((j,i)=>({awb:j.awb,destination:j.destination,priority:Number(j.priority)>=3?'CRITICAL':Number(j.priority)>=2?'PRIORITY':'STANDARD',cold:j.handling==='COL',
+   this.routes=list.slice(0,50).map((j,i)=>({awb:j.awb,origin:ports[j.origin]?j.origin:'HKG',destination:j.destination,priority:Number(j.priority)>=3?'CRITICAL':Number(j.priority)>=2?'PRIORITY':'STANDARD',cold:j.handling==='COL',
      blocked:Boolean(j.blocked_reason||j.dimension_conflict||j.customs_hold),phase:j.stage_relay||'WAIT',
      selected:j.awb===selected,index:i,assignedFlight:j.assigned_flight_id||null}));
    this.selectedAwb=selected;
@@ -114,7 +114,7 @@ class NetworkGlobe extends window.RelayV6.CustomerGlobe{
   // Draw EVERY currently admitted route (up to explicit visual cap), with altitude and
   // correct hemisphere occlusion. These are synthetic route previews, NOT live flight paths.
   const drawRoute=(q)=>{
-    let origin=ports.HKG,dest=ports[q.destination];if(!dest)return;
+    let origin=ports[q.origin||'HKG'],dest=ports[q.destination];if(!dest)return;
     const lift=modern?.14:.13+((q.index%5)*.032),N=84,col=modern?(q.selected?'#d49749':'#69988f'):this.routeColor(q),pts=[];
     for(let k=0;k<=N;k++){
       const f=k/N,v=arcVec(origin,dest,f,lift),point=this.project(v),cam=this.xyz(v);
@@ -133,10 +133,16 @@ class NetworkGlobe extends window.RelayV6.CustomerGlobe{
     if(p?.visible&&!modern){c.save();c.shadowColor=col;c.shadowBlur=q.selected?17:11;c.fillStyle=col;c.globalAlpha=q.selected?1:.78;c.beginPath();c.arc(p.x,p.y,q.selected?5.1:2.7,0,Math.PI*2);c.fill();c.restore();}
     if(q.selected)selectedRoute={route:q,points:pts};
   };
-  drawn.filter(x=>!x.selected).forEach(drawRoute);
-  const s=drawn.find(x=>x.selected);if(s)drawRoute(s);
+  const s=drawn.find(x=>x.selected)||{origin:this.route[0],destination:this.route[1],selected:true,index:0};
+  const seen=new Set([`${s.origin||'HKG'}:${s.destination}`]);
+  drawn.filter(x=>!x.selected).forEach(q=>{
+   const key=`${q.origin||'HKG'}:${q.destination}`;
+   if(modern&&seen.has(key))return;
+   seen.add(key);drawRoute(q);
+  });
+  drawRoute(s);
   // Labels are only drawn on the visible hemisphere, avoiding stickers on rear geography.
-  const uniq=[...new Set(modern?(s?['HKG',s.destination]:[]):drawn.map(q=>q.destination))];
+  const uniq=[...new Set(modern?(s?[s.origin||'HKG',s.destination]:[]):drawn.map(q=>q.destination))];
   c.save();c.font='700 10px Segoe UI,Arial,sans-serif';
   for(let code of uniq){let p=this.geo(ports[code]);if(!p.visible||p.depth<.07)continue;
     const highlight=modern||s?.destination===code;

@@ -44,7 +44,7 @@ def v8_css():return FileResponse(ROOT/'static'/'v8.css',media_type='text/css')
 def v8_js():return FileResponse(ROOT/'static'/'v8.js',media_type='text/javascript')
 
 @app.get('/v8_scene.js',include_in_schema=False)
-def v8_scene():return FileResponse(ROOT/'static'/'v6_scene.js',media_type='text/javascript')
+def v8_scene():return FileResponse(ROOT/'static'/'v6_scene.js',media_type='text/javascript',headers={'Cache-Control':'no-cache'})
 
 # Presentation assets shared by the three-twin UI.
 @app.get('/v9',include_in_schema=False)

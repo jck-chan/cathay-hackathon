@@ -41,6 +41,16 @@ with sync_playwright() as pw:
             return actual===globe.canvas.toDataURL();
         }''', style), f'Globe leaves trails: {style or "legacy"}'
     page.evaluate("globe.canvas.dataset.style='customer'")
+    # Airport tags must be emitted once on the front and never on the back.
+    assert page.evaluate("""() => {
+        const label=globe.label, labels=[];
+        globe.label=(x,y,t)=>labels.push(t);
+        globe.targetLon=null;globe.lon=114;globe.lat=22;globe.render(1000);
+        const front=labels.filter(x=>x==='HKG').length===1;
+        labels.length=0;globe.lon=-66;globe.lat=-22;globe.render(1000);
+        globe.label=label;
+        return front&&!labels.includes('HKG');
+    }""")
     canvas = page.locator('#customerGlobe')
     box = canvas.bounding_box()
     before = page.evaluate('globe.lon')
@@ -64,5 +74,8 @@ with sync_playwright() as pw:
         assert page.evaluate('''() => {const s=document.querySelector('#customer-screen');
             return s.scrollWidth<=s.clientWidth;}''')
     assert not errors, errors
+    page.set_viewport_size({'width':1440,'height':1000})
+    page.evaluate("globe.targetLon=null;globe.lon=125;globe.lat=25;globe.render(1000)")
+    canvas.screenshot(path='/tmp/relay-globe-after.png')
     browser.close()
     print('PASS: 50 routes, clean frames after rotation (both styles), drag, keyboard, reset, tablet/mobile; no JS errors.')
