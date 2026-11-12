@@ -26,7 +26,7 @@ function render(s){state=s;window.dispatchEvent(new CustomEvent('relay:state',{d
  txt('baselineFooter',`${baseline.active||0} moving · ${baseline.completed||0} completed · ${baseline.blocked||0} blocked`);
  txt('relayFooter',`${relay.active||0} moving · ${relay.completed||0} completed · ${relay.blocked||0} blocked`);
  worlds[0].state=baseline;worlds[1].state=relay;worlds.forEach(x=>x.incident=Boolean(evt && s.tick>=0));
- renderTower(s,baseline,relay,delta);renderCustomer(s);v9Render(s);window.RELAY_V10?.render(s,{selectedAwb,currentTab,globe,worlds});if(v.worker_error)toast('Simulation stopped: '+v.worker_error,true);
+ (window.RELAY_TOWER?.render||renderTower)(s,baseline,relay,delta,statusLabel);renderCustomer(s);v9Render(s);window.RELAY_V10?.render(s,{selectedAwb,currentTab,globe,worlds});if(v.worker_error)toast('Simulation stopped: '+v.worker_error,true);
 }
 function renderTower(s,a,b,delta){const d=s.decision||{},v=s.v8||{};
  let cards=(s.unified_events||[]).filter(x=>!['CLOCK','READY','PAUSE','PLAY','SPEED','MODE'].includes(x.kind)).slice(-3).reverse();

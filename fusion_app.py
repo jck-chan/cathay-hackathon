@@ -79,6 +79,14 @@ def v11_chat_css():
 def v11_chat_js():
     return FileResponse(ROOT/'static'/'v11_chat.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
 
+@app.get('/v11_tower.css',include_in_schema=False)
+def v11_tower_css():
+    return FileResponse(ROOT/'static'/'v11_tower.css',media_type='text/css',headers={'Cache-Control':'no-store'})
+
+@app.get('/v11_tower.js',include_in_schema=False)
+def v11_tower_js():
+    return FileResponse(ROOT/'static'/'v11_tower.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
+
 @app.get('/v10_ui.js',include_in_schema=False)
 def v10_ui():
     return FileResponse(ROOT/'static'/'v10_ui.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})

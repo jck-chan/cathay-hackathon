@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css"><link rel="stylesheet" href="/v11_tower.css"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
 <body><div id="app" class="twin-workspace">
 <header class="topbar"><div class="brand"><span class="brand-glyph">R<span>·</span></span><span><b>RELAY</b><small>CARGO DIGITAL TWINS / V11</small></span></div>
 <nav class="tabs" aria-label="Three synchronized workspaces"><button data-tab="ground" class="tab active">Ground Twin</button><button data-tab="tower" class="tab">Control Tower <i id="navCount" class="navcount">0</i></button><button data-tab="customer" class="tab">Customer Twin</button><button data-tab="chat" class="tab">AI Chat</button></nav>
@@ -6,11 +6,100 @@
 <main class="workspace">
 <section class="screen active" id="ground-screen" aria-label="Ground twin simulator"><div class="worlds"><div class="world"><canvas id="baselineWorld" data-aircraft-windows="hidden" data-airport-layout="v11" aria-label="WebGL2 3D synthetic terminal baseline work orders"></canvas><div class="worldlabel"><span class="world-dot baseline-dot"></span><b>BEFORE</b><small>FCFS · Baseline</small></div><span class="worldfooter" id="baselineFooter">Waiting for simulated orders</span></div><div class="world"><canvas id="relayWorld" data-aircraft-windows="hidden" data-airport-layout="v11" aria-label="WebGL2 3D synthetic terminal RELAY work orders"></canvas><div class="worldlabel"><span class="world-dot relay-dot"></span><b>AFTER</b><small>RELAY · Optimized staging</small></div><span class="worldfooter" id="relayFooter">Waiting for simulated orders</span></div></div>
 </section>
-<section class="screen tower" id="tower-screen" aria-label="Control tower decisions"><div class="tower-heading"><div><div class="eyebrow">LIVE OPERATIONS INTELLIGENCE</div><h1>Decisions, not dashboards.</h1><p>Events become proposals, reviews and simulated work orders—on the same clock.</p></div><div class="tower-mode"><span>AUTONOMY</span><select id="autonomy" aria-label="Decision review mode"><option value="AUTO_SHADOW">Auto · sandbox only</option><option value="MANUAL_REVIEW">Manual approval</option><option value="ADVISORY">Advisory only</option></select><button class="btn soft" id="recalculate">↻ Recalculate</button></div></div>
-<div class="tower-layout"><div class="tower-main"><div class="section-top"><h3>Now happening <span id="eventCounter">LIVE</span></h3><button class="text-btn" id="allEvents">View event ledger ↗</button></div><div class="event-cards" id="eventsGrid"><div class="empty-card">Waiting for system events…</div></div>
-<div class="outcome card"><div class="outcome-head"><div><div class="eyebrow">SELECTED DECISION / BEFORE → AFTER</div><h2 id="towerDecision">Awaiting next operational change</h2><p id="towerRationale">The solver evaluates all three layers.</p></div><span id="towerStatus" class="status-chip">SYNTHETIC</span></div><div class="outcome-grid"><div class="outcome-half before"><span class="eyebrow">IF WE KEEP FCFS</span><div class="bigmetric" id="towerBefore">0.0</div><p>Staging penalty · simulated units</p><div class="metric-row"><span>Completed tasks</span><b id="towerBeforeDone">0</b></div><div class="metric-row"><span>Missed targets</span><b id="towerBeforeMiss">0</b></div></div><div class="outcome-arrow">→</div><div class="outcome-half after"><span class="eyebrow">WITH RELAY</span><div class="bigmetric" id="towerAfter">0.0</div><p>Staging penalty · simulated units</p><div class="metric-row"><span>Completed tasks</span><b id="towerAfterDone">0</b></div><div class="metric-row"><span>Missed targets</span><b id="towerAfterMiss">0</b></div></div></div><div class="outcome-bottom"><span id="towerImpact">No measured advantage yet</span><button class="btn soft" id="viewMath">See calculation & constraints ↗</button></div></div>
-<div class="v10-math-heading"><span>THE DECISION ENGINE · LIVE VISUAL PROOF</span><b id="v10CaseState">READY</b></div><div class="model-strip"><button data-inspect="model_i" class="modeltile"><span>01</span><b>Physical options</b><small id="iSummary">Bounded 2D load</small><canvas id="v10MathOne" class="v10-mathcanvas" aria-label="Model I actual load placement diagram"></canvas><small id="v10MathHeadlineOne" class="v10-math-headline">Awaiting evidence</small><i>↗</i></button><button data-inspect="model_ii" class="modeltile"><span>02</span><b>Verify or wait?</b><small id="iiSummary">Bayesian decision</small><canvas id="v10MathTwo" class="v10-mathcanvas" aria-label="Model II Bayesian probability visualization"></canvas><small id="v10MathHeadlineTwo" class="v10-math-headline">Awaiting evidence</small><i>↗</i></button><button data-inspect="model_iii" class="modeltile"><span>03</span><b>Recover the network</b><small id="iiiSummary">Capacity MILP</small><canvas id="v10MathThree" class="v10-mathcanvas" aria-label="Model III capacity-network visualization"></canvas><small id="v10MathHeadlineThree" class="v10-math-headline">Awaiting evidence</small><i>↗</i></button></div><small id="v10MathCaption" class="v10-math-caption">Model visualizations are projections of real model outputs; no generated mutation animation is implied.</small></div>
-<aside class="tower-side"><article class="card action-panel"><div class="card-kicker">RECOMMENDED ACTION</div><h2 id="actionTitle">Optimize when ready</h2><p id="actionText">Algorithm decisions are simulated. External booking and physical execution always require real authority.</p><div class="action-stat"><span>Impacted shipments</span><strong id="impactedCount">0</strong></div><div class="action-stat"><span>Solver scope</span><strong id="scopeCount">0 / 0</strong></div><div class="action-stat"><span>Review</span><strong id="reviewState">—</strong></div><button class="btn primary full" id="approveBtn">Approve simulated proposal</button><button class="btn soft full" id="rejectBtn">Reject proposal</button><small>Auto mode only approves safe, fresh internal sandbox proposals. Never confirms flights.</small></article><article class="card handoffs"><div class="section-top"><h3>Team handoffs</h3><span id="taskCounter" class="pill">0</span></div><div id="taskCards" class="task-cards"><div class="empty-card">No synthetic tasks yet.</div></div></article></aside></div>
+<section class="screen tower" id="tower-screen" aria-label="Control tower decisions">
+<div class="ct">
+  <header class="ct-head">
+    <div class="ct-title">
+      <h1>Control Tower</h1>
+      <p>Disruptions become route proposals. Review them here before any simulated work order is issued.</p>
+    </div>
+    <div class="ct-tools">
+      <div class="ct-mode">
+        <span class="ct-label" id="ctModeLabel">Review mode</span>
+        <div class="ct-seg" id="ctModeSeg" role="group" aria-labelledby="ctModeLabel">
+          <button type="button" data-mode="AUTO_SHADOW" aria-pressed="false" title="The engine approves safe proposals itself, in the sandbox only">Auto</button>
+          <button type="button" data-mode="MANUAL_REVIEW" aria-pressed="false" title="A supervisor approves or rejects every proposal">Manual</button>
+          <button type="button" data-mode="ADVISORY" aria-pressed="false" title="Recommendations are shown but cannot be accepted">Advisory</button>
+        </div>
+        <select id="autonomy" aria-label="Decision review mode" hidden><option value="AUTO_SHADOW">Auto · sandbox only</option><option value="MANUAL_REVIEW">Manual approval</option><option value="ADVISORY">Advisory only</option></select>
+      </div>
+      <button type="button" class="ct-btn" id="recalculate"><span aria-hidden="true">↻</span> Recalculate</button>
+    </div>
+  </header>
+
+  <div class="ct-grid">
+    <div class="ct-col">
+      <article class="ct-card ct-decision" aria-labelledby="towerDecision">
+        <div class="ct-card-head">
+          <span class="ct-label">Current decision</span>
+          <span class="ct-chip" id="towerStatus">No decision yet</span>
+        </div>
+        <h2 id="towerDecision">Waiting for the next operational change</h2>
+        <p class="ct-lede" id="towerRationale">The solver evaluates all three model layers on every change.</p>
+        <dl class="ct-stats">
+          <div><dt>Route changes</dt><dd id="impactedCount">0</dd></div>
+          <div><dt>Shipments evaluated</dt><dd id="scopeCount">0 / 0</dd></div>
+          <div><dt>Solve time</dt><dd id="ctSolve">—</dd></div>
+          <div><dt>Review</dt><dd id="reviewState">—</dd></div>
+        </dl>
+        <div class="ct-proposals" id="ctProposals"></div>
+        <footer class="ct-decision-foot">
+          <p id="actionText">Algorithm decisions are simulated. External booking and physical execution always require real authority.</p>
+          <div class="ct-actions">
+            <button type="button" class="ct-btn" id="rejectBtn" disabled>Reject</button>
+            <button type="button" class="ct-btn ct-btn-primary" id="approveBtn" disabled>Approve proposal</button>
+          </div>
+        </footer>
+      </article>
+
+      <article class="ct-card" aria-labelledby="ctCompareTitle">
+        <div class="ct-card-head">
+          <h3 id="ctCompareTitle">Baseline vs RELAY</h3>
+          <button type="button" class="ct-link" id="viewMath">Calculation &amp; constraints ↗</button>
+        </div>
+        <div class="ct-table-wrap"><table class="ct-compare">
+          <thead><tr><th scope="col">This run</th><th scope="col">FCFS baseline</th><th scope="col">RELAY</th><th scope="col">Difference</th></tr></thead>
+          <tbody>
+            <tr><th scope="row">Staging penalty <small>simulated units</small></th><td id="towerBefore">0.0</td><td id="towerAfter" class="ct-strong">0.0</td><td id="ctDeltaCost">—</td></tr>
+            <tr><th scope="row">Completed tasks</th><td id="towerBeforeDone">0</td><td id="towerAfterDone" class="ct-strong">0</td><td id="ctDeltaDone">—</td></tr>
+            <tr><th scope="row">Missed targets</th><td id="towerBeforeMiss">0</td><td id="towerAfterMiss" class="ct-strong">0</td><td id="ctDeltaMiss">—</td></tr>
+          </tbody>
+        </table></div>
+        <p class="ct-impact" id="towerImpact">No measured advantage yet</p>
+      </article>
+
+      <section class="ct-engine" aria-labelledby="ctEngineTitle">
+        <div class="ct-card-head">
+          <h3 id="ctEngineTitle">Decision engine</h3>
+          <span class="ct-chip" id="v10CaseState">Ready</span>
+        </div>
+        <div class="ct-models">
+          <button type="button" data-inspect="model_i" class="ct-model"><span class="ct-model-head"><i>1</i><b>Physical options</b><em aria-hidden="true">↗</em></span><small id="iSummary">Bounded 2D load</small><canvas id="v10MathOne" aria-label="Model I load placement diagram"></canvas><span class="ct-model-result" id="v10MathHeadlineOne">Awaiting evidence</span></button>
+          <button type="button" data-inspect="model_ii" class="ct-model"><span class="ct-model-head"><i>2</i><b>Verify or wait?</b><em aria-hidden="true">↗</em></span><small id="iiSummary">Bayesian decision</small><canvas id="v10MathTwo" aria-label="Model II Bayesian probability chart"></canvas><span class="ct-model-result" id="v10MathHeadlineTwo">Awaiting evidence</span></button>
+          <button type="button" data-inspect="model_iii" class="ct-model"><span class="ct-model-head"><i>3</i><b>Recover the network</b><em aria-hidden="true">↗</em></span><small id="iiiSummary">Capacity MILP</small><canvas id="v10MathThree" aria-label="Model III capacity network diagram"></canvas><span class="ct-model-result" id="v10MathHeadlineThree">Awaiting evidence</span></button>
+        </div>
+        <p class="ct-caption" id="v10MathCaption">Diagrams are drawn from real model outputs.</p>
+      </section>
+    </div>
+
+    <aside class="ct-col">
+      <article class="ct-card" aria-labelledby="ctEventsTitle">
+        <div class="ct-card-head">
+          <h3 id="ctEventsTitle">Live events <span class="ct-count" id="eventCounter">0</span></h3>
+          <button type="button" class="ct-link" id="allEvents">Full ledger ↗</button>
+        </div>
+        <ol class="ct-events" id="eventsGrid"><li class="ct-empty">Waiting for system events…</li></ol>
+      </article>
+      <article class="ct-card" aria-labelledby="ctTasksTitle">
+        <div class="ct-card-head">
+          <h3 id="ctTasksTitle">Team handoffs</h3>
+          <span class="ct-count" id="taskCounter">0</span>
+        </div>
+        <div class="ct-tasks" id="taskCards"><p class="ct-empty">No synthetic tasks yet.</p></div>
+      </article>
+    </aside>
+  </div>
+</div>
 </section>
 <section class="screen customer" id="customer-screen" aria-label="Customer shipment journey"><canvas id="customerGlobe" aria-label="Rotatable synthetic route globe"></canvas><div class="customer-top overlay"><div class="eyebrow">CUSTOMER CARGO JOURNEY · LIVE SYNTHETIC</div><h1>Your cargo. A clearer journey.</h1><p>From request to recovery. Proposal ≠ confirmation.</p></div>
 <aside class="portfolio overlay card"><div class="pop-head"><div><div class="eyebrow">MY SHIPMENTS</div><h2>Portfolio <span id="portfolioCount">0</span></h2></div><button class="mini-plus" id="newOrderBtn" title="Create synthetic order">+ New</button></div><label class="search-field"><span>⌕</span><input id="filterShipments" placeholder="Search orders or destination" aria-label="Find synthetic shipment"></label><div class="portfolio-items" id="portfolioItems"><div class="empty-card">Loading shipments…</div></div><div class="portfolio-note">Demo account · same data as Ground and Control · no real customer data</div></aside>
@@ -68,4 +157,4 @@
 </div>
 <div class="backdrop" id="backdrop" hidden></div><aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden><div class="drawer-head"><div><span class="eyebrow">DETAILED EVIDENCE</span><h2 id="drawerTitle">Inspect</h2></div><button class="icon-btn" id="closeDrawer" aria-label="Close panel">×</button></div><div id="drawerContent" class="drawer-content"></div><div class="drawer-end">SYNTHETIC RESEARCH SHADOW · NOT APPROVED FOR AIRCRAFT OPERATIONS</div></aside>
 <div class="toast v11-toast" id="toast" role="status" aria-live="polite"></div>
-<meta name="visual-foundation" content="RELAY 10 visual foundation retained; v11 dispatch and audit upgraded"><script src="/v8_scene.js"></script><script src="/aircraft/model.js"></script><script src="/aircraft/flight.js"></script><script src="/ground_ops.js"></script><script src="/v9_scene.js"></script><script src="/v10_scene.js"></script><script src="/v10_ui.js"></script><script src="/v9.js"></script><script src="/v11_chat.js"></script></body></html>
+<meta name="visual-foundation" content="RELAY 10 visual foundation retained; v11 dispatch and audit upgraded"><script src="/v8_scene.js"></script><script src="/aircraft/model.js"></script><script src="/aircraft/flight.js"></script><script src="/ground_ops.js"></script><script src="/v9_scene.js"></script><script src="/v10_scene.js"></script><script src="/v10_ui.js"></script><script src="/v11_tower.js"></script><script src="/v9.js"></script><script src="/v11_chat.js"></script></body></html>
