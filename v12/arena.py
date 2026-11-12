@@ -223,14 +223,16 @@ class FiveWorldArena:
             COST_DEFAULT['unresolved_overdue']*self.cohort[jid]['priority']*
             max(0,self.tick-self.cohort[jid]['deadline_tick']) for jid in outstanding)
     cost=round(total+unresolved,3)
+    # Oldest-first queue slice: the ground scene draws each order with its own deadline.
+    timing=lambda j:{'admit_tick':j['admit_tick'],'deadline_tick':j['deadline_tick'],'duration':j['duration']}
     display=[{'id':j['id'],'status':'WAIT','cold':j['cold'],'priority':j['priority'],
-             'blocked':bool(j.get('blocked_reason')),'destination':j['destination']} for j in p['waiting'][-100:]]
+             'blocked':bool(j.get('blocked_reason')),'destination':j['destination'],**timing(j)} for j in p['waiting'][:120]]
     display += [{'id':a['job']['id'],'status':'MOVING','cold':a['job']['cold'],
-             'priority':a['job']['priority'],'destination':a['job']['destination'],
+             'priority':a['job']['priority'],'destination':a['job']['destination'],**timing(a['job']),
              'progress':round(1-a['remaining']/max(1,a['job']['duration']),3)} for a in p['active']]
     results[name]={'policy':name,'label':LABELS[name],
      'completed':len(p['completion']),'waiting':len(p['waiting']),
-     'active':len(p['active']),'on_time':p['on_time'],
+     'active':len(p['active']),'on_time':p['on_time'],'late':len(p['completion'])-p['on_time'],
      'on_time_pct':round(100*p['on_time']/n,2) if n else None,
      'completion_pct':round(100*len(p['completion'])/n,2) if n else None,
      'live_censored_cost':cost,'accrued_cost':round(total,3),
@@ -241,6 +243,7 @@ class FiveWorldArena:
      'mean_selection_ms':round(p['selection_ms_sum']/max(1,p['dispatch_count']),4),
      'objects':display,'rendered_objects':len(display),'total_objects':len(p['waiting'])+len(p['active'])}
    base=results['FCFS']['live_censored_cost']
+   handlers,stands,cold=self._effective()
    for key,val in results.items():
     val['saving_vs_fcfs_pct']=round(100*(base-val['live_censored_cost'])/base,2) if base else 0.
    return {'version':'12.0','scope':'FIVE_WAY_SHARED_INPUT_SYNTHETIC_STAGING_ONLY',
@@ -248,6 +251,7 @@ class FiveWorldArena:
     'tick':self.tick,'seed':self.seed,'running':self.running,'speed_requested':self.speed,
     'actual_ticks_per_second':self.actual_ticks_per_second,'target_ticks_per_second':self.speed*.5,
     'weather':self.weather,'scenario':self.scenario,'config':dict(self.config),'chaos':self.chaos,
+    'effective':{'handlers':handlers,'stands':stands,'cold_bays':cold},
     'common_orders_generated':n,'worlds':results,'events':list(self.events)[-70:],
     'event_sequence':self.seq,'error':self.error,
     'cost_definition':'CUMULATIVE_ACCRUED_PLUS_PROVISIONAL_UNRESOLVED_IF_ENDED_NOW',

@@ -63,6 +63,10 @@ def v10_home():
 def v10_css():
     return FileResponse(ROOT/'static'/'v10.css',media_type='text/css',headers={'Cache-Control':'no-store'})
 
+@app.get('/ground_ops.js',include_in_schema=False)
+def ground_ops():
+    return FileResponse(ROOT/'static'/'ground_ops.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
+
 @app.get('/v10_scene.js',include_in_schema=False)
 def v10_scene():
     return FileResponse(ROOT/'static'/'v10_scene.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})

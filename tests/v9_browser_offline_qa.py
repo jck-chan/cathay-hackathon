@@ -17,7 +17,7 @@ with sync_playwright() as p:
  page.set_content(html,wait_until='domcontentloaded');page.add_style_tag(content=css)
  page.evaluate("""d=>{window.fixture={s:d.initial,next:d.next,rain:d.rain};window.fetch=async(path,opt={})=>{let data=window.fixture.s;if(path.startsWith('/v11/api/state'))data=window.fixture.s;else if(path==='/v11/api/control'){let b=JSON.parse(opt.body||'{}');data=window.fixture.s= (b.action==='step'?window.fixture.next:b.action==='tune'?window.fixture.rain:{...window.fixture.s,v8:{...window.fixture.s.v8,running:b.action==='start'?true:b.action==='pause'?false:window.fixture.s.v8.running,speed_target:b.action==='speed'?b.speed:window.fixture.s.v8.speed_target}})};return {ok:true,status:200,text:async()=>JSON.stringify(data)};}}""",{'initial':s,'next':s2,'rain':s3})
  page.add_script_tag(content=scene0)
- for file in ('aircraft/model.js', 'aircraft/flight.js'):
+ for file in ('aircraft/model.js', 'aircraft/flight.js', 'ground_ops.js'):
   page.add_script_tag(content=(root/'static'/file).read_text())
  page.add_script_tag(content=scene1);page.add_script_tag(content=script)
  page.wait_for_timeout(800)

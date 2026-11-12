@@ -366,6 +366,7 @@ class UnifiedLab:
                                 'customs_hold':s.get('customs_hold',False),
                                 'status':s['status']})
             pstats={}
+            timing=lambda j:{k:j.get(k) for k in ('admit_tick','deadline_tick','duration')}
             for label,p in self.policies.items():
                 n=len(p['completed']);pstats[label]={'completed':n,'waiting':len(p['waiting']),
                   'blocked':sum(bool(j['blocked_reason']) for j in p['waiting']),
@@ -374,9 +375,9 @@ class UnifiedLab:
                   'cost_units':round(p['cost'],3),'unsafe_dispatches':p['unsafe_dispatches'],
                   'solver':p['last_meta'],'selected':p['last_selected'],
                   'objects':[{'id':j['id'],'status':'WAIT','cold':j['cold'],'priority':j['priority'],
-                              'destination':j['destination'],'blocked':bool(j['blocked_reason'])} for j in p['waiting'][-30:]] +
+                              'destination':j['destination'],'blocked':bool(j['blocked_reason']),**timing(j)} for j in p['waiting'][:120]] +
                             [{'id':a['job']['id'],'status':'MOVING','cold':a['job']['cold'],
-                              'priority':a['job']['priority'],'destination':a['job']['destination'],
+                              'priority':a['job']['priority'],'destination':a['job']['destination'],**timing(a['job']),
                               'progress':1-a['remaining']/a['duration']} for a in p['active']]}
             tasks=self.store.tasks(decision['id']) if decision else []
             return {'version':'4.0','mode':'CANONICAL_SYNTHETIC_SINGLE_WORLD','clock':state['as_of'],

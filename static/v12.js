@@ -5,10 +5,10 @@ const $=x=>document.getElementById(x), safe=x=>String(x??'—').replace(/[&<>"']
 const names={FCFS:'FCFS',RELAY_V10:'RELAY v10',RELAY_V11:'RELAY v11',A_CRITICAL:'RELAY + Model A',A_EDF:'RELAY + EDF'};
 const colors={FCFS:'#b98b40',RELAY_V10:'#517c9d',RELAY_V11:'#128d78',A_CRITICAL:'#a06dc3',A_EDF:'#d97061'};
 const keys=Object.keys(names);let visible=['FCFS','RELAY_V11','A_CRITICAL'],last=null,worlds={},viewMode='3D',pending=false,latestSeq=-1,lastTick=-1,history={},toastTimer;
-let flightTime=0,lastFrame=null,lastPaint=-Infinity,needsPaint=true;
+let lastFrame=null,lastPaint=-Infinity,needsPaint=true,paintUntil=0;
 function notify(txt){let el=$('toast');el.textContent=txt;el.classList.add('active');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('active'),2500)}
 async function api(path,opt={}){const r=await fetch(path,{cache:'no-store',...opt});const data=await r.json();if(!r.ok)throw Error(data.detail||`HTTP ${r.status}`);return data}
-let commandQueue=Promise.resolve();function act(action,options={}){const next=commandQueue.then(async()=>{const data=await api('/v12/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...options})});if(action==='reset')flightTime=0;update(data);return data});commandQueue=next.catch(()=>{});return next.catch(e=>{notify('Action failed: '+e.message);throw e})}
+let commandQueue=Promise.resolve();function act(action,options={}){const next=commandQueue.then(async()=>{const data=await api('/v12/api/control',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...options})});update(data);return data});commandQueue=next.catch(()=>{});return next.catch(e=>{notify('Action failed: '+e.message);throw e})}
 const csv=(v,n=0)=>Number(v||0).toLocaleString('en',{minimumFractionDigits:n,maximumFractionDigits:n});
 function buildSelectors(){let host=$('policyChoices');host.replaceChildren();for(const key of keys){let lab=document.createElement('label');lab.className='choice'+(visible.includes(key)?' active':'');lab.style.setProperty('--accent',colors[key]);lab.innerHTML=`<input type="checkbox" value="${key}" ${visible.includes(key)?'checked':''}><i></i>${safe(names[key])}`;let input=lab.querySelector('input');input.disabled=visible.length===2&&visible.includes(key);input.addEventListener('change',()=>{if(input.checked)visible.push(key);else visible=visible.filter(k=>k!==key);visible=keys.filter(k=>visible.includes(k));buildSelectors();layout();if(last)update(last);});host.appendChild(lab)}$('visibleCount').textContent=`${visible.length}/5`}
 function layout(){let host=$('grid');host.className=`world-grid count-${visible.length}`;for(const [key,world] of Object.entries(worlds))if(!visible.includes(key)){world.scene?.dispose();world.host.remove();delete worlds[key]}
@@ -17,7 +17,6 @@ function layout(){let host=$('grid');host.className=`world-grid count-${visible.
  needsPaint=true;
  $('viewSwitch').textContent=viewMode==='3D'?'2D ↑':'3D ◈';}
 function update(s){
- if (last && s.tick < last.tick) flightTime=0;
  needsPaint=true;
  last=s;let active=!!s.running;$('pulse').className='pulse'+(active?' on':'');$('runText').textContent=active?'ALL RUNNING':'ALL PAUSED';$('tick').textContent=String(s.tick).padStart(5,'0');$('speedMeasured').textContent=`Verified ${csv(s.actual_ticks_per_second,2)} ticks/s`;
  $('speedStatus').textContent=`${s.speed_requested||1}× / ${csv(2*(s.actual_ticks_per_second||0),1)}×`;
@@ -29,7 +28,7 @@ function update(s){
  let latest=s.events?.at(-1);if(latest&&latestSeq!==latest.seq){latestSeq=latest.seq;$('latestEvent').textContent=latest.kind+' · '+latest.message;$('eventDetail').textContent=`TICK ${latest.tick} · COMMON EVENT`;}
  let currentRank=1;for(let index=0;index<sorted.length;index++){if(index && sorted[index].live_censored_cost>sorted[index-1].live_censored_cost+1e-8)currentRank=index+1;let o=worlds[sorted[index].policy];if(o)o.host.querySelector('.world-rank').textContent=s.common_orders_generated?`COST RANK #${currentRank}`:'COST RANK —'}
  for(let key of visible){const w=worlds[key],p=s.worlds[key];if(!w||!p)continue;w.host.querySelector('.cost').textContent=csv(p.live_censored_cost,1);w.host.querySelector('.ontime').textContent=s.common_orders_generated?`${csv(p.on_time_pct,1)}%`:'—';w.host.querySelector('.queue').textContent=`${p.active} · ${p.waiting}`;
- if(w.scene){w.scene.state={objects:p.objects,waiting:p.waiting,active:p.active,completed:p.completed};w.scene.hour=(6+s.tick/3)%24;w.scene.weather=s.weather;w.scene.incident=['STORM','FOG'].includes(s.weather);w.scene.running=!!s.running;w.scene.actualTicksPerSecond=s.actual_ticks_per_second;w.scene.requestedSpeed=s.speed_requested;w.scene.simTick=s.tick;w.scene.sceneControls={handlers:s.config.handlers,stands:s.config.stands,cold_bays:s.config.cold_bays,warehouseLevels:6,ambientVehicles:Math.min(14,Math.ceil(s.config.handlers*1.5))};}}
+ if(w.scene){w.scene.state={objects:p.objects,waiting:p.waiting,active:p.active,completed:p.completed};w.scene.hour=(6+s.tick/3)%24;w.scene.weather=s.weather;w.scene.incident=['STORM','FOG'].includes(s.weather);w.scene.running=!!s.running;w.scene.actualTicksPerSecond=s.actual_ticks_per_second;w.scene.requestedSpeed=s.speed_requested;w.scene.simTick=s.tick;const eff=s.effective||s.config;w.scene.sceneControls={handlers:eff.handlers,stands:eff.stands,cold_bays:eff.cold_bays,configured:s.config,warehouseLevels:6};}}
  if(lastTick!==s.tick){for(const k of keys){history[k]??=[];history[k].push({t:s.tick,cost:s.worlds[k].live_censored_cost});if(history[k].length>400)history[k].shift()}lastTick=s.tick;}
  if(s.error)notify('Simulation error: '+s.error);
 }
@@ -39,15 +38,16 @@ function animation(t) {
  const dt = Math.min(.15, (t - (lastFrame ?? t)) / 1000);
  lastFrame = t;
  if (window.RELAY_QA_NO_RENDER) return;
- if (last?.running) flightTime += dt;
  if (t - lastPaint < 32) return;
  const cameraChanged = visible.some(key => worlds[key]?.scene?.interaction.lastInput > lastPaint);
- if (!last?.running && !needsPaint && !cameraChanged) return;
+ // After a change while paused (manual step, incident) keep painting until the scene settles.
+ if (needsPaint) paintUntil = t + 3200;
+ if (!last?.running && t > paintUntil && !cameraChanged) return;
  lastPaint = t;
  needsPaint = false;
  for (const key of visible) {
   const world = worlds[key];
-  try { world.scene?.render(t, flightTime); }
+  try { world.scene?.render(t); }
   catch (error) {
    console.error('Scene rendering failed', key, error);
    world.scene = null;

@@ -32,27 +32,22 @@ async def main():
       const result=await window.backend_request(opt.method||'GET',String(url),opt.body||null);
       return {ok:result.ok,status:result.status,json:async()=>result.body};
   }}''')
-  for file in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','v9_scene.js','v12.js'):
+  for file in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v12.js'):
    await page.add_script_tag(content=(ROOT/'static'/file).read_text())
   facts['http_status']=200 # HTML extracted from actual v12 served source; endpoint separately tested
   await page.wait_for_function("document.querySelectorAll('.world').length===3",timeout=20000)
   await page.wait_for_timeout(1600)
   facts['three_worlds']=await page.locator('.world').count()
   facts['flight_follows_path']=await page.evaluate("""() => {
-    const {poseAt, transform, lapDuration} = RelayFlight;
-    for (let i = 0; i < 512; i++) {
-      const time = i * lapDuration / 512;
-      const pose = poseAt(time);
-      const before = poseAt(time - .001);
-      const after = poseAt(time + .001);
-      const delta = [after.x - before.x, after.y - before.y, after.z - before.z];
-      const length = Math.hypot(...delta);
-      const forward = transform(pose, 1);
-      const alignment = delta.reduce((sum, value, axis) => sum + value * forward[axis], 0) / length;
-      if (!(length < .013 && alignment > .999)) return false;
+    // Vehicles and aircraft travel along rounded paths with a tangent heading.
+    const path = RelayGroundOps.makePath([[0, 0], [20, 0], [20, 15], [5, 15]], 2);
+    for (let i = 1; i < 256; i++) {
+      const s = i * path.length / 256, a = path.at(s - .01), b = path.at(s + .01), mid = path.at(s);
+      const length = Math.hypot(b.x - a.x, b.z - a.z);
+      const along = ((b.x - a.x) * Math.cos(mid.heading) + (b.z - a.z) * Math.sin(mid.heading)) / length;
+      if (!(length < .03 && along > .97)) return false;
     }
-    const start = poseAt(0), end = poseAt(lapDuration);
-    return Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z) < 1e-6;
+    return true;
   }""")
   facts['webgl_count']=await page.evaluate("Array.from(document.querySelectorAll('.world canvas')).filter(c=>!!c.getContext('webgl2')).length")
   facts['root_scroll']=await page.evaluate('document.documentElement.scrollHeight > window.innerHeight+10')

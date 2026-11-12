@@ -7,7 +7,7 @@ const clip=(v,a,b)=>Math.min(b,Math.max(a,v));
 const PreviousWorld=window.RelayV6.GroundScene;
 class FlowWorld extends PreviousWorld {
   constructor(canvas,name){super(canvas,name);this.motionTime=0;this.lastMotionFrame=null;this.visualTempo=1;this.bursts=[];this.previousCompleted=null;this.lastObjectIds=new Set();this.flowParticles=[];this.fxSeq=0;this.shiftPhase=0;
-     if(this.airport&&this.gl)return;
+     if(this.airport)return;
      const layer=document.createElement('canvas');layer.className='v10-kinetic';layer.setAttribute('aria-hidden','true');
      canvas.parentElement.appendChild(layer);this.kineticLayer=layer;
   }
@@ -17,6 +17,7 @@ class FlowWorld extends PreviousWorld {
     // At 100x, the visualized work moves faster, but never claims the solver completed 100x work.
     this.visualTempo=this.running?clip(1+.82*Math.log2(requested)+.25*Math.log2(1+measured),1,8.2):0;
     this.motionTime+=dt*this.visualTempo;
+    if(this.airport){super.render(t);return;}
     if(this.fallback){super.render(t);this.drawFallbackFlow(t);return;}
     // Original world camera/renderer retained. V10 overlays bounded, state-coupled kinematics.
     super.render(t);

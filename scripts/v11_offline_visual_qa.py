@@ -34,7 +34,7 @@ async def main():
                 let data=window.__states[window.__pos];
                 return {ok:true,status:200,json:async()=>data,text:async()=>JSON.stringify(data)};
             };}''',[initial,active])
-        for name in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','v9_scene.js','v10_scene.js','v10_ui.js','v9.js'):
+        for name in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v10_scene.js','v10_ui.js','v9.js'):
             await page.add_script_tag(content=(ROOT/'static'/name).read_text())
         await page.wait_for_timeout(850)
         assert await page.locator('[data-tab]').count()==3

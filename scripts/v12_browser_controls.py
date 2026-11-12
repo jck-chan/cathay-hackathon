@@ -32,7 +32,7 @@ async def main():
       const result=await window.backend_request(opt.method||'GET',String(url),opt.body||null);
       return {ok:result.ok,status:result.status,json:async()=>result.body};
   }}''')
-  for file in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','v9_scene.js','v12.js'):
+  for file in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v12.js'):
    await page.add_script_tag(content=(ROOT/'static'/file).read_text())
   # The 3D renderers have already been validated by v12_browser_qa.py.
   # Skip software GPU repaint to isolate UI state/action synchronization.
