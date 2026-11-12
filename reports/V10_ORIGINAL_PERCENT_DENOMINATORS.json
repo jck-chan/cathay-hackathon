@@ -1,0 +1,58 @@
+{
+  "episodes_per_scenario": 500,
+  "seed": 707,
+  "results": [
+    {
+      "scenario": "normal",
+      "baseline_mean_cost_units": 171.6839,
+      "relay_mean_cost_units": 153.0582,
+      "saved_cost_units": 18.6257,
+      "saved_cost_pct": 10.849,
+      "baseline_misses_recorded": 1532,
+      "relay_misses_recorded": 1038,
+      "recorded_misses_reduction_pct": 32.245
+    },
+    {
+      "scenario": "peak",
+      "baseline_mean_cost_units": 560.7659,
+      "relay_mean_cost_units": 540.2651,
+      "saved_cost_units": 20.5008,
+      "saved_cost_pct": 3.656,
+      "baseline_misses_recorded": 4961,
+      "relay_misses_recorded": 5973,
+      "recorded_misses_reduction_pct": -20.399
+    },
+    {
+      "scenario": "crew_shortage",
+      "baseline_mean_cost_units": 390.0865,
+      "relay_mean_cost_units": 404.8501,
+      "saved_cost_units": -14.7636,
+      "saved_cost_pct": -3.785,
+      "baseline_misses_recorded": 2101,
+      "relay_misses_recorded": 2532,
+      "recorded_misses_reduction_pct": -20.514
+    },
+    {
+      "scenario": "cold_outage",
+      "baseline_mean_cost_units": 292.6242,
+      "relay_mean_cost_units": 250.0466,
+      "saved_cost_units": 42.5776,
+      "saved_cost_pct": 14.55,
+      "baseline_misses_recorded": 2300,
+      "relay_misses_recorded": 1354,
+      "recorded_misses_reduction_pct": 41.13
+    },
+    {
+      "scenario": "high_capacity",
+      "baseline_mean_cost_units": 265.2866,
+      "relay_mean_cost_units": 229.4514,
+      "saved_cost_units": 35.8352,
+      "saved_cost_pct": 13.508,
+      "baseline_misses_recorded": 2257,
+      "relay_misses_recorded": 973,
+      "recorded_misses_reduction_pct": 56.89
+    }
+  ],
+  "scope": "EXACT_V10_CLIPPED_GAUSSIAN_21_TICK_BENCHMARK; UNFINISHED_WORK_CENSORED",
+  "quality_warning": "Cost % uses incomplete-window ledger and is not a real-world estimate."
+}

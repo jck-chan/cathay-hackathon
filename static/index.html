@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="description" content="RELAY live research operations theatre: stochastic arrivals, exact constrained dispatch and a schematic 3D air cargo twin.">
+ <title>RELAY — Operations Simulation Theatre</title>
+ <link rel="stylesheet" href="/show.css">
+ <link rel="stylesheet" href="/fusion.css">
+</head>
+<body>
+<div class="layout">
+ <header class="appbar">
+  <a class="brand" href="/"><span class="brand-mark">◇</span><strong>RELAY</strong><span class="brand-separator"></span><small>OPERATIONS INTELLIGENCE LAB</small></a>
+  <div class="status-line"><span class="status-dot"></span> LOCAL PYTHON MODEL <span class="appbar-sep">/</span> <span>PAIRED SYNTHETIC WORLD</span></div>
+  <a class="appbar-link" href="/docs" target="_blank" rel="noopener">API reference ↗</a>
+ </header>
+ <div class="bodywrap">
+  <nav class="fusion-nav" aria-label="Workspace sections">
+ <a href="#experiment">01 Live simulation</a><a href="#math-workspace">02 Decision engine</a>
+ <a href="#review-workspace">03 Review & crew</a><a href="#customer-workspace">04 Customer</a>
+ <a href="#benchmarkSection">05 Evidence</a>
+ <span id="connectionBadge" class="fusion-connection"><i></i>Connecting…</span>
+ </nav>
+ <div class="onboarding-guide"><div class="onboarding-icon">◎</div><div><strong>Start here: watch the operation, then ask the solver why.</strong><p><b>1</b> Press <em>Start stream</em> to generate cargo. <b>2</b> Scroll to <em>Run full analysis</em>. <b>3</b> Review a safe simulated decision, then check what the customer sees. This is one local app, no separate backend required.</p></div><button id="guideDismiss" title="Dismiss getting started guide" aria-label="Dismiss guide">×</button></div>
+ <div class="intro">
+   <div><div class="eyebrow">LIVE SIMULATION THEATRE <span class="tiny-number">001 / AIR CARGO OPERATIONS</span></div>
+    <h1>Every shipment arrives.<br><em>Every decision compounds.</em></h1>
+    <p>Two operational worlds. The same stochastic orders and disruptions. A real constrained solver on one side, chronological dispatch on the other.</p>
+   </div>
+   <div class="intro-actions"><div class="runclock"><span>SIMULATION CLOCK</span><strong id="tickReadout">T + 000</strong><small>1 logical tick ≈ 5 simulated minutes</small></div><div class="btn-pair"><button id="playBtn" class="btn-start">▶ Start stream</button><button id="stepBtn" class="btn-outline">Step once</button></div></div>
+  </div>
+
+  <section class="data-lab" id="experiment">
+   <div class="section-title"><span class="serial">00 /</span><div><h2>Stochastic data generator</h2><p>Control the experiment, not the outcome. Both strategies receive the identical generated orders.</p></div><span class="source-pill">POISSON ARRIVALS / FIXED SEED</span></div>
+   <div class="generator-grid">
+    <div class="control"><label for="rateSlider">Cargo arrivals <strong id="rateValue">1.65 / tick</strong></label><input type="range" id="rateSlider" min=".2" max="4.5" step=".05" value="1.65"><small>λ applies live; changes future arrivals, not queued cargo</small></div>
+    <div class="control"><label for="speedSlider">Playback frequency <strong id="speedValue">2 ticks/s</strong></label><input type="range" id="speedSlider" min=".5" max="8" step=".5" value="2"><small>Visualization speed; distinct from arrival intensity</small></div>
+    <div class="control"><label for="chaosSlider">Disruption intensity <strong id="chaosValue">20%</strong></label><input type="range" id="chaosSlider" min="0" max="1" step=".05" value=".2"><small>Applies live to load bursts / new inspection incidence</small></div>
+    <div class="control equipment"><label for="handlerInput">Active handlers</label><input id="handlerInput" type="number" min="1" max="6" value="3"><small>Resets world · personnel cap</small></div>
+    <div class="control equipment"><label for="coldInput">Cold bays</label><input id="coldInput" type="number" min="0" max="3" value="1"><small>Resets world · refrigerated handling cap</small></div>
+    <div class="control equipment"><label for="standInput">Ramp loading stands</label><input id="standInput" type="number" min="1" max="5" value="3"><small>Resets world · parallel dispatch cap</small></div>
+    <div class="control seed-field"><label for="seedInput">Reproducible seed</label><input id="seedInput" type="number" value="260314"><small>Same seed → same synthetic event law</small></div>
+    <div class="experiment-actions"><button id="resetBtn" class="btn-outline">↻ Reset experiment</button><button id="burstBtn" class="btn-outline">⚡ Stress system</button></div>
+   </div>
+    <div class="mini-stats"><div><span>GENERATED ORDERS</span><strong id="generatedOrders">0</strong></div><div><span>NEW EVENT SOURCE</span><strong>SIMULATED / LOCAL</strong></div><div><span>AUTHORITATIVE AIRLINE CONNECTION</span><strong class="warning">NONE — DEMO ONLY</strong></div><div><span>PAIRED RANDOMNESS</span><strong class="success">CONTROLLED</strong></div></div>
+  </section>
+
+  <div class="twin-label"><div class="section-title"><span class="serial">01 /</span><div><h2>3D operational twin</h2><p>Drag to rotate both synchronized cameras. Scroll to zoom. Cargo queues, handlers and aircraft turnarounds evolve from the running simulator.</p></div></div><span class="scene-truth">GEOMETRIC SCHEMATIC — NOT THE TRUE HKIA LAYOUT</span></div>
+  <section class="twins">
+   <article class="twin-card baseline">
+    <div class="twin-header"><div><div class="strategy-kicker"><span class="dot baseline-dot"></span> WORLD A / CONTROL</div><h3>Conventional first-come dispatch</h3><p>Feasible FCFS; no system-wide lookahead or recovery-aware physical arrangement.</p></div><span class="pill-baseline">BASELINE</span></div>
+    <div class="canvas-holder"><canvas id="baselineCanvas" aria-label="Interactive 3D projection of baseline simulated cargo terminal, aircraft stands and queue"></canvas><div class="canvas-hud top"><span>CAM 01 · HKG OPERATIONS</span><span id="baselineSceneCounter">0 ACTIVE / 0 QUEUED</span></div><div class="canvas-hud bottom"><span>DRAG: ORBIT</span><span>SCROLL: ZOOM</span><span>STYLIZED 3D</span></div></div>
+    <div class="twin-metrics"><div><small>COMPLETED</small><strong id="baseCompleted">0</strong></div><div><small>AVG PROCESS FLOW</small><strong id="baseTime">—</strong></div><div><small>EXCEPTION RATE</small><strong id="baseError">—</strong></div><div><small>DEMO COST</small><strong id="baseCost">0</strong></div></div>
+   </article>
+   <article class="twin-card optimized">
+    <div class="twin-header"><div><div class="strategy-kicker"><span class="dot relay-dot"></span> WORLD B / RELAY</div><h3>Global risk-aware dispatch</h3><p>Model I access-aware handling + PIVOT validation + exact capacity-aware dispatch.</p></div><span class="pill-relay">RELAY</span></div>
+    <div class="canvas-holder"><canvas id="relayCanvas" aria-label="Interactive 3D projection of optimized cargo terminal, fleet stands and workload"></canvas><div class="canvas-hud top"><span>CAM 01 · HKG OPERATIONS</span><span id="relaySceneCounter">0 ACTIVE / 0 QUEUED</span></div><div class="canvas-hud bottom"><span>DRAG: ORBIT</span><span>SCROLL: ZOOM</span><span>STYLIZED 3D</span></div></div>
+    <div class="twin-metrics"><div><small>COMPLETED</small><strong id="relayCompleted">0</strong></div><div><small>AVG PROCESS FLOW</small><strong id="relayTime">—</strong></div><div><small>EXCEPTION RATE</small><strong id="relayError">—</strong></div><div><small>DEMO COST</small><strong id="relayCost">0</strong></div></div>
+   </article>
+  </section>
+
+  <div class="difference-banner"><div><span>PAIRED LIVE DELTA</span><strong id="deltaHeadline">Collecting the same events in both worlds…</strong></div><div class="delta-pills"><span id="deltaTime">RECOVERY Δ —</span><span id="deltaError">EXCEPTIONS Δ —</span><span id="deltaCost">COST Δ —</span></div></div>
+
+  <section class="analysis-grid">
+   <article class="panel stream-panel"><div class="panel-heading"><span class="serial">02 /</span><div><h2>Incoming operations feed</h2><p>Orders, physical uncertainty, capacity closure</p></div><span class="live-indicator"><i></i> EVENT STREAM</span></div><div id="eventsFeed" class="scroll-feed"><div class="empty-line">Press Start to generate new cargo orders.</div></div></article>
+   <article class="panel math-panel"><div class="panel-heading"><span class="serial">03 /</span><div><h2>Explainable mathematics log</h2><p>Actual binary decisions, hard constraints, solver status</p></div><span class="tiny-tag">EXACT DISPATCH / HiGHS NETWORK</span></div><div id="mathFeed" class="scroll-feed terminal"><div class="empty-line">No decision calculated yet.</div></div></article>
+  </section>
+
+  <section class="customer-battle">
+   <div class="section-title"><span class="serial">04 /</span><div><h2>Same shipment, different customer experience</h2><p>Do we simply report a stale milestone, or explain the disruption and show the recovery proposal?</p></div><span class="source-pill">SHADOW TRACKING · NO REAL CUSTOMER DATA</span></div>
+   <div class="customer-pair">
+    <article class="customer-card classic"><span class="customer-label">A / TRADITIONAL TRACKING EXPERIENCE</span><div class="customer-brand">Cargo Status</div><h3 id="customerBasicStatus">Shipment in transit</h3><p id="customerBasicText">Last known status: booking received. Further information requires manual follow-up.</p><div class="stale-track"><span>BOOKED</span><span>RECEIVED</span><span>DEPARTURE?</span><span>DELIVERY?</span></div><div class="customer-foot">Illustrative limited-information interface. Not a claim about Cathay’s real product.</div></article>
+    <article class="customer-card intelligent"><span class="customer-label">B / RELAY-AUGMENTED CUSTOMER SERVICE</span><div class="customer-brand active-brand">Cargo Journey <span>◉ EXPLAINED</span></div><h3 id="customerRelayStatus">Monitoring HKG → LHR</h3><p id="customerRelayText">No incident yet. Shipment is watched against the current simulated feasible itinerary.</p><div class="customer-route"><span>HKG</span><i id="routeIndicator">→</i><span id="routeLegs">LHR</span></div><div class="explain-box"><strong>WHY THIS ACTION?</strong><p id="customerReason">A shared-capacity solver selects the least-risk feasible portfolio with transparent constraints.</p></div><div class="customer-foot">Synthetic proposed state, not a booked or carrier-confirmed service.</div></article>
+   </div>
+  </section>
+
+  <section id="math-workspace" class="fusion-workspace">
+   <div class="fusion-overline">02 / MATHEMATICAL CONTROL TOWER <span>CONNECTED TO RELAY ENGINE v2 · SYNTHETIC NETWORK MODEL</span></div>
+   <div class="fusion-heading"><div><h2>Make a decision.<br><em>Know exactly why.</em></h2><p>This is the real three-paper backend, not a chart animation. Click once to run placement, verification and global network optimization against the versioned 30-day data snapshot.</p></div><div class="fusion-heading-actions"><button id="evaluateBtn" class="fusion-main-button">✦ Run full analysis</button><button id="advanceBtn" class="fusion-secondary-button">↯ Inject a network event + replan</button></div></div>
+   <div class="scope-notice"><b>Two experiments, clearly separated:</b> the upper 3D scene uses the original stochastic terminal-queue experiment; this section uses the v2 canonical 30-day shipment/flight network. Both are real local computations, but they do <b>not</b> share individual cargo IDs. There are no Cathay API connections or operational commands.</div>
+   <div class="fusion-live-meta"><span><i class="fusion-dot"></i> <strong id="engineStatus">Ready to analyse</strong></span><span>NETWORK CLOCK <b id="engineClock">—</b></span><span>SNAPSHOT <b id="engineVersion">—</b></span><span>ENGINE RUN <b id="engineLatency">—</b></span></div>
+   <div class="fusion-config"><label>Risk confidence (CVaR) <strong id="alphaRead">90%</strong><input id="alphaControl" type="range" min="60" max="98" value="90" step="1"></label><label>Tail-risk weight <strong id="weightRead">0.12</strong><input id="weightControl" type="range" min="0" max="1" value="0.12" step=".02"></label><label>Solver limit <strong id="limitRead">3s</strong><input id="limitControl" type="range" min="1" max="10" value="3" step="1"></label></div>
+   <div class="network-scene-card"><div class="network-scene-copy"><span>NETWORK SCENE / LIVE FROM V2 DECISION SNAPSHOT</span><h3>From recommendation to a visible operational plan</h3><p>Unlike the paired queue demonstration above, these objects are projected from the v2 shipment IDs and route proposal. Orange = unresolved or pending; turquoise work animation = internally approved <b>simulated</b> workflow, never an actual cargo move. Drag to orbit · scroll to zoom.</p><div class="network-scene-stats"><b id="nsProposed">—</b> tentative plans <b id="nsUnresolved">—</b> unresolved <b id="nsTasks">—</b> simulated tasks</div></div><div class="network-scene-canvas"><canvas id="networkCanvas" aria-label="Interactive schematic 3D network planning projection backed by v2 mathematical engine" role="img"></canvas><div class="network-scene-hud">V2 NETWORK SOURCE / PLANNING ONLY</div></div></div>
+   <div class="fusion-metric-grid" aria-live="polite"><div><small>NETWORK CASES</small><strong id="ftShipments">—</strong><span>Eligible shipments in this snapshot</span></div><div><small>ROUTE CANDIDATES</small><strong id="ftRoutes">—</strong><span>Actually enumerated by solver</span></div><div><small>UNRESOLVED</small><strong id="ftUnresolved">—</strong><span>Never counted as delivered</span></div><div><small>RISK SCORE</small><strong id="ftRisk">—</strong><span>Synthetic cost units</span></div><div><small>MODEL OPTIMALITY</small><strong id="ftGap">—</strong><span>Within modeled routes and rules</span></div></div>
+   <div class="fusion-model-grid">
+    <article class="fusion-model-card"><div class="model-mark">I</div><h3>ULD Arrangement</h3><p>Does spending a small amount on a better loading pattern preserve recovery options?</p><div id="modelIView" class="model-inside"><div class="fusion-empty">Run analysis to see actual placement candidates and risk reduction.</div></div></article>
+    <article class="fusion-model-card"><div class="model-mark">II</div><h3>PIVOT · Verify or act?</h3><p>Is the information worth waiting for before the recovery option expires?</p><div id="modelIIView" class="model-inside"><div class="fusion-empty">Per-shipment hold, inspection and uncertainty gates appear here.</div></div></article>
+    <article class="fusion-model-card"><div class="model-mark">III</div><h3>Global Recovery</h3><p>Jointly assign scarce flight capacity across competing shipments.</p><div id="modelIIIView" class="model-inside"><div class="fusion-empty">Network proposals, cost comparison and constraint status appear here.</div></div></article>
+   </div>
+   <div class="fusion-bottom-grid"><article class="fusion-box"><div class="fusion-box-head"><h3>Decision recommendation</h3><span id="decisionTag" class="fusion-label">NO RUN</span></div><div id="decisionSummary" class="fusion-empty">Run the solver to create a traceable proposal. Every physical route change remains simulated and requires approval.</div></article>
+    <article class="fusion-box"><div class="fusion-box-head"><h3>Math process · evidence trail</h3><button id="refreshLogs" class="tiny-button">↻ Refresh logs</button></div><div id="networkLogs" class="fusion-log"><span class="fusion-empty">The solver's true stages will appear here after evaluation.</span></div></article></div>
+  </section>
+  <section id="review-workspace" class="fusion-workspace review-space"><div class="fusion-overline">03 / OPERATOR REVIEW AND DISPATCH <span>HUMAN-IN-THE-LOOP</span></div><div class="fusion-heading"><div><h2>Human judgement.<br><em>Where it actually matters.</em></h2><p>Only review exceptions and proposed changes. No operation is released to a real airline; these approvals create simulated departmental work threads.</p></div><button id="refreshReview" class="fusion-secondary-button">↻ Refresh queue</button></div>
+  <div class="review-control"><label for="autonomySelect">Decision freedom in this demo</label><select id="autonomySelect"><option value="ADVISORY">Advisory only — no approvals generated</option><option value="HUMAN_APPROVAL">Human approval — recommended</option><option value="BOUNDED_AUTO">Bounded auto evaluation — still no physical action</option></select><button id="savePolicy" class="fusion-secondary-button">Save mode</button><span class="review-tip">All simulated physical changes still require human review and external capacity confirmation.</span></div>
+  <div class="fusion-bottom-grid"><article class="fusion-box"><div class="fusion-box-head"><h3>Pending recommendation</h3><span id="reviewState" class="fusion-label">NONE</span></div><div id="reviewProposal" class="fusion-empty">No active recommendation. Run full analysis above.</div><div class="review-actions"><button id="approveBtn" class="fusion-main-button" disabled>Approve simulation →</button><button id="rejectBtn" class="fusion-secondary-button" disabled>Reject</button></div></article><article class="fusion-box"><div class="fusion-box-head"><h3>Department task threads</h3><span id="tasksCount" class="fusion-label">0</span></div><div id="tasksView" class="task-list"><div class="fusion-empty">Approved recommendations will create tasks for network control, warehouse, ground handling, and customer service.</div></div></article></div></section>
+  <section id="customer-workspace" class="fusion-workspace customer-space"><div class="fusion-overline">04 / B2B CUSTOMER VISIBILITY <span>PRIVACY-FILTERED SYNTHETIC SHIPMENTS</span></div><div class="fusion-heading"><div><h2>A clear answer.<br><em>Without the control-room noise.</em></h2><p>See precisely what a freight customer can receive. No solver penalties, hidden evidence, internal permissions or other clients' records.</p></div><a class="fusion-secondary-button link-button" href="/customer" target="_blank" rel="noopener">Open full customer view ↗</a></div>
+  <div class="customer-search"><label for="awbInput">Synthetic air waybill</label><input id="awbInput" placeholder="Load a demo AWB or enter a synthetic AWB" autocomplete="off"><button id="loadSampleAWB" class="fusion-secondary-button">Use sample</button><button id="trackBtn" class="fusion-main-button">Track shipment</button></div>
+  <div id="customerResult" class="customer-detail"><div class="fusion-empty">Choose Use sample, then Track shipment to load a real projection from the v2 customer API.</div></div>
+  </section>
+  <section class="evidence-panel" id="benchmarkSection">
+   <div class="evidence-heading"><div><div class="eyebrow">05 / RESEARCH EVIDENCE</div><h2>One demonstration is a story.<br><em>Ten thousand paired trials are evidence.</em></h2><p>Compute an actual 10,000-episode comparison using the existing three-model RELAY simulation, with the same shocks under both policies.</p></div><button id="benchmarkBtn" class="btn-evidence">Run 10,000 paired episodes ↗</button></div>
+   <div class="benchmark-grid">
+    <div class="evidence-stat"><span>PAIRED EPISODES</span><strong id="benchN">—</strong><small>Common random numbers</small></div>
+    <div class="evidence-stat"><span>SIMULATED MEAN COST IMPROVEMENT</span><strong id="benchSaving">—</strong><small id="benchCI">95% paired bootstrap interval</small></div>
+    <div class="evidence-stat"><span>BASELINE UNRESOLVED</span><strong id="benchBaseUnresolved">—</strong><small>Explicit synthetic resolution criterion</small></div>
+    <div class="evidence-stat"><span>RELAY UNRESOLVED</span><strong id="benchRelayUnresolved">—</strong><small>Not an aircraft safety error rate</small></div>
+   </div>
+   <div class="evidence-footer"><span id="benchNote">The benchmark runs on demand. It is never a forecast of Cathay’s actual ROI.</span><a href="#math-workspace" class="research-link">Inspect the three mathematical models ↑</a></div>
+  </section>
+  <footer><span>RELAY · HACKATHON RESEARCH / CATHAY CARGO CONTEXT</span><span>SIMULATED DIGITAL TWIN · NO OPERATIONAL EXECUTION AUTHORITY</span></footer>
+ </div>
+</div>
+<div id="toast" role="status" aria-live="polite" class="toast"></div>
+<script src="/show.js" defer></script>
+<script src="/fusion.js" defer></script>
+</body>
+</html>

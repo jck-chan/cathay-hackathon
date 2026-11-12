@@ -1,0 +1,193 @@
+{
+  "experimental_grid": {
+    "episodes_per_scenario": 500,
+    "seed": 707,
+    "results": [
+      {
+        "scenario": "balanced",
+        "parameters": {
+          "arrival_rate": 2.0,
+          "crew": 3,
+          "cold_bays": 1,
+          "stands": 3
+        },
+        "mean_synthetic_cost_advantage": 18.6257,
+        "confidence_interval_mc_95": [
+          16.6429,
+          20.6085
+        ],
+        "regression_fraction": 0.156,
+        "missed_targets_fcfs": 1532,
+        "missed_targets_relay": 1038
+      },
+      {
+        "scenario": "peak_demand",
+        "parameters": {
+          "arrival_rate": 4.0,
+          "crew": 3,
+          "cold_bays": 1,
+          "stands": 3
+        },
+        "mean_synthetic_cost_advantage": 20.5008,
+        "confidence_interval_mc_95": [
+          15.3869,
+          25.6147
+        ],
+        "regression_fraction": 0.402,
+        "missed_targets_fcfs": 4961,
+        "missed_targets_relay": 5973
+      },
+      {
+        "scenario": "crew_scarcity",
+        "parameters": {
+          "arrival_rate": 3.0,
+          "crew": 1,
+          "cold_bays": 1,
+          "stands": 3
+        },
+        "mean_synthetic_cost_advantage": -14.7636,
+        "confidence_interval_mc_95": [
+          -19.2528,
+          -10.2744
+        ],
+        "regression_fraction": 0.622,
+        "missed_targets_fcfs": 2101,
+        "missed_targets_relay": 2532
+      },
+      {
+        "scenario": "cold_scarcity",
+        "parameters": {
+          "arrival_rate": 3.0,
+          "crew": 3,
+          "cold_bays": 0,
+          "stands": 3
+        },
+        "mean_synthetic_cost_advantage": 42.5776,
+        "confidence_interval_mc_95": [
+          39.7509,
+          45.4043
+        ],
+        "regression_fraction": 0.028,
+        "missed_targets_fcfs": 2300,
+        "missed_targets_relay": 1354
+      },
+      {
+        "scenario": "extra_crew",
+        "parameters": {
+          "arrival_rate": 3.0,
+          "crew": 5,
+          "cold_bays": 2,
+          "stands": 5
+        },
+        "mean_synthetic_cost_advantage": 35.8352,
+        "confidence_interval_mc_95": [
+          33.318,
+          38.3524
+        ],
+        "regression_fraction": 0.034,
+        "missed_targets_fcfs": 2257,
+        "missed_targets_relay": 973
+      }
+    ],
+    "evidence_scope": "PAIRED_SYNTHETIC_STAGING_MONTE_CARLO; NOT 3-MODEL JOINT RE-OPTIMIZATION",
+    "empirical_cathay_validation": false,
+    "currency": "UNITLESS_SIMULATED_COST",
+    "distribution_shift_tested": false,
+    "interpretation": "Within these assumptions, urgency-aware staging can reduce penalty cost; outcomes depend strongly on capacity and assumed deadlines."
+  },
+  "baseline_2000": {
+    "episodes": 2000,
+    "seed": 707,
+    "paired_saving_units": 20.5308,
+    "ci_95_mc": [
+      19.4638,
+      21.5977
+    ],
+    "regression_fraction": 0.1485,
+    "missed_staging_targets_fcfs": 6429,
+    "missed_staging_targets_relay": 4390,
+    "scope": "SIMULATED_STAGING_ONLY; same synthetic templates and events; no 3-paper MILP per episode",
+    "real_cathay_roi": null
+  },
+  "seed_sensitivity_500": {
+    "100": {
+      "episodes": 500,
+      "seed": 100,
+      "paired_saving_units": 19.7603,
+      "ci_95_mc": [
+        17.835,
+        21.6856
+      ],
+      "regression_fraction": 0.128,
+      "missed_staging_targets_fcfs": 1524,
+      "missed_staging_targets_relay": 1004,
+      "scope": "SIMULATED_STAGING_ONLY; same synthetic templates and events; no 3-paper MILP per episode",
+      "real_cathay_roi": null
+    },
+    "2048": {
+      "episodes": 500,
+      "seed": 2048,
+      "paired_saving_units": 20.9536,
+      "ci_95_mc": [
+        18.8293,
+        23.0779
+      ],
+      "regression_fraction": 0.12,
+      "missed_staging_targets_fcfs": 1555,
+      "missed_staging_targets_relay": 972,
+      "scope": "SIMULATED_STAGING_ONLY; same synthetic templates and events; no 3-paper MILP per episode",
+      "real_cathay_roi": null
+    },
+    "812": {
+      "episodes": 500,
+      "seed": 812,
+      "paired_saving_units": 19.8212,
+      "ci_95_mc": [
+        17.8023,
+        21.8401
+      ],
+      "regression_fraction": 0.152,
+      "missed_staging_targets_fcfs": 1562,
+      "missed_staging_targets_relay": 1043,
+      "scope": "SIMULATED_STAGING_ONLY; same synthetic templates and events; no 3-paper MILP per episode",
+      "real_cathay_roi": null
+    }
+  },
+  "runtime_audit": {
+    "passed": 22,
+    "total": 22,
+    "production_gaps": 4
+  },
+  "input_data": {
+    "checks": {
+      "id_uniqueness": true,
+      "piece_to_shipment_links": true,
+      "shipment_piece_references": true,
+      "shipment_weight_consistency": true,
+      "booked_flight_link": true,
+      "booked_flight_origin": true,
+      "flight_temporal_order": true,
+      "event_receipt_after_occurrence": true,
+      "positive_piece_geometry_and_mass": true,
+      "cargo_inventory_synthetic_not_oag": true
+    },
+    "pass_count": 10,
+    "check_count": 10,
+    "catalog_counts": {
+      "flights": 429,
+      "shipments": 636,
+      "pieces": 793,
+      "ulds": 14,
+      "historical_events": 5120
+    },
+    "calibration": "SYNTHETIC_NOT_EMPIRICALLY_VALIDATED",
+    "limitations": [
+      "No actual OAG data",
+      "No real airline cargo inventory",
+      "No independent data accuracy ground truth",
+      "No real aircraft load-control / dangerous goods safety validation",
+      "Generated event distributions are not empirically validated Cathay distributions"
+    ]
+  },
+  "analysis_elapsed_s": 5.79
+}

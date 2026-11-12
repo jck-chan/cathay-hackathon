@@ -1,0 +1,5 @@
+SCENE {'version': '9.0', 'engine': 'native-webgl2', 'fallback': 'v8-canvas', 'supports2D': True, 'ready': True} errors [] console []
+CANVAS True
+STEPS TICK 2 events 3
+JAVASCRIPT ERRORS [] PAGE MESSAGES [] screens customer 10
+SCROLL 900 900

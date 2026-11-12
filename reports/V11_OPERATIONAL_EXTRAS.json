@@ -1,0 +1,33 @@
+{
+  "probability_of_regression_pct": {
+    "normal": 28.0,
+    "peak": 0.4,
+    "crew_shortage": 0.0,
+    "cold_outage": 5.6,
+    "high_capacity": 20.4,
+    "temporary_disruption": 3.6
+  },
+  "recovery_clearance_counterexample": {
+    "baseline_clearance_observed_pct": 100.0,
+    "policy_clearance_observed_pct": 100.0,
+    "baseline_mean_ticks_if_cleared": 22.234,
+    "policy_mean_ticks_if_cleared": 25.596,
+    "conditional_time_reduction_pct": -15.121,
+    "caveat": "Conditional means among cleared episodes; compare clearance percentages too."
+  },
+  "milp_runtime_evaluations": 36,
+  "milp_runtime_ms": {
+    "min": 2.356,
+    "median": 5.308,
+    "p95": 6.1985,
+    "max": 6.69
+  },
+  "finite_milp_candidate_columns_range": [
+    9,
+    78
+  ],
+  "all_milp_statuses": [
+    "OPTIMAL_ENUMERATED_MILP"
+  ],
+  "caveat": "Local finite-column MILP solve time (not 3-model end-to-end decision latency or real airline scale)."
+}

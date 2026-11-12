@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-11-09T00:00:00Z",
+  "historical_start": "2026-10-10T00:00:00Z",
+  "historical_end_exclusive": "2026-11-09T00:00:00Z",
+  "seed": 20261109,
+  "data_class": "SYNTHETIC_NOT_CATHAY",
+  "seconds_precision": true,
+  "flight_records": 429,
+  "shipment_records": 636,
+  "piece_records": 793,
+  "uld_records": 14,
+  "event_records": 5120,
+  "historical_shipments": 570,
+  "future_open_shipments": 66,
+  "observed_event_counts": {
+    "shipment_milestone": 3409,
+    "shipment_dimension_conflict": 38,
+    "flight_state_update": 1524,
+    "flight_delay": 59,
+    "booking_change": 76,
+    "flight_cancelled": 8,
+    "terminal_congestion": 6
+  },
+  "future_schedules_note": "Published hypothetical schedules, not future observed events.",
+  "latent_test_only_note": "This file encodes simulation ground truth; it MUST NOT feed decision evaluation."
+}
