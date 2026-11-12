@@ -131,6 +131,18 @@ py -m venv .venv
 .\.venv\Scripts\python.exe launch.py
 ```
 
+## Run with Docker
+
+From the project folder:
+
+```sh
+docker build -t relay-fusion .
+docker run --rm -p 127.0.0.1:8766:8766 relay-fusion
+```
+
+Open the [RELAY interface](http://127.0.0.1:8766/). To enable chat with your local
+`.env` file, add `--env-file .env` before the image name in the run command.
+
 ## What changed in v11
 
 - **Original v10 Ground / Control Tower / Customer visual design preserved.** It keeps WebGL2/Cinematic ground simulation, Bayesian/2D/MILP visual cards, animated elevated customer flight arcs, event feed and shared clock.
