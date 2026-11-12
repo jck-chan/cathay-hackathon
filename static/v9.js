@@ -159,8 +159,8 @@ function v9Render(s){let badge=document.querySelector('.brand small');if(badge&&
  if(s.tick!==v9LastTick){v9LastTick=s.tick;$('tickPill').classList.remove('tick-flash');void $('tickPill').offsetWidth;$('tickPill').classList.add('tick-flash')}
 }
 function v9View(mode){worlds.forEach(w=>w.setMode?.(mode));$('view3D').classList.toggle('selected',mode==='3D');$('view2D').classList.toggle('selected',mode==='2D');$('view3D').setAttribute('aria-pressed',mode==='3D');$('view2D').setAttribute('aria-pressed',mode==='2D')}
-$('fleet').addEventListener('input',()=>{v9VisualSettings.ambientVehicles=+$('fleet').value;txt('fleetN',String(v9VisualSettings.ambientVehicles));worlds.forEach(w=>w.sceneControls={...w.sceneControls,...v9VisualSettings})});
-$('floors').addEventListener('input',()=>{v9VisualSettings.warehouseLevels=+$('floors').value;txt('floorsN',String(v9VisualSettings.warehouseLevels));worlds.forEach(w=>w.sceneControls={...w.sceneControls,...v9VisualSettings})});
+$('fleet')?.addEventListener('input',()=>{v9VisualSettings.ambientVehicles=+$('fleet').value;txt('fleetN',String(v9VisualSettings.ambientVehicles));worlds.forEach(w=>w.sceneControls={...w.sceneControls,...v9VisualSettings})});
+$('floors')?.addEventListener('input',()=>{v9VisualSettings.warehouseLevels=+$('floors').value;txt('floorsN',String(v9VisualSettings.warehouseLevels));worlds.forEach(w=>w.sceneControls={...w.sceneControls,...v9VisualSettings})});
 $('view3D').addEventListener('click',()=>v9View('3D'));$('view2D').addEventListener('click',()=>v9View('2D'));
 $('orbitBtn').addEventListener('click',()=>{v9Orbit=!v9Orbit;worlds.forEach(w=>w.autoOrbit=v9Orbit);$('orbitBtn').classList.toggle('selected',v9Orbit);$('orbitBtn').setAttribute('aria-pressed',String(v9Orbit))});
 $('cameraReset').addEventListener('click',()=>{worlds.forEach(w=>{w.interaction.yaw=-.69;w.interaction.pitch=.72;w.interaction.zoom=1;w.interaction.panX=0;w.interaction.panZ=0;w.interaction.lastInput=performance.now()});toast('Ground camera reset')});

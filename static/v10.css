@@ -178,7 +178,6 @@ html,body{background:#eaf1f1}
   color: #086d63;
   border-color: #b8dfd4;
 }
-.settings-label { display: block; margin-bottom: 8px; font-size: 11px; }
 
 @media (max-width: 760px) {
   .v11-toast { top: 108px; }
