@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from geometry3d import preflight
 from relay.state import project
 from relay.store import Conflict, Missing
+from unified_lab import IncidentKind
 from v5_lab import audit_lab
 from v7_product import V7Lab, experiment_grid
 from .audit import data_audit, live_consistency
@@ -63,7 +64,7 @@ def v11_control(p:SimulationControl):
     except ValueError as e:raise HTTPException(422,str(e)) from e
 
 class IncidentRequest(BaseModel):
-    kind:Literal['flight_cancelled','capacity_changed','shipment_dimension_conflict','shipment_dimension_verified']
+    kind:IncidentKind
 
 @router.post('/incident',tags=['Three-twin simulation'])
 def v11_incident(p:IncidentRequest):

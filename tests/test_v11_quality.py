@@ -11,6 +11,8 @@ from fastapi.testclient import TestClient
 import pytest
 
 from fusion_app import app
+from relay.schemas import parse_time
+from relay.state import project
 from v11.audit import data_audit, live_consistency
 from v11.benchmark import run_episode,select_v11,paired_suite,SCENARIOS
 from v11.legacy_percent import legacy_cost_percent
@@ -139,6 +141,27 @@ def test_unsafe_old_recommendation_never_auto_commits_actual_airline_booking():
         x=live_consistency(c)
         assert x['status']=='PASS'
         assert c.snapshot()['customer_projection']['route_decision']['carrier_confirmed'] is False
+    finally:c.pause();c.lab._tmp.cleanup()
+
+
+def test_manual_delay_and_congestion_update_the_canonical_projection():
+    c=Conductor(seed=2048)
+    try:
+        store=c.lab.store
+        before=project(store,store.clock())
+        for _ in range(2):
+            event=c.incident('flight_delay')['latest_event']
+            assert event['event_type']=='flight_delay'
+            flight_id=event['entity_id']
+            after=project(store,store.clock())
+            delay=parse_time(after['flights'][flight_id]['estimated_departure'])-parse_time(
+                before['flights'][flight_id]['estimated_departure'])
+            assert delay.total_seconds()==45*60
+            before=after
+
+        event=c.incident('terminal_congestion')['latest_event']
+        assert event['event_type']=='terminal_congestion'
+        assert project(store,store.clock())['terminal_capacity_fraction']==.65
     finally:c.pause();c.lab._tmp.cleanup()
 
 

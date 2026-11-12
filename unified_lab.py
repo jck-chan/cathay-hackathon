@@ -10,6 +10,7 @@ import math, random, statistics, tempfile, threading, time, uuid, os
 from datetime import timedelta
 from pathlib import Path
 from collections import Counter
+from typing import Literal, get_args
 from relay.store import Store, Conflict
 from relay.schemas import EventIn, EvaluationRequest, ReviewIn, TaskAckIn, parse_time, ts
 from relay.state import project
@@ -18,6 +19,8 @@ from relay.simulator import tick as make_operational_event
 
 DATA = Path(__file__).resolve().parent / 'data'
 PRIORITY={'STANDARD':1,'PRIORITY':2,'CRITICAL':3}
+IncidentKind = Literal['flight_delay','flight_cancelled','capacity_changed','terminal_congestion',
+                       'shipment_dimension_conflict','shipment_dimension_verified']
 
 
 def safe_job(s, now, step_seconds=600):
@@ -283,20 +286,33 @@ class UnifiedLab:
 
     def incident(self, kind='flight_cancelled'):
         with self.lock:
-            if kind not in ('flight_cancelled','capacity_changed','shipment_dimension_conflict','shipment_dimension_verified'):
+            if kind not in get_args(IncidentKind):
                 raise ValueError('unsupported incident')
             s=project(self.store,self.store.clock())
-            flights=[f for f in s['flights'].values() if f['status']=='Scheduled' and
-                     parse_time(f['estimated_departure'])>parse_time(s['as_of'])+timedelta(minutes=35)]
-            future_used={x['assigned_flight_id'] for x in self._pool(s)}
-            flights.sort(key=lambda x:(x['id'] not in future_used,x['estimated_departure']))
-            if kind.startswith('flight') or kind=='capacity_changed':
+            if kind=='terminal_congestion':
+                entity_type='terminal';entity_id='HKG-T1';source='SYNTHETIC_GROUND_OPS'
+                payload={'capacity_fraction':.65,'duration_seconds':3*3600}
+            elif kind.startswith('flight') or kind=='capacity_changed':
+                flights=[f for f in s['flights'].values() if f['status']=='Scheduled' and
+                         parse_time(f['estimated_departure'])>parse_time(s['as_of'])+timedelta(minutes=35)]
+                future_used={x['assigned_flight_id'] for x in self._pool(s)}
+                flights.sort(key=lambda x:(x['id'] not in future_used,x['estimated_departure']))
+                if kind=='flight_delay':
+                    delay_seconds=45*60
+                    flights=[f for f in flights if parse_time(f['estimated_departure'])+timedelta(seconds=delay_seconds)
+                             <=parse_time(f['scheduled_departure'])+timedelta(days=1)]
                 if not flights:raise ValueError('no future synthetic flight available; reset the scenario')
                 f=flights[0];entity_type='flight';entity_id=f['id']
-                payload={'reason_code':'SYNTHETIC_DISRUPTION'} if kind=='flight_cancelled' else {
-                   'remaining_kg':max(0,int(f['remaining_kg']*.22)),
-                   'cool_remaining_kg':max(0,int(f['cool_remaining_kg']*.22))}
-                source='SYNTHETIC_FLIGHT_OPS' if kind=='flight_cancelled' else 'SYNTHETIC_INVENTORY'
+                source='SYNTHETIC_FLIGHT_OPS'
+                if kind=='flight_delay':
+                    current_delay=parse_time(f['estimated_departure'])-parse_time(f['scheduled_departure'])
+                    payload={'delay_seconds':max(0,int(current_delay.total_seconds()))+delay_seconds}
+                elif kind=='flight_cancelled':
+                    payload={'reason_code':'SYNTHETIC_DISRUPTION'}
+                else:
+                    source='SYNTHETIC_INVENTORY'
+                    payload={'remaining_kg':max(0,int(f['remaining_kg']*.22)),
+                             'cool_remaining_kg':max(0,int(f['cool_remaining_kg']*.22))}
             else:
                 if kind=='shipment_dimension_verified':
                     candidates=[x for x in self._pool(s) if x['dimension_conflict']]
@@ -312,9 +328,12 @@ class UnifiedLab:
                     payload={'piece_id':x['piece_ids'][0],'reason':'scanner/acceptance dimensions disagree'}
                 entity_type='shipment';entity_id=x['id']
                 source='SYNTHETIC_MEASUREMENT'
+            prior_revision=max((e['source_revision'] for e in self.store.events(until=s['as_of'],entity_id=entity_id)
+                                if e['disposition']=='ACCEPTED'),default=0)
+            revision_floor=(2000 if kind=='shipment_dimension_verified' else 1000)+self.t
             event=EventIn(event_id='V4-'+uuid.uuid4().hex[:18],event_type=kind,entity_type=entity_type,
                           entity_id=entity_id,event_time=self.store.clock(),received_at=self.store.clock(),
-                          source=source,source_revision=(2000+self.t if kind=='shipment_dimension_verified' else 1000+self.t),trusted=True,payload=payload)
+                          source=source,source_revision=max(prior_revision+1,revision_floor),trusted=True,payload=payload)
             ing=self.store.append_event(event)
             assert ing['disposition']=='ACCEPTED',ing
             self.recent_event=event.model_dump()

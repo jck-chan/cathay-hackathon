@@ -65,7 +65,24 @@ function renderCustomer(s){let list=s.shipment_objects||[];if(!selectedAwb||!lis
 async function fetchState(){if(pollBusy)return;pollBusy=true;try{const d=await api('/v11/api/state'+(selectedAwb?'?awb='+encodeURIComponent(selectedAwb):''));if(d.v8.sequence!==lastSeq){lastSeq=d.v8.sequence;render(d)}else{render(d)}}catch(e){txt('liveState','OFFLINE');$('statusPulse').classList.remove('on');console.error(e)}finally{pollBusy=false}}
 async function action(path,body,success){if(actionBusy)return;actionBusy=true;try{const d=await api(path,'POST',body);render(d.state||d);if(success)toast(success)}catch(e){toast(e.message,true)}finally{actionBusy=false}}
 async function ctrl(actionName,more={}){await action('/v11/api/control',{action:actionName,...more},actionName==='start'?'All three Twins are now running on one clock':actionName==='pause'?'Shared simulation paused':null)}
-function advanceConfig(){return {rate:+$('rate').value,chaos:+$('chaos').value,handlers:+$('crew').value,cold_bays:+$('cold').value,stands:+$('stands').value,weather:$('weather').value}}
+const disruptionScenarios = {
+ crew: {handlers:1},
+ cold: {cold_bays:0},
+ demand: {rate:5},
+ normal: {rate:2,handlers:3,cold_bays:1,stands:3,chaos:.2,weather:'CLEAR'},
+ peak: {rate:5,handlers:3,cold_bays:1,stands:5,chaos:.35,weather:'CLEAR'},
+ storm: {rate:4,handlers:4,cold_bays:1,stands:5,chaos:.5,weather:'STORM'},
+};
+function advanceConfig(){
+ const config = {rate:+$('rate').value,chaos:+$('chaos').value,handlers:+$('crew').value,cold_bays:+$('cold').value,stands:+$('stands').value};
+ if(!$('applyWeather'))config.weather=$('weather').value;
+ return config;
+}
+function applyDisruptionSettings(settings,message){
+ closePops();
+ $('injectBtn').focus();
+ action('/v11/api/control',{action:'tune',...settings},message);
+}
 function setPop(id, open) {
  const panel = $(id);
  if (!panel) return;
@@ -107,7 +124,15 @@ $('simulationControls')?.addEventListener('click',event=>{
 if($('simulationControls'))$('ground-screen').addEventListener('pointerdown',closePops);
 for(let id of ['rate','crew','cold','stands','chaos']){$(id).addEventListener('input',()=>txt(({rate:'rateN',crew:'crewN',cold:'coldN',stands:'standsN',chaos:'chaosN'})[id],id==='chaos'?Math.round(+$('chaos').value*100)+'%':$(''+id).value))}
 $('applySettings').addEventListener('click',()=>{closePops();ctrl('tune',advanceConfig())});
-$$('[data-incident]').forEach(b=>b.addEventListener('click',()=>{closePops();action('/v11/api/incident',{kind:b.dataset.incident},'Disruption propagated to all three views')}));
+$('applyWeather')?.addEventListener('click',()=>applyDisruptionSettings({weather:$('weather').value},'Weather scenario updated'));
+$$('[data-scenario]').forEach(b=>b.addEventListener('click',()=>{
+ applyDisruptionSettings(disruptionScenarios[b.dataset.scenario],b.textContent+' applied to both ground simulations');
+}));
+$$('[data-incident]').forEach(b=>b.addEventListener('click',()=>{
+ closePops();
+ $('injectBtn').focus();
+ action('/v11/api/incident',{kind:b.dataset.incident},b.textContent.trim()+' recorded in the shared simulation');
+}));
 $('seeDecision')?.addEventListener('click',()=>showTab('tower'));
 $('whyGround')?.addEventListener('click',()=>showEvidence('math'));
 $('logsBtn').addEventListener('click',()=>showEvidence('events'));
@@ -148,8 +173,16 @@ function v9Render(s){let badge=document.querySelector('.brand small');if(badge&&
  const actual=tps/.5;txt('speedActual',num(actual,1)+'×');txt('speedRequested',String(v.speed_target||1)+'×');txt('speedScope',`Tick ${s.tick} · ${num(tps,2)} completed ticks/s · ${v.running?'running':'paused'}`);
  let bar=$('speedBar');if(bar)bar.style.width=clamp(100*tps/req,0,100)+'%';$('simHeartbeat')?.classList.toggle('on',Boolean(v.running));
  txt('flowArrivals',s.work_orders_total||0);txt('flowActive',(p.fcfs?.active||0)+(p.relay?.active||0));txt('flowFinished',p.relay?.completed||0);
- const selectedWeather=v.weather_mode==='AUTO'?'AUTO':(cfg.weather||'CLEAR');if($('weather').value!==selectedWeather&&document.activeElement!==$('weather'))$('weather').value=selectedWeather;
- for(let [id,key] of [['rate','rate'],['crew','handlers'],['cold','cold_bays'],['stands','stands'],['chaos','chaos']]){let el=$(id);if(!el||document.activeElement===el)continue;let n=cfg[key];if(n!=null&&String(el.value)!==String(n))el.value=n}
+ const selectedWeather=v.weather_mode==='AUTO'?'AUTO':(cfg.weather||'CLEAR');
+ const editingWeather=$('applyWeather')&&!$('incidentPop').hidden;
+ if(!editingWeather&&document.activeElement!==$('weather'))$('weather').value=selectedWeather;
+ const editingResources=$('applyWeather')&&!$('settingsPop').hidden;
+ if(!editingResources)for(let [id,key] of [['rate','rate'],['crew','handlers'],['cold','cold_bays'],['stands','stands'],['chaos','chaos']]){
+   const el=$(id), value=cfg[key];
+   if(!el||document.activeElement===el||value==null)continue;
+   el.value=value;
+   el.dispatchEvent(new Event('input'));
+ }
  let t9=new Date(s.clock);if(!Number.isNaN(+t9))lightHour=(t9.getUTCHours()+8+t9.getUTCMinutes()/60+t9.getUTCSeconds()/3600)%24;worlds.forEach(w=>{w.state=p[w.name]||{objects:[]};w.sceneControls={...cfg,handlers:s.resources?.handlers??cfg.handlers,stands:s.resources?.stands??cfg.stands,cold_bays:s.resources?.cold_bays??cfg.cold_bays,configured:cfg,...v9VisualSettings};w.weather=cfg.weather||'CLEAR';w.simTick=s.tick;w.running=!!v.running;w.requestedSpeed=v.speed_target||1;w.actualTicksPerSecond=tps;w.incident=Boolean(s.latest_event&&s.tick>=0);w.autoOrbit=v9Orbit});
  let events=(s.unified_events||[]).filter(e=>!['CLOCK'].includes(e.kind));let last=events.at(-1)?.seq||0;
  if(last>v9LastEvent){const arrivals=events.filter(e=>e.seq>v9LastEvent);v9LastEvent=last;const mount=$('eventLive');const fresh=arrivals.slice(-3);if(mount)for(let e of fresh){const el=document.createElement('div');el.innerHTML=v9LogCard(e);el.className='v9-event-animation';mount.prepend(el);while(mount.children.length>3)mount.lastElementChild.remove();setTimeout(()=>{el.classList.add('aging')},4800)}}
@@ -164,10 +197,15 @@ $('floors')?.addEventListener('input',()=>{v9VisualSettings.warehouseLevels=+$('
 $('view3D').addEventListener('click',()=>v9View('3D'));$('view2D').addEventListener('click',()=>v9View('2D'));
 $('orbitBtn').addEventListener('click',()=>{v9Orbit=!v9Orbit;worlds.forEach(w=>w.autoOrbit=v9Orbit);$('orbitBtn').classList.toggle('selected',v9Orbit);$('orbitBtn').setAttribute('aria-pressed',String(v9Orbit))});
 $('cameraReset').addEventListener('click',()=>{worlds.forEach(w=>{w.canvas.dispatchEvent(new Event('dblclick'))});toast('Ground camera reset')});
-function setPreset(values){for(let [k,v] of Object.entries(values))$(k).value=v;for(let x of ['rate','crew','cold','stands','chaos'])$(x).dispatchEvent(new Event('input'));}
-$('presetNormal').addEventListener('click',()=>setPreset({rate:2,crew:3,cold:1,stands:3,chaos:.2,weather:'CLEAR'}));
-$('presetPeak').addEventListener('click',()=>setPreset({rate:5,crew:3,cold:1,stands:5,chaos:.35,weather:'CLEAR'}));
-$('presetStorm').addEventListener('click',()=>setPreset({rate:4,crew:4,cold:1,stands:5,chaos:.5,weather:'STORM'}));
+function setPreset({handlers,cold_bays,...values}){
+ for(const [id,value] of Object.entries({...values,crew:handlers,cold:cold_bays})){
+   $(id).value=value;
+   $(id).dispatchEvent(new Event('input'));
+ }
+}
+$('presetNormal')?.addEventListener('click',()=>setPreset(disruptionScenarios.normal));
+$('presetPeak')?.addEventListener('click',()=>setPreset(disruptionScenarios.peak));
+$('presetStorm')?.addEventListener('click',()=>setPreset(disruptionScenarios.storm));
 
 requestAnimationFrame(animate);
 {const q=new URLSearchParams(location.search),embed=document.documentElement.dataset.embed;if(embed)selectedAwb=q.get('awb');showTab(embed||(['ground','tower','customer','chat'].includes(location.hash.slice(1))?location.hash.slice(1):'ground'));}
