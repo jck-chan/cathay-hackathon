@@ -46,6 +46,7 @@ function renderTower(s,a,b,delta){const d=s.decision||{},v=s.v8||{};
  $('taskCards').innerHTML=(s.tasks||[]).length?(s.tasks||[]).slice(0,7).map(t=>`<div class="task-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||t.type||'Team handoff')}</b><small>${esc(t.status||'PENDING')} · synthetic task</small>${['PENDING','ACKNOWLEDGED','READY','OPEN','QUEUED_SIMULATED'].includes(t.status)?`<button data-task="${esc(t.id)}">Mark done</button>`:''}</div>`).join(''):'<div class="empty-card">Auto-approved synthetic work orders appear here after the decision gate.</div>';
 }
 function renderCustomer(s){let list=s.shipment_objects||[];if(!selectedAwb||!list.some(x=>x.awb===selectedAwb))selectedAwb=list[0]?.awb||null;
+ if(window.RELAY_CUSTOMER){window.RELAY_CUSTOMER.render(s,selectedAwb,globe);return;}
  txt('portfolioCount',list.length);let q=$('filterShipments').value.toLowerCase().trim();let shown=list.filter(x=>(x.awb+' '+x.destination).toLowerCase().includes(q));
  $('portfolioItems').innerHTML=shown.length?shown.map(x=>{let risk=x.blocked_reason||x.dimension_conflict||x.customs_hold;return `<div class="shipment-card ${x.awb===selectedAwb?'active':''}" data-awb="${esc(x.awb)}" role="button" tabindex="0"><div class="ship-top"><b>${esc(x.awb)}</b><span class="ship-marker ${risk?'risk':''}"></span></div><p>HKG → ${esc(x.destination)} · ${esc(x.handling)} · ${num(x.weight_kg)} kg</p><small>${esc(x.stage_relay||'RECEIVED')} ${risk?'· Needs attention':''}</small></div>`}).join(''):'<div class="empty-card">No matching shipments.</div>';
  let customer=s.customer_projection;
@@ -190,8 +191,8 @@ $('taskCards').addEventListener('click',e=>{const b=e.target.closest('[data-task
 async function review(choice){let d=state?.decision;if(!d)return;let n=d.proposed_actions?.length||0;if(!confirm(`${choice==='approve'?'Approve':'Reject'} ${n} tentative simulated route change(s)?\n\nNo actual airline booking or cargo movement will occur.`))return;await action('/v11/api/review',{decision_id:d.id,choice,expected_snapshot_version:d.snapshot_version},'Simulation-only review recorded')}
 $('approveBtn').addEventListener('click',()=>review('approve'));
 $('rejectBtn').addEventListener('click',()=>review('reject'));
-$('portfolioItems').addEventListener('click',e=>{const p=e.target.closest('[data-awb]');if(!p)return;selectedAwb=p.dataset.awb;fetchState()});
-$('portfolioItems').addEventListener('keydown',e=>{if(e.key==='Enter'){let p=e.target.closest('[data-awb]');if(p){selectedAwb=p.dataset.awb;fetchState()}}});
+$('portfolioItems').addEventListener('click',e=>{const p=e.target.closest('[data-awb]');if(!p)return;selectedAwb=p.dataset.awb;if(state)renderCustomer(state);fetchState()});
+$('portfolioItems').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName!=='BUTTON'){let p=e.target.closest('[data-awb]');if(p){selectedAwb=p.dataset.awb;if(state)renderCustomer(state);fetchState()}}});
 $('filterShipments').addEventListener('input',()=>{if(state)renderCustomer(state)});
 $('newOrderBtn').addEventListener('click',newOrderForm);
 $('fullJourney').addEventListener('click',()=>showEvidence('journey'));

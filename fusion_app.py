@@ -218,3 +218,12 @@ def v12_benchmark_data():
 
 for mcp_path in (MCP_PATH, LEGACY_MCP_PATH):
     app.add_route(mcp_path, MCPTransport(), methods=['GET', 'POST', 'DELETE'], include_in_schema=False)
+
+
+@app.get('/v11_customer.css', include_in_schema=False)
+def v11_customer_css():
+    return FileResponse(ROOT/'static'/'v11_customer.css', media_type='text/css')
+
+@app.get('/v11_customer.js', include_in_schema=False)
+def v11_customer_js():
+    return FileResponse(ROOT/'static'/'v11_customer.js', media_type='text/javascript')
