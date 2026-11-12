@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Literal
@@ -97,22 +98,23 @@ def v10_ui():
 # observable-time multiobjective triage. Synthetic shadow mode only.
 # -------------------------------------------------------------------------
 @app.middleware('http')
-async def v11_local_request_guard(request: Request, call_next):
-    """Block browser cross-site writes to a localhost simulation.
-
-    This is *not* authentication or tenant isolation. Never deploy this as a
-    network-exposed airline/customer service without real auth, RBAC and TLS.
-    """
+async def v11_request_guard(request: Request, call_next):
+    """Restrict writes to the local or configured public simulation origin."""
     if request.method in ('POST','PUT','PATCH','DELETE'):
-        origin=request.headers.get('origin','')
-        fetch_site=request.headers.get('sec-fetch-site','')
-        # Treat the exact current localhost origin as the only browser write
-        # origin. Different local ports must not obtain write privileges.
-        local_host=request.headers.get('host','').lower()
-        own='http://'+local_host
-        if fetch_site=='cross-site' or (origin and origin!=own) or (
-            request.url.hostname not in ('127.0.0.1','localhost','testserver')):
-            return JSONResponse({'detail':'Cross-site mutation request blocked in local synthetic sandbox'},status_code=403)
+        origin = request.headers.get('origin')
+        fetch_site = request.headers.get('sec-fetch-site')
+        host = request.headers.get('host', '').lower()
+        public_domain = (os.getenv('RELAY_PUBLIC_DOMAIN') or os.getenv('RAILWAY_PUBLIC_DOMAIN', '')).strip().lower()
+        if host and host == public_domain:
+            # Railway terminates TLS before forwarding to the container.
+            expected_origin = f'https://{public_domain}'
+            allowed = origin == expected_origin or (origin is None and fetch_site == 'same-origin')
+        else:
+            allowed = request.url.hostname in ('127.0.0.1', 'localhost', 'testserver') and (
+                origin is None or origin == f'http://{host}'
+            )
+        if fetch_site == 'cross-site' or not allowed:
+            return JSONResponse({'detail': 'Cross-site mutation request blocked in synthetic sandbox'}, status_code=403)
     response=await call_next(request)
     if request.url.path.startswith(('/v11/api/','/v12/api/')):
         response.headers['Cache-Control']='no-store'

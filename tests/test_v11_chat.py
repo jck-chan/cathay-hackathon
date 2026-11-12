@@ -4,6 +4,7 @@ import asyncio
 import json
 
 import httpx
+import pytest
 
 from fusion_app import app
 from v11 import api
@@ -11,10 +12,19 @@ from v11.chat import to_langchain
 from v11.conductor import Conductor
 
 
-def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch):
+@pytest.mark.parametrize('railway', [False, True])
+def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch, railway):
     conductor = Conductor(seed=2048)
     monkeypatch.setattr(api, 'conductor', conductor)
     monkeypatch.setenv('RELAY_CHAT_MODEL', 'demo')
+    base_url = 'http://127.0.0.1:8765'
+    headers = {}
+    if railway:
+        domain = 'relay-test.up.railway.app'
+        monkeypatch.delenv('RELAY_PUBLIC_DOMAIN', raising=False)
+        monkeypatch.setenv('RAILWAY_PUBLIC_DOMAIN', domain)
+        base_url = f'http://{domain}'  # Container-side HTTP after TLS termination.
+        headers = {'Origin': f'https://{domain}', 'Sec-Fetch-Site': 'same-origin'}
 
     async def exercise():
         async with app.router.lifespan_context(app) as state:
@@ -23,7 +33,7 @@ def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch):
                 await app(scope, receive, send)
 
             transport = httpx.ASGITransport(app=asgi_with_lifespan)
-            async with httpx.AsyncClient(transport=transport, base_url='http://127.0.0.1:8765') as client:
+            async with httpx.AsyncClient(transport=transport, base_url=base_url, headers=headers) as client:
                 config = (await client.get('/v11/api/chat/config')).json()
                 assert config['configured'] and {'control_get_state', 'create_artifact'} <= set(config['tools'])
 
@@ -63,6 +73,14 @@ def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch):
                 assert (await client.post('/v11/api/chat/tool', json={'name': 'ground_step_simulation', 'arguments': {'count': 0}})).status_code == 422
                 denied = await client.post('/v11/api/chat/tool', json={'name': 'control_get_state'}, headers={'Origin': 'null'})
                 assert denied.status_code == 403
+                if railway:
+                    denied = await client.post('/v11/api/chat', json={'id': 'c2', 'messages': [user]}, headers={'Origin': base_url})
+                    assert denied.status_code == 403
+                    denied = await client.post('/v11/api/chat', json={'id': 'c2', 'messages': [user]}, headers={'Host': 'other.up.railway.app'})
+                    assert denied.status_code == 403
+                    started = await client.post('/v11/api/control', json={'action': 'start'})
+                    assert started.status_code == 200
+                    assert started.json()['v8']['running'] is True
 
     try:
         asyncio.run(exercise())
