@@ -89,7 +89,31 @@ class CustomerGlobe{
  geo(q){return this.project(vec(q))}
  path(points,stroke,width=1,alpha=1,dash=[]){const c=this.c;c.save();c.beginPath();let running=false;for(let i=0;i<points.length;i++){let p=points[i];if(p.visible){running?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y);running=true}else running=false}c.strokeStyle=stroke;c.lineWidth=width;c.globalAlpha=alpha;c.setLineDash(dash);c.stroke();c.restore()}
  label(x,y,t,bg='#fff'){let c=this.c;c.save();c.font='800 10px DM Sans,Segoe UI,sans-serif';let w=c.measureText(t).width+16;c.fillStyle=bg;c.strokeStyle='#cee6de';c.beginPath();c.roundRect(x-w/2,y-18,w,22,7);c.fill();c.stroke();c.fillStyle='#1c6462';c.textAlign='center';c.fillText(t,x,y-4);c.restore()}
- render(t){({ctx:this.c,w:this.w,h:this.h}=screenCanvas(this.canvas));let c=this.c;this.r=Math.min(this.w*.33,this.h*.38);this.cx=this.w/2;this.cy=this.h*.50+6;
+
+ renderCustomerSurface(){
+  const c=this.c;this.r=Math.min(this.w*.39,this.h*.40);this.cx=this.w/2;this.cy=this.h*.50;
+  const R=this.r;
+  // Sample the schematic land once. Individual dots clip cleanly at the horizon.
+  if(!this.landDots){
+   this.landDots=[];
+   for(let lat=-68;lat<=80;lat+=2.5)for(let lon=-180;lon<180;lon+=2.5/Math.max(.25,Math.cos(lat*rad))){
+    const inside=land.some(poly=>{let hit=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+     const a=poly[i],b=poly[j];if((a[1]>lat)!==(b[1]>lat)&&lon<(b[0]-a[0])*(lat-a[1])/(b[1]-a[1])+a[0])hit=!hit;
+    }return hit;});if(inside)this.landDots.push(vec([lon,lat]));
+   }
+  }
+  const halo=c.createRadialGradient(this.cx,this.cy,R*.85,this.cx,this.cy,R*1.22);
+  halo.addColorStop(0,'#3e9b9026');halo.addColorStop(1,'#3e9b9000');c.fillStyle=halo;c.fillRect(0,0,this.w,this.h);
+  const ocean=c.createRadialGradient(this.cx-R*.4,this.cy-R*.5,0,this.cx,this.cy,R*1.2);
+  ocean.addColorStop(0,'#255e65');ocean.addColorStop(.65,'#123d47');ocean.addColorStop(1,'#092b36');
+  c.fillStyle=ocean;c.beginPath();c.arc(this.cx,this.cy,R,0,Math.PI*2);c.fill();
+  for(let lat=-60;lat<=60;lat+=30){const pts=[];for(let lon=-180;lon<=180;lon+=3)pts.push(this.geo([lon,lat]));this.path(pts,'#8ac5c0',.6,.15);}
+  for(let lon=-180;lon<180;lon+=30){const pts=[];for(let lat=-90;lat<=90;lat+=3)pts.push(this.geo([lon,lat]));this.path(pts,'#8ac5c0',.6,.15);}
+  for(const v of this.landDots){const p=this.project(v);if(p.depth<.03)continue;c.fillStyle=`rgba(153,211,193,${.25+.65*p.depth})`;c.beginPath();c.arc(p.x,p.y,Math.max(.65,R*.006),0,Math.PI*2);c.fill();}
+  c.strokeStyle='#6aa69f66';c.lineWidth=1;c.beginPath();c.arc(this.cx,this.cy,R,0,Math.PI*2);c.stroke();
+ }
+
+ render(t){({ctx:this.c,w:this.w,h:this.h}=screenCanvas(this.canvas));let c=this.c;c.clearRect(0,0,this.w,this.h);if(this.canvas.dataset.style==='customer'){this.renderCustomerSurface();return;}this.r=Math.min(this.w*.33,this.h*.38);this.cx=this.w/2;this.cy=this.h*.50+6;
  let g=c.createRadialGradient(this.cx-this.r*.38,this.cy-this.r*.46,this.r*.10,this.cx,this.cy,this.r*1.18);g.addColorStop(0,'#fcffff');g.addColorStop(.73,'#d7f0e9');g.addColorStop(1,'#a2cec5');c.fillStyle=g;c.beginPath();c.arc(this.cx,this.cy,this.r,0,Math.PI*2);c.fill();c.strokeStyle='#9fcabc';c.lineWidth=1.1;c.stroke();
  c.save();c.beginPath();c.arc(this.cx,this.cy,this.r-1,0,Math.PI*2);c.clip();
  for(let lat=-75;lat<=75;lat+=15){let pts=[];for(let lon=-180;lon<=180;lon+=3)pts.push(this.geo([lon,lat]));this.path(pts,'#9fc9c6',.65,.53)}

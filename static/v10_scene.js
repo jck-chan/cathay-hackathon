@@ -81,8 +81,20 @@ const toRad=Math.PI/180;
 function vector(ll){let lon=ll[0]*toRad,lat=ll[1]*toRad;return [Math.cos(lat)*Math.cos(lon),Math.cos(lat)*Math.sin(lon),Math.sin(lat)]}
 function arcVec(a,b,f,alt){let va=vector(a),vb=vector(b),dot=clip(va.reduce((s,v,i)=>s+v*vb[i],0),-.9999,.9999),ang=Math.acos(dot),den=Math.sin(ang),u=den<.00001?1-f:Math.sin((1-f)*ang)/den,v=den<.00001?f:Math.sin(f*ang)/den,h=1+alt*Math.sin(Math.PI*f);return [(va[0]*u+vb[0]*v)*h,(va[1]*u+vb[1]*v)*h,(va[2]*u+vb[2]*v)*h]}
 class NetworkGlobe extends window.RelayV6.CustomerGlobe{
- constructor(canvas){super(canvas);this.routes=[];this.selected=null;this.targetLon=null;this.targetLat=null;this.lastPointer=0;this.animStart=performance.now();this.renderClock=0;this.lastRenderFrame=null;this.running=false;this.requestedSpeed=1;canvas.addEventListener('pointerdown',()=>{this.targetLon=null;this.lastPointer=performance.now()});}
- focusAirport(code){const p=ports[code];if(!p)return;this.targetLon=p[0]-16;this.targetLat=clip(p[1]+4,-55,60);}
+ constructor(canvas){super(canvas);this.routes=[];this.selected=null;this.targetLon=null;this.targetLat=null;this.lastPointer=0;this.animStart=performance.now();this.renderClock=0;this.lastRenderFrame=null;this.running=false;this.requestedSpeed=1;canvas.addEventListener('pointerdown',()=>{this.targetLon=null;this.lastPointer=performance.now()});
+  if(canvas.dataset.style==='customer'){
+   const reset=()=>{this.focusAirport(this.route[1]);};
+   document.getElementById('globeReset')?.addEventListener('click',reset);
+   canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(e.key))return;e.preventDefault();this.targetLon=null;if(e.key==='Home'){reset();return;}this.lon+=e.key==='ArrowLeft'?-8:e.key==='ArrowRight'?8:0;this.lat=clip(this.lat+(e.key==='ArrowUp'?8:e.key==='ArrowDown'?-8:0),-60,60);});
+  }
+ }
+ focusAirport(code){const p=ports[code];if(!p)return;
+  if(this.canvas.dataset.style==='customer'){
+   const a=vector(ports[this.route[0]]||ports.HKG),b=vector(p),mid=a.map((v,i)=>v+b[i]);
+   this.targetLon=Math.atan2(mid[1],mid[0])/toRad;
+   this.targetLat=clip(Math.atan2(mid[2],Math.hypot(mid[0],mid[1]))/toRad,-60,60);
+  }else{this.targetLon=p[0]-16;this.targetLat=clip(p[1]+4,-55,60);}
+ }
  setRoute(a,b){this.route=[ports[a]?a:'HKG',ports[b]?b:'NRT'];if(this.selected!==b){this.selected=b;this.focusAirport(b)}}
  setRoutes(shipments,selected){
    const list=(shipments||[]).filter(j=>ports[j.destination]&&j.destination!=='HKG');
@@ -98,12 +110,12 @@ class NetworkGlobe extends window.RelayV6.CustomerGlobe{
   if(this.running)this.renderClock+=dt*1000*clip(1+.83*Math.log2(this.requestedSpeed||1),1,7);
   const animationTime=this.renderClock;
   super.render(animationTime);
-  const c=this.c,R=this.r,drawn=this.routes||[];let selectedRoute=null;
+  const modern=this.canvas.dataset.style==='customer';const c=this.c,R=this.r,drawn=this.routes||[];let selectedRoute=null;
   // Draw EVERY currently admitted route (up to explicit visual cap), with altitude and
   // correct hemisphere occlusion. These are synthetic route previews, NOT live flight paths.
   const drawRoute=(q)=>{
     let origin=ports.HKG,dest=ports[q.destination];if(!dest)return;
-    const lift=.13+((q.index%5)*.032),N=84,col=this.routeColor(q),pts=[];
+    const lift=modern?.14:.13+((q.index%5)*.032),N=84,col=modern?(q.selected?'#d49749':'#69988f'):this.routeColor(q),pts=[];
     for(let k=0;k<=N;k++){
       const f=k/N,v=arcVec(origin,dest,f,lift),point=this.project(v),cam=this.xyz(v);
       // A backside point is hidden if the sphere intersects the view ray between it and camera.
@@ -112,25 +124,25 @@ class NetworkGlobe extends window.RelayV6.CustomerGlobe{
     }
     c.save();c.beginPath();let drawing=false;
     pts.forEach(p=>{if(p.visible){drawing?c.lineTo(p.x,p.y):c.moveTo(p.x,p.y);drawing=true}else drawing=false});
-    c.lineWidth=q.selected?3.7:1.5;c.globalAlpha=q.selected?.98:.30;
+    c.lineWidth=q.selected?(modern?2.4:3.7):1;c.globalAlpha=q.selected?.98:(modern?.12:.30);
     if(q.selected){c.shadowBlur=16;c.shadowColor=col;}
     c.strokeStyle=col;c.stroke();c.restore();
     // A moving light pulse travels along the actual plotted arc. This is a data-flow marker,
     // not a claim about current aircraft location.
     const phase=((animationTime*.000092*(1+(q.index%4)*.08)+q.index*.137)%1),ix=Math.floor(phase*N),p=pts[ix];
-    if(p?.visible){c.save();c.shadowColor=col;c.shadowBlur=q.selected?17:11;c.fillStyle=col;c.globalAlpha=q.selected?1:.78;c.beginPath();c.arc(p.x,p.y,q.selected?5.1:2.7,0,Math.PI*2);c.fill();c.restore();}
+    if(p?.visible&&!modern){c.save();c.shadowColor=col;c.shadowBlur=q.selected?17:11;c.fillStyle=col;c.globalAlpha=q.selected?1:.78;c.beginPath();c.arc(p.x,p.y,q.selected?5.1:2.7,0,Math.PI*2);c.fill();c.restore();}
     if(q.selected)selectedRoute={route:q,points:pts};
   };
   drawn.filter(x=>!x.selected).forEach(drawRoute);
   const s=drawn.find(x=>x.selected);if(s)drawRoute(s);
   // Labels are only drawn on the visible hemisphere, avoiding stickers on rear geography.
-  const uniq=[...new Set(drawn.map(q=>q.destination))];
+  const uniq=[...new Set(modern?(s?['HKG',s.destination]:[]):drawn.map(q=>q.destination))];
   c.save();c.font='700 10px Segoe UI,Arial,sans-serif';
   for(let code of uniq){let p=this.geo(ports[code]);if(!p.visible||p.depth<.07)continue;
-    const highlight=s?.destination===code;
+    const highlight=modern||s?.destination===code;
     c.fillStyle=highlight?'#0b786f':'rgba(255,255,255,.87)';c.strokeStyle=highlight?'#0b786f':'#8eb6b1';
     c.lineWidth=1;c.beginPath();c.arc(p.x,p.y,highlight?5.5:3.5,0,Math.PI*2);c.fill();c.stroke();
-    if(highlight){c.fillStyle='#123f45';c.textAlign='center';c.fillText(code,p.x,p.y-14);}
+    if(highlight){if(modern)this.label(p.x,p.y-13,code);else{c.fillStyle='#123f45';c.textAlign='center';c.fillText(code,p.x,p.y-14);}}
   }
   c.restore();
  }
