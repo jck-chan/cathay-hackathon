@@ -164,7 +164,7 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .tool-detail pre { max-height: 260px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* ---- artifacts and twin embeds ---- */
-.embed { margin: 0; border: 1px solid #dce8e9; border-radius: 10px; overflow: hidden; background: #fff; }
+.embed { margin: 10px 0; border: 1px solid #dce8e9; border-radius: 10px; overflow: hidden; background: #fff; }
 .embed figcaption {
   display: flex;
   align-items: center;
