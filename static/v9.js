@@ -10,7 +10,7 @@ let state=null,selectedAwb=null,currentTab='ground',pollBusy=false,actionBusy=fa
 const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs'),new RelayV6.GroundScene($('relayWorld'),'relay')],globe=new RelayV6.CustomerGlobe($('customerGlobe'));
 function toast(message,bad=false){let t=$('toast');t.textContent=message;t.classList.toggle('error',bad);t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3700)}
 async function api(path,method='GET',payload){let c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);try{let r=await fetch(path,{method,signal:c.signal,cache:'no-store',headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});let t=await r.text();let o;try{o=JSON.parse(t)}catch{o={detail:t.slice(0,250)}}if(!r.ok)throw Error(typeof o.detail==='string'?o.detail:JSON.stringify(o.detail||o).slice(0,270));return o}finally{clearTimeout(tm)}}
-function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;const controls=$('groundControls');if(controls){closePops();controls.hidden=name!=='ground'}$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);}
+function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);}
 function drawer(title,html){txt('drawerTitle',title);$('drawerContent').innerHTML=html;$('drawer').hidden=false;$('backdrop').hidden=false;$('closeDrawer').focus()}
 function closeDrawer(){$('drawer').hidden=true;$('backdrop').hidden=true}
 function statusLabel(d){if(!d)return 'Preparing model';if(d.stale)return 'Recalculation required';if(d.approval_blocked_external_evidence)return 'Verify flight observation';if(d.model_ii?.cases?.some(x=>x.action==='HOLD'))return 'Hold & verify dimensions';let n=d.proposed_actions?.length||0;if(n)return 'Review '+n+' recovery option'+(n!==1?'s':'');return 'Continue current plan'}
@@ -160,10 +160,12 @@ $$('[data-close]').forEach(button=>button.addEventListener('click',()=>{
  setPop(button.dataset.close,false);
  document.querySelector(`[aria-controls="${button.dataset.close}"]`)?.focus();
 }));
-$('simulationControls')?.addEventListener('click',event=>{
- if(!event.target.closest('.control-anchor'))closePops();
-});
-if($('simulationControls'))$('ground-screen').addEventListener('pointerdown',closePops);
+if($('simulationControls')){
+ document.addEventListener('click',event=>{
+  if(!event.target.closest('.control-anchor'))closePops();
+ });
+ document.querySelector('#ground-screen .worlds').addEventListener('pointerdown',closePops);
+}
 for(let id of ['rate','crew','cold','stands','chaos']){$(id).addEventListener('input',()=>txt(({rate:'rateN',crew:'crewN',cold:'coldN',stands:'standsN',chaos:'chaosN'})[id],id==='chaos'?Math.round(+$('chaos').value*100)+'%':$(''+id).value))}
 $('applySettings').addEventListener('click',()=>{closePops();ctrl('tune',advanceConfig())});
 $('applyWeather')?.addEventListener('click',()=>applyDisruptionSettings({weather:$('weather').value},'Weather scenario updated'));

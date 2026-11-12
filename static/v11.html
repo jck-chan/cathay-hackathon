@@ -2,9 +2,90 @@
 <body><div id="app" class="twin-workspace">
 <header class="topbar"><div class="brand"><span class="brand-glyph">R<span>·</span></span><span><b>RELAY</b><small>CARGO DIGITAL TWINS / V11</small></span></div>
 <nav class="tabs" aria-label="Three synchronized workspaces"><button data-tab="ground" class="tab active">Ground Twin</button><button data-tab="tower" class="tab">Control Tower <i id="navCount" class="navcount">0</i></button><button data-tab="customer" class="tab">Customer Twin</button><button data-tab="chat" class="tab">AI Chat</button></nav>
+<div class="shared-simulation">
+  <div class="simulation-actions" role="group" aria-label="Shared simulation controls">
+    <button class="btn primary" id="globalPlay">▶ Start all</button>
+    <button class="btn soft" id="stepOnce"><span class="control-icon" aria-hidden="true">⏭</span>Step</button>
+    <button class="btn soft" id="resetBtn"><span class="control-icon" aria-hidden="true">↺</span>Reset</button>
+    <button class="btn soft" id="auditBtn">Integrity audit ↗</button>
+    <a class="btn soft evidence-link" href="/v11/evidence" target="_blank" rel="noopener">Evidence & KPIs ↗</a>
+  </div>
+  <div class="simulation-status">
+    <span class="playback-state" role="status"><span class="pulse" id="statusPulse"></span><span id="liveState">PAUSED</span></span>
+    <label class="simulation-speed">Speed <select id="speed" aria-label="Target simulation speed"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option><option value="32">32×</option><option value="100">100×</option></select></label>
+    <span id="achieved">0.0 ticks/s actual</span>
+    <span class="simulation-clock"><b id="tickPill">TICK 0</b><time id="clock" aria-label="Simulated time">—</time></span>
+  </div>
+</div>
 </header>
 <main class="workspace">
 <section class="screen active" id="ground-screen" aria-label="Ground twin simulator"><div class="worlds"><div class="world"><canvas id="baselineWorld" data-aircraft-windows="hidden" data-airport-layout="v11" aria-label="WebGL2 3D synthetic terminal baseline work orders"></canvas><div class="worldlabel"><span class="world-dot baseline-dot"></span><b>BEFORE</b><small>FCFS · Baseline</small></div><span class="worldfooter" id="baselineFooter">Waiting for simulated orders</span></div><div class="world"><canvas id="relayWorld" data-aircraft-windows="hidden" data-airport-layout="v11" aria-label="WebGL2 3D synthetic terminal RELAY work orders"></canvas><div class="worldlabel"><span class="world-dot relay-dot"></span><b>AFTER</b><small>RELAY · Optimized staging</small></div><span class="worldfooter" id="relayFooter">Waiting for simulated orders</span></div></div>
+<section class="simulation-controls" id="simulationControls" aria-label="Ground controls">
+  <div class="control-anchor">
+    <button class="btn soft" id="viewSettingsBtn" aria-expanded="false" aria-controls="viewSettingsPop"><span class="control-icon" aria-hidden="true">◈</span>View settings</button>
+    <div class="settings-pop card control-popover" id="viewSettingsPop" hidden>
+      <div class="pop-head"><b>View settings</b><button class="icon-btn" data-close="viewSettingsPop" aria-label="Close view settings">×</button></div>
+      <div class="view-options" role="group" aria-label="Camera view">
+        <button id="view3D" class="selected" aria-pressed="true">3D</button>
+        <button id="view2D" aria-pressed="false">2D</button>
+        <button id="orbitBtn" aria-pressed="false">Auto orbit</button>
+        <button id="cameraReset">Reset camera</button>
+      </div>
+    </div>
+  </div>
+  <div class="control-anchor">
+    <button class="btn soft" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop"><span class="control-icon" aria-hidden="true">⚙</span>Resources</button>
+    <div class="settings-pop card control-popover" id="settingsPop" hidden><div class="pop-head"><b>Adjust the world</b><button class="icon-btn" data-close="settingsPop" aria-label="Close resources">×</button></div><p>Applies to both scenes on the next tick.</p><label>Orders per tick <b id="rateN">2.0</b><input id="rate" type="range" min="0.25" max="5" step="0.25" value="2"></label><label>Ground crew <b id="crewN">3</b><input id="crew" type="range" min="1" max="6" step="1" value="3"></label><label>Cold bays <b id="coldN">1</b><input id="cold" type="range" min="0" max="3" step="1" value="1"></label><label>Aircraft stands <b id="standsN">3</b><input id="stands" type="range" min="1" max="6" step="1" value="3"></label><label>Disruption chance <b id="chaosN">20%</b><input id="chaos" type="range" min="0" max="1" step=".05" value=".2"></label>
+      <button class="btn primary full" id="applySettings" type="button">Apply to all Twins</button>
+    </div>
+  </div>
+  <div class="control-anchor">
+    <button class="btn soft" id="injectBtn" aria-expanded="false" aria-controls="incidentPop"><span class="control-icon" aria-hidden="true">⚡</span>Disruption</button>
+    <div class="incident-pop card control-popover" id="incidentPop" hidden>
+      <div class="pop-head"><b>Simulate a disruption</b><button class="icon-btn" data-close="incidentPop" aria-label="Close disruptions">×</button></div>
+      <div class="scenario-control">
+        <label for="weather" class="scenario-label">Weather scenario</label>
+        <select id="weather" aria-describedby="weatherEffects">
+          <option value="AUTO">Auto · synthetic transitions</option>
+          <option value="CLEAR">Clear</option>
+          <option value="RAIN">Rain · fewer usable stands</option>
+          <option value="STORM">Storm · fewer crew and stands</option>
+          <option value="FOG">Fog · visibility only</option>
+        </select>
+        <small id="weatherEffects">Weather capacity changes apply on the next tick.</small>
+        <button class="btn soft" id="applyWeather" type="button">Apply weather</button>
+      </div>
+      <div class="incident-group" role="group" aria-labelledby="groundDisruptions">
+        <h3 id="groundDisruptions">Ground operations</h3>
+        <div class="incident-options">
+          <button type="button" data-scenario="crew">Crew shortage</button>
+          <button type="button" data-scenario="cold">Cold bay outage</button>
+          <button type="button" data-scenario="demand">Demand surge</button>
+          <button type="button" data-incident="terminal_congestion">Terminal congestion</button>
+        </div>
+      </div>
+      <div class="incident-group" role="group" aria-labelledby="cargoDisruptions">
+        <h3 id="cargoDisruptions">Flights and cargo</h3>
+        <div class="incident-options">
+          <button type="button" data-incident="flight_delay">Flight delay</button>
+          <button type="button" data-incident="flight_cancelled">Flight cancelled</button>
+          <button type="button" data-incident="capacity_changed">Flight capacity reduction</button>
+          <button type="button" data-incident="shipment_dimension_conflict">Measurement discrepancy</button>
+          <button type="button" data-incident="shipment_dimension_verified">Verify dimensions</button>
+        </div>
+      </div>
+      <div class="incident-group" role="group" aria-labelledby="shiftPresets">
+        <h3 id="shiftPresets">Shift presets</h3>
+        <div class="incident-options">
+          <button type="button" data-scenario="normal">Normal shift</button>
+          <button type="button" data-scenario="peak">Rush hour</button>
+          <button type="button" data-scenario="storm">Storm test</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <button class="btn soft" id="logsBtn"><span class="control-icon" aria-hidden="true">≡</span>Event stream</button>
+</section>
 </section>
 <section class="screen tower" id="tower-screen" aria-label="Control tower decisions">
 <div class="ct">
@@ -114,87 +195,8 @@
     <button class="chat-send" id="chatSend" type="submit" aria-label="Send">Send</button>
   </form>
 </section></main>
-<section class="simulation-controls" id="simulationControls" aria-label="Simulation controls">
-  <div class="simulation-actions" role="group" aria-label="Playback">
-    <button class="btn primary" id="globalPlay">▶ Start all</button>
-    <button class="btn soft" id="stepOnce"><span class="control-icon" aria-hidden="true">⏭</span>Step</button>
-    <button class="btn soft" id="resetBtn"><span class="control-icon" aria-hidden="true">↺</span>Reset</button>
-  </div>
-  <div class="simulation-actions" id="groundControls" role="group" aria-label="Ground controls">
-    <div class="control-anchor">
-      <button class="btn soft" id="viewSettingsBtn" aria-expanded="false" aria-controls="viewSettingsPop"><span class="control-icon" aria-hidden="true">◈</span>View settings</button>
-      <div class="settings-pop card control-popover" id="viewSettingsPop" hidden>
-        <div class="pop-head"><b>View settings</b><button class="icon-btn" data-close="viewSettingsPop" aria-label="Close view settings">×</button></div>
-        <div class="view-options" role="group" aria-label="Camera view">
-          <button id="view3D" class="selected" aria-pressed="true">3D</button>
-          <button id="view2D" aria-pressed="false">2D</button>
-          <button id="orbitBtn" aria-pressed="false">Auto orbit</button>
-          <button id="cameraReset">Reset camera</button>
-        </div>
-      </div>
-    </div>
-    <div class="control-anchor">
-      <button class="btn soft" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop"><span class="control-icon" aria-hidden="true">⚙</span>Resources</button>
-      <div class="settings-pop card control-popover" id="settingsPop" hidden><div class="pop-head"><b>Adjust the world</b><button class="icon-btn" data-close="settingsPop" aria-label="Close resources">×</button></div><p>Applies to both scenes on the next tick.</p><label>Orders per tick <b id="rateN">2.0</b><input id="rate" type="range" min="0.25" max="5" step="0.25" value="2"></label><label>Ground crew <b id="crewN">3</b><input id="crew" type="range" min="1" max="6" step="1" value="3"></label><label>Cold bays <b id="coldN">1</b><input id="cold" type="range" min="0" max="3" step="1" value="1"></label><label>Aircraft stands <b id="standsN">3</b><input id="stands" type="range" min="1" max="6" step="1" value="3"></label><label>Disruption chance <b id="chaosN">20%</b><input id="chaos" type="range" min="0" max="1" step=".05" value=".2"></label>
-        <button class="btn primary full" id="applySettings" type="button">Apply to all Twins</button>
-      </div>
-    </div>
-    <div class="control-anchor">
-      <button class="btn soft" id="injectBtn" aria-expanded="false" aria-controls="incidentPop"><span class="control-icon" aria-hidden="true">⚡</span>Disruption</button>
-      <div class="incident-pop card control-popover" id="incidentPop" hidden>
-        <div class="pop-head"><b>Simulate a disruption</b><button class="icon-btn" data-close="incidentPop" aria-label="Close disruptions">×</button></div>
-        <div class="scenario-control">
-          <label for="weather" class="scenario-label">Weather scenario</label>
-          <select id="weather" aria-describedby="weatherEffects">
-            <option value="AUTO">Auto · synthetic transitions</option>
-            <option value="CLEAR">Clear</option>
-            <option value="RAIN">Rain · fewer usable stands</option>
-            <option value="STORM">Storm · fewer crew and stands</option>
-            <option value="FOG">Fog · visibility only</option>
-          </select>
-          <small id="weatherEffects">Weather capacity changes apply on the next tick.</small>
-          <button class="btn soft" id="applyWeather" type="button">Apply weather</button>
-        </div>
-        <div class="incident-group" role="group" aria-labelledby="groundDisruptions">
-          <h3 id="groundDisruptions">Ground operations</h3>
-          <div class="incident-options">
-            <button type="button" data-scenario="crew">Crew shortage</button>
-            <button type="button" data-scenario="cold">Cold bay outage</button>
-            <button type="button" data-scenario="demand">Demand surge</button>
-            <button type="button" data-incident="terminal_congestion">Terminal congestion</button>
-          </div>
-        </div>
-        <div class="incident-group" role="group" aria-labelledby="cargoDisruptions">
-          <h3 id="cargoDisruptions">Flights and cargo</h3>
-          <div class="incident-options">
-            <button type="button" data-incident="flight_delay">Flight delay</button>
-            <button type="button" data-incident="flight_cancelled">Flight cancelled</button>
-            <button type="button" data-incident="capacity_changed">Flight capacity reduction</button>
-            <button type="button" data-incident="shipment_dimension_conflict">Measurement discrepancy</button>
-            <button type="button" data-incident="shipment_dimension_verified">Verify dimensions</button>
-          </div>
-        </div>
-        <div class="incident-group" role="group" aria-labelledby="shiftPresets">
-          <h3 id="shiftPresets">Shift presets</h3>
-          <div class="incident-options">
-            <button type="button" data-scenario="normal">Normal shift</button>
-            <button type="button" data-scenario="peak">Rush hour</button>
-            <button type="button" data-scenario="storm">Storm test</button>
-          </div>
-        </div>
-      </div>
-    </div>
-    <button class="btn soft" id="logsBtn"><span class="control-icon" aria-hidden="true">≡</span>Event stream</button>
-  </div>
-  <div class="simulation-status">
-    <span class="playback-state" role="status"><span class="pulse" id="statusPulse"></span><span id="liveState">PAUSED</span></span>
-    <label class="simulation-speed">Speed <select id="speed" aria-label="Target simulation speed"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option><option value="32">32×</option><option value="100">100×</option></select></label>
-    <span id="achieved">0.0 ticks/s actual</span>
-    <span class="simulation-clock"><b id="tickPill">TICK 0</b><time id="clock" aria-label="Simulated time">—</time></span>
-  </div>
-</section>
 
-<div class="bottomline"><span id="truthLine">Synthetic shadow simulation · No real airline commands</span><button id="auditBtn">Integrity audit ↗</button><a href="/v11/evidence" target="_blank" rel="noopener" style="font-weight:800;color:#087f74;text-decoration:none;font-size:12px">Evidence & KPIs ↗</a></div>
+<div class="bottomline"><span id="truthLine">Synthetic shadow simulation · No real airline commands</span></div>
 </div>
 <div class="backdrop" id="backdrop" hidden></div><aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden><div class="drawer-head"><div><span class="eyebrow">DETAILED EVIDENCE</span><h2 id="drawerTitle">Inspect</h2></div><button class="icon-btn" id="closeDrawer" aria-label="Close panel">×</button></div><div id="drawerContent" class="drawer-content"></div><div class="drawer-end">SYNTHETIC RESEARCH SHADOW · NOT APPROVED FOR AIRCRAFT OPERATIONS</div></aside>
 <div class="toast v11-toast" id="toast" role="status" aria-live="polite"></div>
