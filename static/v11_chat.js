@@ -25,7 +25,7 @@ const SUGGESTIONS = [
 ];
 const TWIN_LABEL = {ground: 'Ground Twin', tower: 'Control Tower', customer: 'Customer Twin'};
 
-const thread = $('chatThread'), scroller = $('chatScroll'), input = $('chatInput'), sendBtn = $('chatSend');
+const thread = $('chatThread'), scroller = $('chatScroll'), input = $('chatInput'), sendBtn = $('chatSend'), stopBtn = $('chatStop');
 let messages = [], chatId = uid(), busy = false, abort = null, latestState = null, liveTwins = [], renderQueued = false;
 
 /* ---------- markdown ---------- */
@@ -374,8 +374,10 @@ function restore() {
 }
 function setBusy(value) {
   busy = value;
-  sendBtn.textContent = value ? 'Stop' : 'Send';
-  sendBtn.classList.toggle('stop', value);
+  sendBtn.disabled = value;
+  sendBtn.toggleAttribute('aria-busy', value);
+  sendBtn.classList.toggle('request-pending', value);
+  if (stopBtn) stopBtn.hidden = !value;
 }
 
 /* ---------- stream ---------- */
@@ -520,6 +522,7 @@ function submit() {
   send(text);
 }
 $('chatForm').addEventListener('submit', event => { event.preventDefault(); submit(); });
+stopBtn?.addEventListener('click', () => abort?.abort());
 input.addEventListener('input', resize);
 input.addEventListener('keydown', event => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) { event.preventDefault(); if (!busy) submit(); }
