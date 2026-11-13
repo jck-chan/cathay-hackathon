@@ -84,7 +84,6 @@ class NetworkGlobe extends window.RelayV6.CustomerGlobe{
  constructor(canvas){super(canvas);this.routes=[];this.selected=null;this.targetLon=null;this.targetLat=null;this.lastPointer=0;this.animStart=performance.now();this.renderClock=0;this.lastRenderFrame=null;this.running=false;this.requestedSpeed=1;canvas.addEventListener('pointerdown',()=>{this.targetLon=null;this.lastPointer=performance.now()});
   if(canvas.dataset.style==='customer'){
    const reset=()=>{this.focusAirport(this.route[1]);};
-   document.getElementById('globeReset')?.addEventListener('click',reset);
    canvas.addEventListener('keydown',e=>{if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home'].includes(e.key))return;e.preventDefault();this.targetLon=null;if(e.key==='Home'){reset();return;}this.lon+=e.key==='ArrowLeft'?-8:e.key==='ArrowRight'?8:0;this.lat=clip(this.lat+(e.key==='ArrowUp'?8:e.key==='ArrowDown'?-8:0),-60,60);});
   }
  }

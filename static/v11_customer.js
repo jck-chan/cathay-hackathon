@@ -22,7 +22,7 @@
     const c = s.customer_projection?.awb === selected ? s.customer_projection : null;
     const route = item ? `${item.origin || 'HKG'} → ${item.destination}` : '— → —';
     text('shipAwb', selected || 'No shipment selected');
-    text('shipRoute', route); text('globeRoute', route);
+    text('shipRoute', route);
     $('fullJourney').disabled = !c;
     globe.setRoutes?.(list, selected);
     if (item && (globe.route[0] !== (item.origin || 'HKG') || globe.route[1] !== item.destination)) globe.setRoute(item.origin || 'HKG', item.destination);

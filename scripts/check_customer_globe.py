@@ -53,10 +53,15 @@ with sync_playwright() as pw:
     }""")
     canvas = page.locator('#customerGlobe')
     box = canvas.bounding_box()
+    overview = page.locator('.cx-overview').bounding_box()
+    progress = page.locator('#journeySteps').locator('..').bounding_box()
+    assert overview['x'] < box['x'] < overview['x'] + overview['width']
+    assert box['y'] + box['height'] <= overview['y'] + overview['height']
+    assert progress['x'] >= overview['x'] + overview['width']
     before = page.evaluate('globe.lon')
-    page.mouse.move(box['x']+100, box['y']+100)
+    page.mouse.move(box['x']+box['width']/2, box['y']+box['height']/2)
     page.mouse.down()
-    page.mouse.move(box['x']+180, box['y']+130, steps=10)
+    page.mouse.move(box['x']+box['width']*.8, box['y']+box['height']*.7, steps=10)
     page.mouse.up()
     assert page.evaluate('globe.lon') != before
     assert page.evaluate('!globe.drag')
@@ -64,7 +69,7 @@ with sync_playwright() as pw:
     before = page.evaluate('globe.lon')
     page.keyboard.press('ArrowRight')
     assert page.evaluate('globe.lon') == before+8
-    page.locator('#globeReset').click()
+    page.keyboard.press('Home')
     assert page.evaluate('globe.targetLon !== null')
     for width in (1024, 390):
         page.set_viewport_size({'width': width, 'height': 844})

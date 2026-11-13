@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css?v=overview-globe"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
 <body><div id="app" class="twin-workspace">
 <header class="topbar"><div class="brand"><span class="brand-glyph">R<span>·</span></span><span><b>RELAY</b><small>CARGO DIGITAL TWINS / V11</small></span></div>
 <nav class="tabs" aria-label="Three synchronized workspaces"><button data-tab="ground" class="tab active">Ground Twin</button><button data-tab="tower" class="tab">Control Tower <i id="navCount" class="navcount">0</i></button><button data-tab="customer" class="tab">Customer Twin</button><button data-tab="chat" class="tab">AI Chat</button></nav>
@@ -187,11 +187,23 @@
 <header class="cx-header"><h1>Shipment tracking</h1><button class="btn primary" id="newOrderBtn">+ New shipment</button></header>
 <div class="cx-layout">
 <aside class="cx-portfolio"><div class="cx-section-heading"><h2>Your shipments</h2><span id="portfolioCount">0</span></div><label class="search-field"><span aria-hidden="true">⌕</span><input id="filterShipments" placeholder="Search AWB or destination" aria-label="Search shipments"></label><div id="portfolioItems" class="portfolio-items"></div><p class="cx-note">Demo portfolio · shared with Ground and Control Tower</p></aside>
-<div class="cx-detail">
-<article class="cx-card"><div class="cx-section-heading"><span class="eyebrow">SHIPMENT OVERVIEW</span><span id="shipStatus" class="status-chip">Loading</span></div><h2 id="shipAwb">Select a shipment</h2><div class="cx-route" id="shipRoute">— → —</div><p id="shipEta">Arrival estimate unavailable</p><div class="cx-update"><span class="eyebrow">LATEST UPDATE</span><h3 id="shipHeadline">Loading shipment details</h3><p id="shipUpdate"></p></div><div id="shipWarning" class="customer-warning"></div></article>
-<article class="cx-card"><div class="cx-section-heading"><h2>Shipment progress</h2><button class="cx-link" id="fullJourney" disabled>Full timeline ↗</button></div><div id="journeySteps" class="steps"></div></article>
+<article class="cx-card">
+  <div class="cx-overview">
+    <div class="cx-overview-details">
+      <div class="cx-section-heading"><span class="eyebrow">SHIPMENT OVERVIEW</span><span id="shipStatus" class="status-chip">Loading</span></div>
+      <h2 id="shipAwb">Select a shipment</h2>
+      <div class="cx-route" id="shipRoute">— → —</div>
+      <p id="shipEta">Arrival estimate unavailable</p>
+    </div>
+    <div class="cx-map"><canvas id="customerGlobe" data-style="customer" tabindex="0" aria-label="Illustrative route globe. Drag or use arrow keys to rotate. Press Home to reset."></canvas></div>
+  </div>
+  <div class="cx-update"><span class="eyebrow">LATEST UPDATE</span><h3 id="shipHeadline">Loading shipment details</h3><p id="shipUpdate"></p></div>
+  <div id="shipWarning" class="customer-warning"></div>
+</article>
+<div class="cx-context">
+  <article class="cx-card"><div class="cx-section-heading"><h2>Shipment progress</h2><button class="cx-link" id="fullJourney" disabled>Full timeline ↗</button></div><div id="journeySteps" class="steps"></div></article>
+  <aside class="cx-explainer"><span class="eyebrow">ABOUT THIS VIEW</span><h3>Status and confirmation</h3><p>Ground progress comes from the shared simulation. Route proposals remain tentative until carrier confirmation.</p><span class="cx-demo">● Synthetic demo</span></aside>
 </div>
-<aside class="cx-context"><div class="cx-map"><div class="cx-map-heading"><span class="eyebrow">GLOBAL CONNECTIONS</span><span class="cx-map-badge">Route preview</span></div><canvas id="customerGlobe" data-style="customer" tabindex="0" aria-label="Illustrative route globe. Drag or use arrow keys to rotate. Press Home to reset." aria-describedby="globeHelp"></canvas><div class="cx-map-caption"><span class="eyebrow">SELECTED SHIPMENT</span><b id="globeRoute">— → —</b></div><button type="button" class="cx-globe-reset" id="globeReset" aria-label="Reset globe to selected route">↺ Reset view</button></div><p class="cx-note" id="globeHelp">Drag or use arrow keys to explore. Illustrative routes, not live aircraft positions.</p><div class="cx-explainer"><span class="eyebrow">ABOUT THIS VIEW</span><h3>Status and confirmation</h3><p>Ground progress comes from the shared simulation. Route proposals remain tentative until carrier confirmation.</p><span class="cx-demo">● Synthetic demo</span></div></aside>
 </div></div></section>
 <section class="screen chat" id="chat-screen" aria-label="AI chat">
   <div class="chat-actions">
@@ -215,4 +227,4 @@
 </div>
 <div class="backdrop" id="backdrop" hidden></div><aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden><div class="drawer-head"><div><span class="eyebrow">DETAILED EVIDENCE</span><h2 id="drawerTitle">Inspect</h2></div><button class="icon-btn" id="closeDrawer" aria-label="Close panel">×</button></div><div id="drawerContent" class="drawer-content"></div><div class="drawer-end">SYNTHETIC RESEARCH SHADOW · NOT APPROVED FOR AIRCRAFT OPERATIONS</div></aside>
 <div class="toast v11-toast" id="toast" role="status" aria-live="polite"></div>
-<meta name="visual-foundation" content="RELAY 10 visual foundation retained; v11 dispatch and audit upgraded"><script src="/v8_scene.js?v=20261113-coastlines"></script><script src="/aircraft/model.js"></script><script src="/aircraft/flight.js"></script><script src="/ground_ops.js"></script><script src="/v9_scene.js"></script><script src="/v10_scene.js?v=20261113-coastlines"></script><script src="/v10_ui.js"></script><script src="/v11_tower.js"></script><script src="/v11_customer.js"></script><script src="/v9.js"></script><script src="/v11_chat.js"></script></body></html>
+<meta name="visual-foundation" content="RELAY 10 visual foundation retained; v11 dispatch and audit upgraded"><script src="/v8_scene.js?v=20261113-coastlines"></script><script src="/aircraft/model.js"></script><script src="/aircraft/flight.js"></script><script src="/ground_ops.js"></script><script src="/v9_scene.js"></script><script src="/v10_scene.js?v=20261113-coastlines"></script><script src="/v10_ui.js"></script><script src="/v11_tower.js"></script><script src="/v11_customer.js?v=overview-globe"></script><script src="/v9.js"></script><script src="/v11_chat.js"></script></body></html>
