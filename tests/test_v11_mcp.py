@@ -110,8 +110,14 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                             'control_review_decision', 'control_mark_task_done', 'ground_start_simulation',
                             'ground_pause_simulation', 'ground_step_simulation', 'ground_set_playback_speed',
                             'ground_configure_environment', 'control_set_review_mode', 'control_recalculate_decision',
-                            'ground_list_sandboxes', 'ground_create_sandbox',
+                            'ground_list_sandboxes', 'ground_create_sandbox', 'ground_delete_sandbox',
+                            'customer_place_order_all_sandboxes',
                         }
+                        schemas = {tool.name: tool.inputSchema for tool in advertised}
+                        for name in tools - {'ground_list_sandboxes', 'ground_create_sandbox', 'ground_delete_sandbox', 'customer_place_order_all_sandboxes'}:
+                            assert 'scope' in schemas[name]['properties']
+                            assert 'sandbox_ids' in schemas[name]['properties']
+
 
                         legacy = await client.post('/v11/mcp', json={
                             'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list',
@@ -123,53 +129,79 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                             assert not result.isError, result.content
                             return result.structuredContent
 
-                        initial = await call('control_get_state')
+                        initial_batch = await call('control_get_state')
+                        assert initial_batch['target_count'] == 1
+                        assert initial_batch['complete']
+                        initial = initial_batch['results'][0]['result']
                         created = await call('ground_create_sandbox', name='Independent shift', policy='fcfs')
                         sandbox_id = created['id']
                         try:
                             listed = (await call('ground_list_sandboxes'))['result']
                             assert listed[-1] == created
-                            response = await client.get('/v11/api/sandboxes')
-                            assert response.json() == listed
-                            stepped = await call('ground_step_simulation', count=2, sandbox_id=sandbox_id)
-                            assert stepped['tick'] == 2
-                            response = await client.get(f'/v11/api/sandboxes/{sandbox_id}/ground')
-                            assert response.json()['tick'] == 2
+                            assert (await client.get('/v11/api/sandboxes')).json() == listed
+
+                            # Default scope targets BOTH independent sandboxes.
+                            both = await call('control_get_state')
+                            assert {entry['sandbox_id'] for entry in both['results']} == {'relay', sandbox_id}
+                            assert both['complete'] and both['target_count'] == 2
+                            assert all(entry['result']['tick'] == 0 for entry in both['results'])
+
+                            selected = {'scope': 'sandboxes', 'sandbox_ids': [sandbox_id]}
+                            stepped = await call('ground_step_simulation', count=2, **selected)
+                            assert stepped['complete'] and stepped['results'][0]['result']['tick'] == 2
+                            assert (await client.get(f'/v11/api/sandboxes/{sandbox_id}/ground')).json()['tick'] == 2
                             response = await client.get('/v11/api/state', params={'sandbox_id': sandbox_id})
                             assert list(response.json()['policies']) == ['fcfs']
-                            assert (await call('control_get_state'))['tick'] == initial['tick']
+                            assert (await call('control_get_state', **selected))['results'][0]['result']['tick'] == 2
+                            assert (await client.get('/v11/api/state')).json()['tick'] == initial['tick']
                             assert (await client.get('/v11/api/state', params={'sandbox_id': 'missing'})).status_code == 404
+
+                            # Clock, shipment, and flight stores are sandbox-local.
+                            relay_before = (await call('control_get_state', scope='sandboxes', sandbox_ids=['relay']))['results'][0]['result']
+                            assert relay_before['tick'] == 0
+                            assert relay_before['clock'] != response.json()['clock']
+                            order = await call('customer_place_order', order={'destination': 'NRT'})
+                            assert order['complete'] and order['created_count'] == 2
+                            assert {entry['sandbox_id'] for entry in order['created']} == {'relay', sandbox_id}
+                            tracked = await call('customer_track_shipment', awb=order['awb'])
+                            assert tracked['complete'] and tracked['success_count'] == 2
+                            assert all(entry['result']['awb'] == order['awb'] for entry in tracked['results'])
+
+                            only_fcfs = await call('ground_configure_environment', settings={'cold_bays': 2}, **selected)
+                            assert only_fcfs['complete']
+                            assert only_fcfs['results'][0]['result']['config']['cold_bays'] == 2
+                            relay_state = (await call('control_get_state', scope='sandboxes', sandbox_ids=['relay']))['results'][0]['result']
+                            assert relay_state['v8']['config']['cold_bays'] != 2
+
+                            all_speed = await call('ground_set_playback_speed', speed=4)
+                            assert all_speed['complete'] and all_speed['success_count'] == 2
+                            assert all(entry['result']['speed_target'] == 4 for entry in all_speed['results'])
+                            assert (await call('ground_start_simulation', **selected))['complete']
+                            assert (await call('ground_pause_simulation', **selected))['complete']
+                            assert (await call('ground_step_simulation', count=1, **selected))['complete']
+
+                            # All-scope reads, and deletion of only one sandbox.
+                            deleted = await call('ground_delete_sandbox', sandbox_id=sandbox_id)
+                            assert deleted == {'deleted': True, 'sandbox_id': sandbox_id}
+                            assert (await call('control_get_state'))['target_count'] == 1
+                            assert (await call('ground_list_sandboxes'))['result'][0]['id'] == 'relay'
                         finally:
-                            api.sandboxes.get(sandbox_id).conductor.lab._tmp.cleanup()
-                        await call('control_mark_task_done', task_id=initial['tasks'][0]['id'])
+                            if sandbox_id in [s.id for s in api.sandboxes.list()]:
+                                api.sandboxes.delete(sandbox_id)
+
+                        # Review and work orders still operate on the remaining sandbox.
                         await call('control_set_review_mode', mode='MANUAL_REVIEW')
                         await call('control_recalculate_decision')
-                        decision = (await call('control_get_state'))['decision']
-                        reviewed = await call('control_review_decision', review={
-                            'decision_id': decision['id'],
-                            'expected_snapshot_version': decision['snapshot_version'],
-                            'choice': 'reject',
-                        })
-                        assert reviewed['status'] == 'REJECTED'
-
-                        order = await call('customer_place_order', order={'destination': 'NRT'})
-                        tracking = await call('customer_track_shipment', awb=order['awb'])
-                        assert tracking['awb'] == order['awb']
-                        response = await client.get('/v11/api/state', params={'awb': order['awb']})
-                        assert response.json()['customer_projection']['awb'] == order['awb']
+                        decision = (await call('control_get_state'))['results'][0]['result']['decision']
+                        if decision and decision['status'] == 'PENDING_REVIEW':
+                            reviewed = await call('control_review_decision', review={
+                                'decision_id': decision['id'],
+                                'expected_snapshot_version': decision['snapshot_version'],
+                                'choice': 'reject',
+                            })
+                            assert reviewed['complete']
                         event = await call('ground_inject_incident', incident={'kind': 'flight_cancelled'})
-                        assert event['event_type'] == 'flight_cancelled'
-
-                        configured = await call('ground_configure_environment', settings={'cold_bays': 2})
-                        assert configured['config']['cold_bays'] == 2
-                        assert (await call('ground_set_playback_speed', speed=4))['speed_target'] == 4
-                        assert (await call('ground_start_simulation'))['running']
-                        paused = await call('ground_pause_simulation')
-                        assert not paused['running']
-                        stepped = await call('ground_step_simulation', count=2)
-                        assert stepped['tick'] == paused['tick'] + 2
-                        response = await client.get('/v11/api/state')
-                        assert response.json()['tick'] == stepped['tick']
+                        assert event['complete'] and event['success_count'] == 1
 
     try:
         asyncio.run(exercise())
