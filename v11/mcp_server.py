@@ -38,7 +38,8 @@ Each v11 sandbox has its own shipments, event store, decisions and 10-minute
 clock, shared by its Customer, Ground and Control Tower views. Use
 ground_list_sandboxes to find IDs and ground_create_sandbox to create one.
 Pass the same sandbox_id throughout a workflow. Omitting it targets the
-default RELAY sandbox. Writes affect every client viewing the targeted sandbox.
+initial RELAY sandbox or the first available sandbox if RELAY was deleted.
+Writes affect every client viewing the targeted sandbox.
 This is a research/demo sandbox, NOT a connection to real Cathay systems:
 no actual airline booking, cargo move, customer notification, certified
 aircraft loading, or established financial ROI. The separate v12 five-policy

@@ -51,8 +51,8 @@ PANEL = """<style>
     $('play').textContent = running ? 'Pause' : 'Start';
     $('tick').textContent = s.tick;
     $('orders').textContent = s.work_orders_total;
-    $('fcfs').textContent = s.policies.fcfs.cost_units.toFixed(1);
-    $('relayCost').textContent = s.policies.relay.cost_units.toFixed(1);
+    $('fcfs').textContent = s.policies.fcfs?.cost_units.toFixed(1) ?? '—';
+    $('relayCost').textContent = s.policies.relay?.cost_units.toFixed(1) ?? '—';
   });
 </script>"""
 

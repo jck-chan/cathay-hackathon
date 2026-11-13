@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from v11.api import conductor, router as v11_router
+from v11.api import router as v11_router, sandbox_conductor
 from v11.chat import chat_runtime, router as v11_chat_router
 from v11.mcp_server import LEGACY_MCP_PATH, MCP_PATH, MCPTransport, create_mcp_server
 from v12.arena import FiveWorldArena
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title='RELAY Fusion', version='12.0', lifespan=lifespan)
 app.include_router(v11_router)
 app.include_router(v11_chat_router)
-V12 = FiveWorldArena(conductor.lab, seed=9099)
+V12 = FiveWorldArena(sandbox_conductor(None).lab, seed=9099)
 
 app.mount('/aircraft', StaticFiles(directory=ROOT / 'static' / 'aircraft'), name='aircraft')
 app.mount('/scene', StaticFiles(directory=ROOT / 'static' / 'scene'), name='scene')

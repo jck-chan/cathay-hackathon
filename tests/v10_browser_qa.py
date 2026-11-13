@@ -9,7 +9,6 @@ import sys
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from playwright.async_api import async_playwright
 from fusion_app import app
-from v11.api import conductor
 ROOT=Path(__file__).resolve().parents[1]
 
 def build_snapshots():

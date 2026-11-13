@@ -2,6 +2,7 @@
 import asyncio
 
 import httpx
+from fastapi.testclient import TestClient
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
@@ -9,6 +10,27 @@ from fusion_app import app
 from v11 import api
 from v11.conductor import Conductor
 from v11.sandboxes import Sandbox, SandboxManager
+
+
+def test_delete_sandbox_stops_playback_and_updates_default(monkeypatch):
+    default = Conductor()
+    registry = SandboxManager(Sandbox(api.DEFAULT_SANDBOX_ID, 'RELAY', default))
+    monkeypatch.setattr(api, 'sandboxes', registry)
+    with TestClient(app) as client:
+        base = '/v11/api'
+        created = client.post(base+'/sandboxes', json={'name': 'Shift', 'policy': 'fcfs'})
+        assert created.status_code == 201
+        sandbox = created.json()
+        assert sandbox['policy'] == 'fcfs'
+        default.start()
+        assert client.delete(base+'/sandboxes/relay').status_code == 204
+        assert not default.running and not default._thread.is_alive()
+        assert client.get(base+'/sandboxes').json() == [sandbox]
+        assert client.get(base+'/state').json()['sandbox_id'] == sandbox['id']
+        assert client.delete(base+'/sandboxes/relay').status_code == 404
+        assert client.delete(base+'/sandboxes/'+sandbox['id']).status_code == 204
+        assert client.get(base+'/state').status_code == 404
+        assert client.get(base+'/sandboxes').json() == []
 
 
 def test_mcp_tools_share_dashboard_state(monkeypatch):

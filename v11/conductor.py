@@ -44,6 +44,7 @@ class Conductor:
         self._last_effective_capacity=None  # v11 observable restoration marker
         self._stop=Event()
         self._thread=None
+        self._closed=False
         self._record('READY','One synthetic event store powers three views; no airline controls are connected.')
         self._observe('INITIAL')
     def _record(self,kind,message,**extra):
@@ -180,6 +181,7 @@ class Conductor:
                 if self._stop is stop_event:self.running=False
     def start(self):
         with self.guard:
+            if self._closed:raise Conflict('Sandbox has been deleted')
             if self.running:return self.snapshot()
             self._stop=Event()
             self.running=True
@@ -189,6 +191,14 @@ class Conductor:
             self._thread=Thread(target=self._worker,args=(self._stop,),name='RELAY-v8-synthetic-clock',daemon=True)
             self._thread.start()
             return self.snapshot()
+    def close(self):
+        with self.guard:
+            self._closed=True
+            self.running=False
+            self._stop.set()
+            thread=self._thread
+        if thread is not None:thread.join()
+
     def pause(self):
         with self.guard:
             self._stop.set()

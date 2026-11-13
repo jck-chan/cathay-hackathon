@@ -44,3 +44,8 @@ class SandboxManager:
     def list(self) -> tuple[Sandbox, ...]:
         with self._lock:
             return tuple(self._sandboxes.values())
+
+    def delete(self, sandbox_id: str) -> None:
+        with self._lock:
+            sandbox = self._sandboxes.pop(sandbox_id)
+        sandbox.conductor.close()

@@ -25,11 +25,11 @@ router = APIRouter(prefix='/v11/api')
 DEFAULT_SANDBOX_ID = 'relay'
 # The default RELAY sandbox retains the paired metrics used by the older
 # dashboards and the Control Tower's same-input comparison.
-conductor = Conductor(seed=2048)
 sandboxes = SandboxManager(
     Sandbox('fcfs', 'FCFS Baseline', Conductor(seed=2048, dispatch_policies=('fcfs',))),
-    Sandbox(DEFAULT_SANDBOX_ID, 'RELAY', conductor),
+    Sandbox(DEFAULT_SANDBOX_ID, 'RELAY', Conductor(seed=2048)),
 )
+V11_DISPATCH_ENABLED = sandboxes.get(DEFAULT_SANDBOX_ID).conductor.lab.v11_dispatch_enabled
 
 
 def get_sandbox(sandbox_id: str) -> Sandbox:
@@ -39,8 +39,17 @@ def get_sandbox(sandbox_id: str) -> Sandbox:
         raise HTTPException(404, f'Unknown sandbox: {sandbox_id}') from e
 
 
+def resolve_sandbox(sandbox_id: str | None) -> Sandbox:
+    if sandbox_id is not None:
+        return get_sandbox(sandbox_id)
+    available = sandboxes.list()
+    if not available:
+        raise HTTPException(404, 'No sandboxes available')
+    return next((s for s in available if s.id == DEFAULT_SANDBOX_ID), available[0])
+
+
 def sandbox_conductor(sandbox_id: str | None) -> Conductor:
-    return get_sandbox(DEFAULT_SANDBOX_ID if sandbox_id is None else sandbox_id).conductor
+    return resolve_sandbox(sandbox_id).conductor
 
 
 class SandboxInfo(BaseModel):
@@ -69,12 +78,21 @@ def v11_create_sandbox(p: SandboxCreate) -> SandboxInfo:
     return SandboxInfo(id=s.id, name=s.name, policy=s.policy)
 
 
+@router.delete('/sandboxes/{sandbox_id}', tags=['Three-twin simulation'], status_code=204)
+def v11_delete_sandbox(sandbox_id: str) -> None:
+    try:
+        sandboxes.delete(sandbox_id)
+    except KeyError as e:
+        raise HTTPException(404, f'Unknown sandbox: {sandbox_id}') from e
+
+
 @router.get('/state',tags=['Three-twin simulation'])
 def v11_state(awb: str | None = Query(None, max_length=80), sandbox_id: str | None = None):
-    target = sandbox_conductor(sandbox_id)
+    sandbox = resolve_sandbox(sandbox_id)
+    target = sandbox.conductor
     return {
         **target.snapshot(awb),
-        'sandbox_id': sandbox_id or DEFAULT_SANDBOX_ID,
+        'sandbox_id': sandbox.id,
         'ground_policy': target.lab.ground_policy,
     }
 
@@ -206,7 +224,7 @@ def v11_health():
     return {'ok':True,'version':'11.0','one_clock':True,'auto_shadow_default':True,
             'actual_airline_commands':False,'production_certified':False,'data':'SYNTHETIC',
             'ground_dispatch':
-            'V11_OBSERVABLE_TRIAGE' if conductor.lab.v11_dispatch_enabled else 'V10_OBSERVABLE_URGENCY',
+            'V11_OBSERVABLE_TRIAGE' if V11_DISPATCH_ENABLED else 'V10_OBSERVABLE_URGENCY',
             'model_i':'BOUNDED_2D_DIAGNOSTIC',
             'model_ii':'ONE_STEP_BAYES_LOCAL_PROXY',
             'model_iii':'FINITE_COLUMN_SCENARIO_MILP',
