@@ -349,7 +349,7 @@ function renderMessage(message) {
 function render() {
   const pinned = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 90;
   if (!messages.length && !thread.querySelector('.chat-empty')) {
-    thread.replaceChildren(el('div', 'chat-empty', '<h2>What do you want to do in the simulation?</h2><p>The assistant can read and operate the three twins, build small control panels, and show live 3D views inline.</p>' +
+    thread.replaceChildren(el('div', 'chat-empty', '<h2>Chat with the Simulation</h2><p>The assistant can read and operate the three twins, build small control panels, and show live 3D views inline.</p>' +
       `<div class="chat-suggestions">${SUGGESTIONS.map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div>`));
   }
   if (messages.length) thread.querySelector('.chat-empty')?.remove();
