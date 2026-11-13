@@ -4,9 +4,10 @@ from threading import Lock
 from typing import Literal
 from uuid import uuid4
 
+from v12.policies import DispatchModel, LABELS
 from .conductor import Conductor
 
-DispatchPolicy = Literal['fcfs', 'relay']
+DispatchPolicy = DispatchModel | Literal['fcfs', 'relay']
 
 
 @dataclass(frozen=True)
@@ -19,6 +20,14 @@ class Sandbox:
     def policy(self) -> str:
         return self.conductor.lab.ground_policy
 
+    @property
+    def model(self) -> str:
+        if self.policy == 'fcfs':
+            return 'FCFS'
+        if self.policy == 'relay':
+            return 'RELAY_V11' if self.conductor.lab.v11_dispatch_enabled else 'RELAY_V10'
+        return self.policy
+
 
 class SandboxManager:
     def __init__(self, *sandboxes: Sandbox):
@@ -29,7 +38,7 @@ class SandboxManager:
         name = name.strip()
         if not name:
             raise ValueError('Enter a sandbox name')
-        if policy not in ('fcfs', 'relay'):
+        if policy not in LABELS and policy not in ('fcfs', 'relay'):
             raise ValueError(f'Unknown dispatch policy: {policy}')
         conductor = Conductor(seed=seed, dispatch_policies=(policy,))
         sandbox = Sandbox(uuid4().hex, name, conductor)

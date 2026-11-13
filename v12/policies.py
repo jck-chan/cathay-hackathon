@@ -5,6 +5,7 @@ Inputs are observable work-order features at the current tick only. Hard safety
 and cold-resource guards match the original v11 benchmark selector.
 """
 import math
+from typing import Literal
 from unified_lab import select_tasks
 from v11.benchmark import select_v11
 
@@ -15,6 +16,7 @@ LABELS = {
  'A_CRITICAL': 'RELAY + Model A',
  'A_EDF': 'RELAY + EDF',
 }
+DispatchModel = Literal['FCFS', 'RELAY_V10', 'RELAY_V11', 'A_CRITICAL', 'A_EDF']
 POLICIES = tuple(LABELS)
 
 

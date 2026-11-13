@@ -10,6 +10,7 @@ from fusion_app import app
 from v11 import api
 from v11.conductor import Conductor
 from v11.sandboxes import Sandbox, SandboxManager
+from v12.policies import LABELS
 
 
 def test_delete_sandbox_stops_playback_and_updates_default(monkeypatch):
@@ -31,6 +32,38 @@ def test_delete_sandbox_stops_playback_and_updates_default(monkeypatch):
         assert client.delete(base+'/sandboxes/'+sandbox['id']).status_code == 204
         assert client.get(base+'/state').status_code == 404
         assert client.get(base+'/sandboxes').json() == []
+
+
+def test_v11_sandboxes_run_all_v12_dispatch_models(monkeypatch):
+    monkeypatch.setattr(api, 'sandboxes', SandboxManager())
+    monkeypatch.setenv('RELAY_V11_DISPATCH', '0')
+    expected = {
+        'FCFS': 'FCFS_FEASIBLE',
+        'RELAY_V10': 'OPTIMAL_OBSERVABLE_URGENCY',
+        'RELAY_V11': 'V11_EXACT_SINGLE_TICK_TWO_CLASS_TRIAGE',
+        'A_CRITICAL': 'CRITICAL',
+        'A_EDF': 'EDF',
+    }
+    with TestClient(app) as client:
+        base = '/v11/api'
+        assert client.get(base+'/sandbox-models').json() == LABELS
+        for model, name in LABELS.items():
+            created = client.post(base+'/sandboxes', json={'name': name, 'policy': model})
+            assert created.status_code == 201
+            sandbox = created.json()
+            assert sandbox['model_name'] == name
+            params = {'sandbox_id': sandbox['id']}
+            state = client.post(base+'/control', params=params, json={
+                'action': 'tune', 'weather': 'CLEAR', 'chaos': 0,
+            }).json()
+            assert list(state['policies']) == [model]
+            stepped = client.post(base+'/control', params=params, json={'action': 'step'})
+            assert stepped.status_code == 200
+            solver = stepped.json()['policies'][model]['solver']
+            if model.startswith('A_'):
+                assert solver['variant'] == expected[model]
+            else:
+                assert solver['status'] == expected[model]
 
 
 def test_mcp_tools_share_dashboard_state(monkeypatch):

@@ -27,6 +27,7 @@ from .api import (
     v11_state,
     v11_task_done,
 )
+from .sandboxes import DispatchPolicy
 
 MCP_PATH = '/mcp'
 LEGACY_MCP_PATH = '/v11/mcp'
@@ -155,10 +156,10 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
 
     @mcp.tool()
     async def ground_create_sandbox(
-        name: str, policy: Literal['fcfs', 'relay'] = 'relay',
+        name: str, policy: DispatchPolicy = 'relay',
         seed: Annotated[int, Field(ge=0, le=2147483647)] = 2048,
     ) -> dict[str, Any]:
-        """Create an independent, paused synthetic v11 sandbox with the given name. Save the returned ID for tools and live embeds."""
+        """Create an independent, paused synthetic v11 sandbox. Choose FCFS, RELAY_V10, RELAY_V11, A_CRITICAL (RELAY + Model A), or A_EDF (RELAY + EDF). Save the returned ID for tools and live embeds."""
         sandbox = await run_in_threadpool(v11_create_sandbox, SandboxCreate(name=name, policy=policy, seed=seed))
         return sandbox.model_dump()
 

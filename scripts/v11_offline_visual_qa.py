@@ -16,6 +16,7 @@ async def main():
         styles=[c.get(url).raise_for_status().text for url in re.findall(r'<link rel="stylesheet" href="([^"]+)">',html)]
         scripts=[c.get(url).raise_for_status().text for url in re.findall(r'<script\s+src="([^"]+)"\s*></script>',html)]
         sandboxes=c.get('/v11/api/sandboxes').raise_for_status().json()
+        models=c.get('/v11/api/sandbox-models').raise_for_status().json()
         def ground_states():
             return {f'/v11/api/sandboxes/{s["id"]}/ground':
                     c.get(f'/v11/api/sandboxes/{s["id"]}/ground').raise_for_status().json()
@@ -45,12 +46,13 @@ async def main():
         await page.goto('https://relay.test/v11',wait_until='domcontentloaded')
         for css in styles:
             await page.add_style_tag(content=css)
-        await page.evaluate('''({states,sandboxes})=>{let pos=0;
+        await page.evaluate('''({states,sandboxes,models})=>{let pos=0;
             window.fetch=async(u,o={})=>{if((o.method||'GET')!=='GET')pos=1;
                 const path=String(u).split('?')[0], frame=states[pos];
-                const data=path==='/v11/api/sandboxes'?sandboxes:(frame.ground[path]||frame.state);
+                const data=path==='/v11/api/sandbox-models'?models:
+                    path==='/v11/api/sandboxes'?sandboxes:(frame.ground[path]||frame.state);
                 return {ok:true,status:200,json:async()=>data,text:async()=>JSON.stringify(data)};
-            };}''',{'states':[initial,active],'sandboxes':sandboxes})
+            };}''',{'states':[initial,active],'sandboxes':sandboxes,'models':models})
         for script in scripts:
             await page.add_script_tag(content=script)
         await page.wait_for_function("window.RELAY_GROUND_SCENES?.length === 2 && window.RELAY_GROUND_SCENES.every(scene => scene.engine && scene.syncedTick >= 0)")

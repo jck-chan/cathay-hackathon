@@ -15,6 +15,7 @@ from relay.store import Conflict, Missing
 from unified_lab import IncidentKind
 from v5_lab import audit_lab
 from v7_product import V7Lab, experiment_grid
+from v12.policies import LABELS
 from .audit import data_audit, live_consistency
 from .benchmark import paired_suite
 from .conductor import Conductor
@@ -56,6 +57,7 @@ class SandboxInfo(BaseModel):
     id: str
     name: str
     policy: DispatchPolicy
+    model_name: str
 
 
 class SandboxCreate(BaseModel):
@@ -66,7 +68,17 @@ class SandboxCreate(BaseModel):
 
 @router.get('/sandboxes', tags=['Three-twin simulation'])
 def v11_list_sandboxes() -> list[SandboxInfo]:
-    return [SandboxInfo(id=s.id, name=s.name, policy=s.policy) for s in sandboxes.list()]
+    return [sandbox_info(s) for s in sandboxes.list()]
+
+
+def sandbox_info(sandbox: Sandbox) -> SandboxInfo:
+    return SandboxInfo(id=sandbox.id, name=sandbox.name, policy=sandbox.policy,
+                       model_name=LABELS[sandbox.model])
+
+
+@router.get('/sandbox-models', tags=['Three-twin simulation'])
+def v11_sandbox_models() -> dict[str, str]:
+    return LABELS
 
 
 @router.post('/sandboxes', tags=['Three-twin simulation'], status_code=201)
@@ -75,7 +87,7 @@ def v11_create_sandbox(p: SandboxCreate) -> SandboxInfo:
         s = sandboxes.create(p.name, policy=p.policy, seed=p.seed)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
-    return SandboxInfo(id=s.id, name=s.name, policy=s.policy)
+    return sandbox_info(s)
 
 
 @router.delete('/sandboxes/{sandbox_id}', tags=['Three-twin simulation'], status_code=204)

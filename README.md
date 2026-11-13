@@ -22,13 +22,14 @@ The standalone research API in `relay.api:app` is separate from the Fusion serve
 
 Ground Twin opens the first two listed sandboxes. Each pane can select any
 sandbox by name, including the same sandbox in both panes. Choose **Create
-sandbox…**, enter a name, and choose FCFS Baseline or RELAY. The new sandbox
+sandbox…**, enter a name, and choose one of the five v12 dispatch models. The new sandbox
 opens in that pane and appears in both menus. Use the trash button beside a
 sandbox to delete it. Ground controls apply to the distinct sandboxes on display.
 
 `GET /v11/api/sandboxes` lists IDs, names and dispatch policies in display
-order. `POST /v11/api/sandboxes` accepts a name and optional policy
-(`fcfs` or `relay`) and seed, and returns the created sandbox's ID.
+order. `GET /v11/api/sandbox-models` lists the dispatch model IDs and names.
+`POST /v11/api/sandboxes` accepts a name and optional policy and seed,
+and returns the created sandbox's ID.
 `DELETE /v11/api/sandboxes/{sandbox_id}` stops and removes a sandbox.
 Pass `sandbox_id` as a query parameter to live simulation routes or as an
 argument to MCP tools. Calls without an ID use the initial RELAY sandbox

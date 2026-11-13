@@ -14,7 +14,6 @@ const singleGround=embed==='ground'&&embeddedSandbox;
 const sandboxIds=singleGround?[embeddedSandbox]:[null,null];
 const groundStates=new Map(), groundErrors=new Map();
 let sandboxList=[], createSlot=0, creatingSandbox=false, refreshPending=false, sandboxRevision=0;
-const sandboxModels={fcfs:'FCFS Baseline',relay:'RELAY'};
 const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs')];
 if(!singleGround)worlds.push(new RelayV6.GroundScene($('relayWorld'),'relay'));
 const globe=new RelayV6.CustomerGlobe($('customerGlobe'));
@@ -107,13 +106,17 @@ function updateSandboxOptions(){
    option.dataset.sandboxId=remove.dataset.sandboxId=s.id;
    option.setAttribute('aria-current',String(s.id===selectedId));
    option.querySelector('span').textContent=s.name;
-   option.querySelector('small').textContent=sandboxModels[s.policy]||s.policy;
+   option.querySelector('small').textContent=s.model_name;
    remove.setAttribute('aria-label','Delete '+s.name);
    remove.title='Delete '+s.name;
    return row;
   });
   options.replaceChildren(...rows);
-  trigger.querySelector('[data-sandbox-name]').textContent=sandboxList.find(s=>s.id===selectedId)?.name||'Choose sandbox';
+  const selected=sandboxList.find(s=>s.id===selectedId);
+  trigger.querySelector('[data-sandbox-name]').textContent=selected?.name||'Choose sandbox';
+  const model=trigger.querySelector('[data-sandbox-model]');
+  model.textContent=selected?.model_name||'';
+  model.hidden=!selected;
   trigger.disabled=false;
   if(focusedId){
    const replacement=[...options.querySelectorAll('button')].find(b=>b.dataset.sandboxId===focusedId&&b.className===focused.className);
@@ -359,7 +362,32 @@ if(sandboxDialog){
   showTab('ground');
  });
  const form=sandboxDialog.querySelector('form');
- const input=$('sandboxName'), error=$('sandboxError'), cancel=$('cancelSandbox');
+ const input=$('sandboxName'), error=$('sandboxError'), cancel=$('cancelSandbox'), models=$('sandboxModels');
+ const submit=form.querySelector('[type="submit"]');
+ async function openCreate(slot){
+  createSlot=slot;
+  form.reset();
+  error.hidden=true;
+  sandboxDialog.showModal();
+  if(models.childElementCount)return;
+  submit.disabled=true;
+  try{
+   const available=await api('/v11/api/sandbox-models');
+   models.replaceChildren(...Object.entries(available).map(([id,name])=>{
+    const label=document.createElement('label'), radio=document.createElement('input');
+    radio.type='radio';
+    radio.name='policy';
+    radio.value=id;
+    radio.required=true;
+    label.append(radio,' '+name);
+    return label;
+   }));
+   submit.disabled=false;
+  }catch(e){error.textContent=e.message;error.hidden=false}
+ }
+ $$('[data-create-empty-sandbox]').forEach((button,slot)=>{
+  button.addEventListener('click',()=>openCreate(slot));
+ });
  function setMenu(picker,open){
   picker.querySelector('.sandbox-trigger').setAttribute('aria-expanded',String(open));
   picker.querySelector('.sandbox-menu').hidden=!open;
@@ -402,6 +430,7 @@ if(sandboxDialog){
      if(!menu.hidden)picker.querySelector('[data-create-sandbox]').focus();
      syncSandboxList(sandboxList.filter(s=>s.id!==id));
      renderGround();
+     if(!sandboxIds[slot])picker.parentElement.querySelector('[data-create-empty-sandbox]').focus();
      refreshState();
     }catch(e){toast(e.message,true)}
     finally{button.disabled=false}
@@ -410,17 +439,14 @@ if(sandboxDialog){
    setMenu(picker,false);
    trigger.focus();
    if(id){selectSandbox(slot,id);return}
-   createSlot=slot;
-   form.reset();
-   error.hidden=true;
-   sandboxDialog.showModal();
+   openCreate(slot);
   });
  });
  cancel.addEventListener('click',()=>sandboxDialog.close());
  sandboxDialog.addEventListener('cancel',event=>{if(creatingSandbox)event.preventDefault()});
  form.addEventListener('submit',async event=>{
   event.preventDefault();
-  if(creatingSandbox)return;
+  if(creatingSandbox||submit.disabled)return;
   creatingSandbox=true;
   const fields=[...form.elements];
   const payload=Object.fromEntries(new FormData(form));
@@ -438,7 +464,7 @@ if(sandboxDialog){
  });
 }
 function animate(t){const dt=Math.min(Math.max(t-drawStart,0),250);drawStart=t;recordV9Fps(dt);if(state?.v8.running)lightHour=(lightHour+dt/1000*Math.max(0,state.v8.actual_ticks_per_second||0)/6)%24;
- worlds.forEach(w=>{if(!sandboxDialog)w.hour=lightHour;if(currentTab==='ground')w.render(t)});if(currentTab==='customer')globe.render(t);window.RELAY_V10?.frame(t,{currentTab,worlds,globe});requestAnimationFrame(animate)}
+ worlds.forEach(w=>{if(!sandboxDialog)w.hour=lightHour;if(currentTab==='ground'&&!w.canvas.hidden)w.render(t)});if(currentTab==='customer')globe.render(t);window.RELAY_V10?.frame(t,{currentTab,worlds,globe});requestAnimationFrame(animate)}
 
 // V9 presentation-only integration: observable ticks are server-authoritative.
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
@@ -450,6 +476,12 @@ function renderGround(){
  sandboxIds.forEach((id,slot)=>{
   const s=groundStates.get(id), ground=s?.ground, v=s?.v8, cfg=v?.config;
   const world=worlds[slot], footer=slot===0?'baselineFooter':'relayFooter';
+  world.canvas.hidden=!id;
+  if(world.planCanvas)world.planCanvas.hidden=!id;
+  if(world.weatherCanvas)world.weatherCanvas.hidden=!id;
+  $(footer).hidden=!id;
+  sandboxPickers[slot].hidden=!id;
+  world.canvas.parentElement.querySelector('.sandbox-empty').hidden=Boolean(id);
   if(world.sandboxId!==id){
    world.sandboxId=id;
    world.ops.reset();
@@ -466,7 +498,7 @@ function renderGround(){
   const clock=new Date(s?.clock);
   if(!Number.isNaN(+clock))world.hour=(clock.getUTCHours()+8+clock.getUTCMinutes()/60)%24;
   txt(footer,groundErrors.get(id)||v?.worker_error||
-   (ground?`Tick ${s.tick} · ${v.running?'Running':'Paused'} · ${ground.active} moving · ${ground.completed} completed`:id?'Loading sandbox…':'Create a sandbox to start'));
+   (ground?`Tick ${s.tick} · ${v.running?'Running':'Paused'} · ${ground.active} moving · ${ground.completed} completed`:'Loading sandbox…'));
  });
  const reference=groundReference();
  if(reference){

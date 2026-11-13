@@ -209,9 +209,13 @@ class UnifiedLab:
                 from v11.benchmark import select_v11
                 selected,meta=select_v11(p['waiting'],p['active'],self.t,
                     handlers=self.handlers,stands=self.stands,cold_bays=self.cold_bays)
-            else:
+            elif name in ('fcfs', 'relay'):
                 selected,meta=select_tasks(p['waiting'],p['active'],self.t,
                     handlers=self.handlers,stands=self.stands,cold_bays=self.cold_bays,policy=name)
+            else:
+                from v12.policies import select_policy
+                selected,meta=select_policy(name,p['waiting'],p['active'],self.t,
+                    handlers=self.handlers,stands=self.stands,cold_bays=self.cold_bays)
             ids={j['id'] for j in selected}
             p['waiting']=[j for j in p['waiting'] if j['id'] not in ids]
             for j in selected:
