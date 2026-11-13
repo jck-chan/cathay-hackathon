@@ -23,6 +23,7 @@ from .api import (
     v11_list_sandboxes,
     v11_incident,
     v11_order,
+    v11_order_all,
     v11_review,
     v11_state,
     v11_task_done,
@@ -68,8 +69,11 @@ End-to-end scenario (customer -> ground -> control -> customer)
 1. Pause with ground_pause_simulation to obtain a stable clock. This pauses
    the target sandbox for every viewer. Set control_set_review_mode to
    MANUAL_REVIEW if you want explicit operator-style review. Read state.
-2. Create a synthetic order with customer_place_order; save its returned
-   AWB and shipment_id. Track it with customer_track_shipment.
+2. Create a synthetic order with customer_place_order (one sandbox), or
+   customer_place_order_all_sandboxes (all existing sandboxes). For the latter,
+   the AWB and shipment ID are shared so policies can be compared directly;
+   check complete/failed for any partial writes. Save the AWB and track it
+   with customer_track_shipment in the chosen sandbox.
 3. Optionally call ground_configure_environment and/or
    ground_inject_incident. The simulator chooses which entity an incident
    affects; inspect the returned event, never invent a flight ID.
@@ -179,9 +183,15 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
 
     @mcp.tool()
     async def customer_place_order(order: OrderRequest, sandbox_id: str | None = None) -> dict[str, Any]:
-        """Admit a synthetic HKG-origin cargo REQUEST, not an airline booking, into the common Ground/Control/Customer simulation. Supply optional destination, weight, handling (GENERAL or COL), service and dimensions; omitted values use defaults. Save returned awb and shipment_id. Use customer_track_shipment(awb), then inspect state or recalculate a routing proposal."""
+        """Create one synthetic HKG-origin cargo request in exactly one sandbox (default: RELAY). Supply destination, weight, handling, service and dimensions. This does not book cargo with any airline. For all sandboxes use customer_place_order_all_sandboxes."""
         result = await run_in_threadpool(v11_order, order, sandbox_id)
         return {'awb': result['awb'], 'shipment_id': result['shipment_id']}
+
+    @mcp.tool()
+    async def customer_place_order_all_sandboxes(order: OrderRequest) -> dict[str, Any]:
+        """Create the SAME synthetic cargo request in every existing v11 sandbox, using one common AWB/shipment ID for comparable policies. No real booking. Returns created_count, target_count, created and failed entries, and complete; a partial result requires inspection before retrying (retries may duplicate orders)."""
+        result = await run_in_threadpool(v11_order_all, order)
+        return result
 
     @mcp.tool()
     async def ground_inject_incident(incident: IncidentRequest, sandbox_id: str | None = None) -> dict[str, Any]:
