@@ -1,13 +1,35 @@
 /* RELAY v11 · AI chat tab, plus the chrome-less embed mode (/v11?embed=…) that the
    chat uses to show a live twin inline. */
 
-/* ---- embed mode: one twin, no page chrome ---- */
+/* ---- shared header ---- */
 .twin-workspace.v11-workspace { grid-template-rows: auto minmax(0, 1fr); }
+.v11-workspace .shared-simulation { gap: 8px; }
+.v11-workspace .simulation-status { gap: 6px 14px; }
+.v11-workspace .playback-state {
+  gap: 7px;
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: #edf3f3;
+  line-height: 1.3;
+}
+.v11-workspace .playback-state:has(.pulse.on) { background: #e4f5ee; color: #11604f; }
+.v11-workspace .playback-state .pulse { width: 6px; height: 6px; margin: 0; box-shadow: none; }
+.v11-workspace .simulation-rate { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.v11-workspace .simulation-clock {
+  gap: 9px;
+  padding: 5px 9px;
+  border: 1px solid #e0e9e9;
+  border-radius: 6px;
+  line-height: 1.3;
+}
+.v11-workspace .simulation-clock b { padding-inline-end: 9px; border-inline-end: 1px solid #d5e2e3; }
 .v11-workspace .shared-simulation :is(#auditBtn, .evidence-link) {
   opacity: .8;
   transition: opacity .18s, background .18s, transform .18s;
 }
 .v11-workspace .shared-simulation :is(#auditBtn, .evidence-link):is(:hover, :focus-visible) { opacity: 1; }
+
+/* ---- embed mode: one twin, no page chrome ---- */
 html[data-embed] :is(.topbar, .simulation-controls, .toast, .drawer, .backdrop) { display: none !important; }
 html[data-embed] .twin-workspace { grid-template-rows: minmax(0, 1fr); }
 html[data-embed="ground"][data-world="relay"] .world:first-child,

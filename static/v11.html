@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css?v=full-contrast"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css?v=shipment-board"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css?v=simulation-status"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css?v=shipment-board"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
 <body><div id="app" class="twin-workspace v11-workspace">
 <header class="topbar"><div class="brand"><span class="brand-glyph">R<span>·</span></span><span><b>RELAY</b><small>CARGO DIGITAL TWINS / V11</small></span></div>
 <nav class="tabs" aria-label="Three synchronized workspaces"><button data-tab="ground" class="tab active">Ground Twin</button><button data-tab="tower" class="tab">Control Tower <i id="navCount" class="navcount">0</i></button><button data-tab="customer" class="tab">Customer Twin</button><button data-tab="chat" class="tab">AI Chat</button></nav>
@@ -12,8 +12,10 @@
   </div>
   <div class="simulation-status">
     <span class="playback-state" role="status"><span class="pulse" id="statusPulse"></span><span id="liveState">PAUSED</span></span>
-    <label class="simulation-speed">Speed <select id="speed" aria-label="Target simulation speed"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option><option value="32">32×</option><option value="100">100×</option></select></label>
-    <span id="achieved">0.0 ticks/s actual</span>
+    <div class="simulation-rate">
+      <label class="simulation-speed">Speed <select id="speed" aria-label="Target simulation speed"><option value="1">1×</option><option value="4">4×</option><option value="16">16×</option><option value="32">32×</option><option value="100">100×</option></select></label>
+      <span id="achieved">0.0 ticks/s actual</span>
+    </div>
     <span class="simulation-clock"><b id="tickPill">TICK 0</b><time id="clock" aria-label="Simulated time">—</time></span>
   </div>
 </div>
