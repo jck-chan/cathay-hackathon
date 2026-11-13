@@ -131,7 +131,7 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .part.text { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .msg.assistant > .part.text { color: #172126; }
 .msg.assistant > .part.text .chat-word-fade { animation-name: chat-reply-word-in; }
-@keyframes chat-reply-word-in { from { opacity: .72; } to { opacity: 1; } }
+@keyframes chat-reply-word-in { from { opacity: .65; } to { opacity: 1; } }
 .md { overflow-wrap: anywhere; }
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
