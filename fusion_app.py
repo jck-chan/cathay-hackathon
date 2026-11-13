@@ -129,8 +129,14 @@ async def v11_request_guard(request: Request, call_next):
         if fetch_site == 'cross-site' or not allowed:
             return JSONResponse({'detail': 'Cross-site mutation request blocked in synthetic sandbox'}, status_code=403)
     response=await call_next(request)
-    if request.url.path.startswith(('/v11/api/','/v12/api/')):
-        response.headers['Cache-Control']='no-store'
+    # Development/demo policy: never reuse cached pages, scripts, styles,
+    # images, or GET API results. This also covers mounted StaticFiles
+    # (/scene/*, /aircraft/*) that otherwise emit their own cache headers.
+    # API mutations are uncached too; leave MCP streaming headers intact.
+    if request.method in ('GET', 'HEAD') and request.url.path not in (MCP_PATH, LEGACY_MCP_PATH):
+        response.headers['Cache-Control'] = 'no-store'
+    elif request.url.path.startswith(('/v11/api/', '/v12/api/')):
+        response.headers['Cache-Control'] = 'no-store'
     return response
 
 
