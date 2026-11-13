@@ -18,6 +18,8 @@ const urgencyColors = [[.16, .66, .5], [.96, .76, .22], [.97, .52, .16], [.9, .2
 const urgencyCss = ['#1f9f7c', '#d99a12', '#e2711d', '#d63a33'];
 // Until the user drags, the camera frames the work from the landside corner.
 const CAMERA = {yaw: 2.2, pitch: .52, zoom: 1, panX: 0, panZ: 0, custom: false};
+// Ground point just inside the apron, beside the staging yard.
+const ORBIT_PIVOT = {x: 13, z: -8};
 const LIGHTING = {day: 11.2, dusk: 18.35, night: 22.5};
 const PX = 16;                  // ground paint pixels per unit
 const hash = (text) => {
@@ -891,17 +893,17 @@ class GLWorld {
   const cc = this.interaction, aspect = w / h;
   const zs = this.ops.stands.filter(s => s.configured).map(s => s.z);
   const zMin = Math.min(-18, ...zs.map(z => z - 12)), zMax = Math.max(22, ...zs.map(z => z + 12));
-  const focus = [12 + cc.panX, 0, (zMin + zMax) / 2 + cc.panZ];
-  this.focus = focus;
   if (cc.mode === '2D') {
    const half = Math.max(62, (zMax - zMin + 14) / 2 * aspect) * cc.zoom;
-   const cx = focus[0] + 10, cz = focus[2];
+   const cx = 22 + cc.panX, cz = (zMin + zMax) / 2 + cc.panZ;
    this.focus = [cx, 0, cz];
    this.unitsPerPixel = half * 2 / w;
    this.viewYaw = cc.yaw; this.viewPitch = cc.pitch;
    return {projection: mat.ortho(-half, half, -half / aspect, half / aspect, 1, 600),
     view: mat.look([cx, 300, cz], [cx, 0, cz], [0, 0, -1]), eye: [cx, 300, cz], focus: this.focus, distance: half * 2, near: 1, far: 600};
   }
+  const focus = [ORBIT_PIVOT.x + cc.panX, 0, ORBIT_PIVOT.z + cc.panZ];
+  this.focus = focus;
   const tall = aspect < 1.05;
   const yaw = cc.custom ? cc.yaw : tall ? 2.62 : CAMERA.yaw;
   const pitch = cc.custom ? cc.pitch : tall ? .6 : CAMERA.pitch;
