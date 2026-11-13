@@ -20,6 +20,8 @@ const urgencyCss = ['#1f9f7c', '#d99a12', '#e2711d', '#d63a33'];
 const CAMERA = {yaw: 2.2, pitch: .52, zoom: 1, panX: 0, panZ: 0, custom: false};
 // Ground point just inside the apron, beside the staging yard.
 const ORBIT_PIVOT = {x: 13, z: -8};
+// V11: ground point under the tip of the annotated arrow.
+const V11_ORBIT_PIVOT = {x: 33, z: -36};
 const LIGHTING = {day: 11.2, dusk: 18.35, night: 22.5};
 const PX = 16;                  // ground paint pixels per unit
 const hash = (text) => {
@@ -268,6 +270,7 @@ class GLWorld {
   canvas.parentElement.insertBefore(overlay, (this.planCanvas || canvas).nextSibling);
   this.weatherCanvas = overlay;
   this.setupInput();
+  if (canvas.dataset.airportLayout === 'v11') this.setupZoomButtons();
   (window.RELAY_GROUND_SCENES ||= []).push(this);
  }
 
@@ -281,6 +284,7 @@ class GLWorld {
  }
 
  dispose() {
+  this.zoomControls?.remove();
   this.weatherCanvas?.remove();
   this.planCanvas?.remove();
   window.RELAY_GROUND_SCENES = (window.RELAY_GROUND_SCENES || []).filter(scene => scene !== this);
@@ -331,6 +335,28 @@ class GLWorld {
    }
   }, {passive: false});
   c.addEventListener('dblclick', () => Object.assign(cc, CAMERA, {lastInput: performance.now()}));
+ }
+  // Each viewport has a zoom control; the A/B camera stays synchronized.
+ setupZoomButtons() {
+  const group = document.createElement('div');
+  group.className = 'scene-zoom-controls';
+  group.setAttribute('role', 'group');
+  group.setAttribute('aria-label', 'Ground camera zoom');
+  for (const [label, glyph, factor] of [['Zoom in', '+', 1 / 1.25], ['Zoom out', '−', 1.25]]) {
+   const button = document.createElement('button');
+   button.type = 'button';
+   button.setAttribute('aria-label', label);
+   button.title = label;
+   button.textContent = glyph;
+   button.addEventListener('click', () => {
+    const camera = this.interaction;
+    camera.zoom = clamp(camera.zoom * factor, .06, 2.4);
+    camera.lastInput = performance.now();
+   });
+   group.appendChild(button);
+  }
+  this.canvas.parentElement.appendChild(group);
+  this.zoomControls = group;
  }
  setMode(mode) { this.interaction.mode = mode === '2D' ? '2D' : '3D'; this.interaction.lastInput = performance.now(); }
 
@@ -902,7 +928,8 @@ class GLWorld {
    return {projection: mat.ortho(-half, half, -half / aspect, half / aspect, 1, 600),
     view: mat.look([cx, 300, cz], [cx, 0, cz], [0, 0, -1]), eye: [cx, 300, cz], focus: this.focus, distance: half * 2, near: 1, far: 600};
   }
-  const focus = [ORBIT_PIVOT.x + cc.panX, 0, ORBIT_PIVOT.z + cc.panZ];
+  const pivot = this.canvas.dataset.airportLayout === 'v11' ? V11_ORBIT_PIVOT : ORBIT_PIVOT;
+  const focus = [pivot.x + cc.panX, 0, pivot.z + cc.panZ];
   this.focus = focus;
   const tall = aspect < 1.05;
   const yaw = cc.custom ? cc.yaw : tall ? 2.62 : CAMERA.yaw;
