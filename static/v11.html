@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css?v=overview-globe"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css?v=floating-new-shipment"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
 <body><div id="app" class="twin-workspace">
 <header class="topbar"><div class="brand"><span class="brand-glyph">R<span>·</span></span><span><b>RELAY</b><small>CARGO DIGITAL TWINS / V11</small></span></div>
 <nav class="tabs" aria-label="Three synchronized workspaces"><button data-tab="ground" class="tab active">Ground Twin</button><button data-tab="tower" class="tab">Control Tower <i id="navCount" class="navcount">0</i></button><button data-tab="customer" class="tab">Customer Twin</button><button data-tab="chat" class="tab">AI Chat</button></nav>
@@ -184,9 +184,8 @@
 </section>
 <section class="screen customer" id="customer-screen" aria-label="Customer shipment journey">
 <div class="cx-shell">
-<header class="cx-header"><h1>Shipment tracking</h1><button class="btn primary" id="newOrderBtn">+ New shipment</button></header>
 <div class="cx-layout">
-<aside class="cx-portfolio"><div class="cx-section-heading"><h2>Your shipments</h2><span id="portfolioCount">0</span></div><label class="search-field"><span aria-hidden="true">⌕</span><input id="filterShipments" placeholder="Search AWB or destination" aria-label="Search shipments"></label><div id="portfolioItems" class="portfolio-items"></div><p class="cx-note">Demo portfolio · shared with Ground and Control Tower</p></aside>
+<aside class="cx-portfolio"><div class="cx-section-heading"><h1>Track your shipments</h1><span id="portfolioCount">0</span></div><label class="search-field"><span aria-hidden="true">⌕</span><input id="filterShipments" placeholder="Search AWB or destination" aria-label="Search shipments"></label><div id="portfolioItems" class="portfolio-items"></div><p class="cx-note">Demo portfolio · shared with Ground and Control Tower</p></aside>
 <article class="cx-card">
   <div class="cx-overview">
     <div class="cx-overview-details">
@@ -204,7 +203,9 @@
   <article class="cx-card"><div class="cx-section-heading"><h2>Shipment progress</h2><button class="cx-link" id="fullJourney" disabled>Full timeline ↗</button></div><div id="journeySteps" class="steps"></div></article>
   <aside class="cx-explainer"><span class="eyebrow">ABOUT THIS VIEW</span><h3>Status and confirmation</h3><p>Ground progress comes from the shared simulation. Route proposals remain tentative until carrier confirmation.</p><span class="cx-demo">● Synthetic demo</span></aside>
 </div>
-</div></div></section>
+</div>
+<button type="button" class="btn primary cx-new-shipment" id="newOrderBtn"><span aria-hidden="true">+</span> New shipment</button>
+</div></section>
 <section class="screen chat" id="chat-screen" aria-label="AI chat">
   <div class="chat-actions">
     <button class="chat-action" id="chatMcp" type="button" aria-haspopup="dialog">Connect via MCP</button>
