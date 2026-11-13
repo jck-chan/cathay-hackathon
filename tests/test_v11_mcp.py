@@ -160,6 +160,24 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                             relay_before = (await call('control_get_state', scope='sandboxes', sandbox_ids=['relay']))['results'][0]['result']
                             assert relay_before['tick'] == 0
                             assert relay_before['clock'] != response.json()['clock']
+                            # Cross-view clocks match *inside* each sandbox.
+                            for state in (relay_before, response.json()):
+                                contract = state['view_clock_contract']
+                                assert contract['ground_tick'] == state['tick']
+                                assert contract['tower_tick'] == state['tick']
+                                assert contract['customer_tick'] == state['tick']
+
+                            # An incident in FCFS must not change RELAY's flight data.
+                            relay_flights_before = relay_before['flights']
+                            incident_one = await call('ground_inject_incident',
+                                                      incident={'kind': 'flight_cancelled'}, **selected)
+                            assert incident_one['complete'] and incident_one['success_count'] == 1
+                            relay_after = (await call('control_get_state',
+                                                      scope='sandboxes', sandbox_ids=['relay']))['results'][0]['result']
+                            assert relay_after['flights'] == relay_flights_before
+                            assert relay_after['tick'] == relay_before['tick']
+                            assert relay_after['shipment_objects'] == relay_before['shipment_objects']
+
                             order = await call('customer_place_order', order={'destination': 'NRT'})
                             assert order['complete'] and order['created_count'] == 2
                             assert {entry['sandbox_id'] for entry in order['created']} == {'relay', sandbox_id}
