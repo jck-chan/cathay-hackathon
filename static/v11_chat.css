@@ -457,3 +457,8 @@ html[data-embed="ground"][data-single-sandbox] .world { width: 100%; height: 100
   .v11-workspace .shared-simulation #auditBtn { margin-inline-start: 0; }
   .v11-workspace .shared-simulation :is(#auditBtn, .evidence-link) { padding: 8px 6px; }
 }
+
+/* Keep the initiating Send button visibly pending; cancellation is separate. */
+.chat-composer .chat-send.request-pending { opacity: .46; cursor: progress; }
+.chat-composer .chat-stop { flex: none; border: 1px solid #ccddde; border-radius: 9px; padding: 8px 12px; background: #fff; color: #24565b; font-size: 13px; font-weight: 700; }
+.chat-composer .chat-stop:hover { background: #edf5f3; }
