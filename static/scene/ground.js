@@ -20,9 +20,9 @@ const urgencyCss = ['#1f9f7c', '#d99a12', '#e2711d', '#d63a33'];
 const CAMERA = {yaw: 2.2, pitch: .52, zoom: 1, panX: 0, panZ: 0, custom: false};
 // Ground point just inside the apron, beside the staging yard.
 const ORBIT_PIVOT = {x: 13, z: -8};
-// V11: fixed world-space target at the base of the central apron floodlight (z = 0).
+// V11: fixed world-space target at the light head of the central apron floodlight.
 // Keep this literal: the camera never tracks or reads the lamp instance.
-const V11_ORBIT_PIVOT = {x: 10.4, z: 0};
+const V11_ORBIT_PIVOT = {x: 10.4, y: 14, z: 0};
 const LIGHTING = {day: 11.2, dusk: 18.35, night: 22.5};
 const PX = 16;                  // ground paint pixels per unit
 const hash = (text) => {
@@ -930,7 +930,7 @@ class GLWorld {
     view: mat.look([cx, 300, cz], [cx, 0, cz], [0, 0, -1]), eye: [cx, 300, cz], focus: this.focus, distance: half * 2, near: 1, far: 600};
   }
   const pivot = this.canvas.dataset.airportLayout === 'v11' ? V11_ORBIT_PIVOT : ORBIT_PIVOT;
-  const focus = [pivot.x + cc.panX, 0, pivot.z + cc.panZ];
+  const focus = [pivot.x + cc.panX, pivot.y ?? 0, pivot.z + cc.panZ];
   this.focus = focus;
   const tall = aspect < 1.05;
   const yaw = cc.custom ? cc.yaw : tall ? 2.62 : CAMERA.yaw;
