@@ -165,7 +165,7 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .md th, .md td { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid #e3ecec; }
 .md th { font-size: 12px; font-weight: 600; color: #637c83; }
 .msg.assistant > .part.text .md a { color: #075e56; }
-.msg.assistant > .part.text .md :is(blockquote, th) { color: inherit; }
+.msg.assistant > .part.text .md :is(p, blockquote, th) { color: inherit; }
 
 /* ---- reasoning ---- */
 .thought { color: inherit; font-size: 13px; }
