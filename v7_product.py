@@ -114,7 +114,7 @@ class V7Lab(AuditedLab):
             'semantics':'ALL_TICKS_SIMULATED; SOLVER_REEVALUATED_PER_BATCH_OR_EVENT; NOT_REAL_TIME_TELEMETRY'}
         return res
 
-    def create_order(self, destination, weight_kg, handling, service, length_cm, width_cm, height_cm):
+    def create_order(self, destination, weight_kg, handling, service, length_cm, width_cm, height_cm, shipment_id=None):
         """SYNTHETIC customer request inserted transactionally, not airline booking.
 
         This deliberately does not set assigned_flight_id: OAG flight schedules
@@ -132,7 +132,9 @@ class V7Lab(AuditedLab):
         with self.lock:
             if len([x for x in self.admitted if x.startswith('SYN-DEMO-')])>=30:
                 raise ValueError('synthetic order entry limited to 30 per scenario; reset to try more')
-            sid='SYN-DEMO-'+uuid.uuid4().hex[:12].upper()
+            sid=shipment_id or 'SYN-DEMO-'+uuid.uuid4().hex[:12].upper()
+            if shipment_id and (not shipment_id.startswith('SYN-DEMO-') or shipment_id in self.admitted):
+                raise ValueError('Invalid or duplicate synthetic shipment ID')
             pid=sid+'-P1';now=self.store.clock();deadline=ts(parse_time(now)+timedelta(hours=48))
             shipment=Shipment(id=sid,awb='SYN-CX-D'+sid[-8:],booking_id='SYN-REQUEST-'+sid,
                 client_id='SYN-DEMO-ACCOUNT',origin='HKG',destination=destination,
