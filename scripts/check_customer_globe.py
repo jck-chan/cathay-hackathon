@@ -56,9 +56,10 @@ with sync_playwright() as pw:
     overview = page.locator('.cx-overview').bounding_box()
     progress = page.locator('.cx-progress').bounding_box()
     assert page.locator('.cx-card').count() == 1
-    assert overview['x'] < box['x'] < overview['x'] + overview['width']
-    assert box['y'] + box['height'] <= overview['y'] + overview['height']
-    assert progress['x'] >= overview['x'] + overview['width']
+    assert box['x'] > progress['x'] + progress['width']
+    assert box['width'] > 180
+    assert progress['x'] == overview['x']
+    assert progress['y'] >= overview['y'] + overview['height']
     before = page.evaluate('globe.lon')
     page.mouse.move(box['x']+box['width']/2, box['y']+box['height']/2)
     page.mouse.down()

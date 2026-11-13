@@ -24,33 +24,32 @@
     text('shipAwb', selected || 'No shipment selected');
     text('shipRoute', route);
     $('fullJourney').disabled = !c;
-    const serviceMessage = c?.customer_service_message;
-    const update = c && serviceMessage !== 'Shipment milestones and estimated arrival are being updated.'
-      ? serviceMessage || c.journey_events?.at(-1)?.message || ''
-      : '';
-    text('shipUpdate', update);
-    $('shipUpdate').hidden = !update;
     globe.setRoutes?.(list, selected);
     if (item && (globe.route[0] !== (item.origin || 'HKG') || globe.route[1] !== item.destination)) globe.setRoute(item.origin || 'HKG', item.destination);
     if (!c) {
       text('shipStatus', item ? 'Loading details' : 'No shipment');
-      text('shipEta', 'Arrival estimate unavailable'); text('shipHeadline', item ? 'Loading shipment details' : 'Your portfolio is empty');
-      text('shipWarning', ''); $('shipWarning').hidden = true; $('journeySteps').replaceChildren(); return;
+      text('shipEta', 'Arrival estimate unavailable');
+      text('journeySteps', item ? 'Loading shipment details' : 'Your portfolio is empty');
+      return;
     }
     const rd = c.route_decision || {}, phase = c.ground_twin?.phase;
     text('shipStatus', label(c.status || 'Simulated'));
     text('shipEta', c.eta_past_due_without_arrival_confirmation ? 'Recorded ETA overdue · arrival not confirmed' : `Recorded arrival estimate: ${time(c.estimated_arrival_utc)}`);
-    text('shipHeadline', c.ground_twin?.phase_label || label(c.journey_events?.at(-1)?.kind || 'Order received'));
+    const serviceMessage = c.customer_service_message;
+    const update = serviceMessage === 'Shipment milestones and estimated arrival are being updated.'
+      ? ''
+      : serviceMessage || c.journey_events?.at(-1)?.message;
     const proposals = rd.tentative_alternative_flights || [];
-    $('shipWarning').hidden = false;
-    text('shipWarning', proposals.length ? `Proposed route: ${proposals.join(' → ')}. Review: ${label(rd.review_status)}. Carrier confirmation is ${rd.carrier_confirmed ? 'recorded' : 'pending'}.` : rd.carrier_confirmed ? 'Carrier confirmation recorded in the simulation.' : 'Carrier confirmation pending. This simulation does not book cargo or confirm delivery.');
+    const review = proposals.length ? label(rd.review_status || 'Awaiting review') : 'No alternative route proposed';
     const steps = [
       ['Request received', true, 'Shipment recorded in the simulation'],
-      ['Ground processing', phase === 'DONE', c.ground_twin?.phase_label || label(phase || 'Not in staging')],
-      ['Route review', false, proposals.length ? label(rd.review_status || 'Awaiting review') : 'No alternative route proposed'],
-      ['Carrier confirmation', Boolean(rd.carrier_confirmed), rd.carrier_confirmed ? 'Confirmation recorded' : 'Awaiting external confirmation']
+      ['Ground processing', phase === 'DONE', c.ground_twin?.phase_label || label(phase || 'Not in staging'), update],
+      ['Route review', false, review, proposals.length ? `Proposed route: ${proposals.join(' → ')}` : ''],
+      ['Carrier confirmation', Boolean(rd.carrier_confirmed), rd.carrier_confirmed ? 'Confirmation recorded in the simulation' : 'Awaiting external confirmation']
     ];
-    $('journeySteps').innerHTML = steps.map(([title, done, detail]) => `<div class="stepnode ${done ? 'done' : ''}"><b>${title}</b><small>${escape(detail)}</small></div>`).join('');
+    $('journeySteps').innerHTML = steps.map(([title, done, detail, note]) =>
+      `<div class="stepnode ${done ? 'done' : ''}"><b>${title}</b><small>${escape(detail)}</small>${note ? `<small>${escape(note)}</small>` : ''}</div>`
+    ).join('');
   }
   window.RELAY_CUSTOMER = {render};
 })();
