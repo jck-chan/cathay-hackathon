@@ -18,6 +18,8 @@ const urgencyColors = [[.16, .66, .5], [.96, .76, .22], [.97, .52, .16], [.9, .2
 const urgencyCss = ['#1f9f7c', '#d99a12', '#e2711d', '#d63a33'];
 // Until the user drags, the camera frames the work from the landside corner.
 const CAMERA = {yaw: 2.2, pitch: .52, zoom: 1, panX: 0, panZ: 0, custom: false};
+// Two 1.25x zoom-out clicks from the original default (1.25 ** 2).
+const V11_CAMERA = {...CAMERA, zoom: 1.5625};
 // Ground point just inside the apron, beside the staging yard.
 const ORBIT_PIVOT = {x: 13, z: -8};
 // V11: fixed world-space target at half the central floodlight's height.
@@ -242,7 +244,7 @@ class GLWorld {
   this.ops = new GroundOps();
   this.accent = accents[name] || accents.relay;
   this.interaction = GLWorld.sharedCamera ||
-   (GLWorld.sharedCamera = {...CAMERA, mode: '3D', lastInput: performance.now()});
+   (GLWorld.sharedCamera = {...(canvas.dataset.airportLayout === 'v11' ? V11_CAMERA : CAMERA), mode: '3D', lastInput: performance.now()});
   this.showAircraftWindows = canvas.dataset.aircraftWindows !== 'hidden';
   this.gl = canvas.getContext('webgl2', {antialias: false, alpha: false, depth: false, powerPreference: 'high-performance'});
   if (this.gl) {
@@ -335,7 +337,7 @@ class GLWorld {
     cc.panZ += (hit[2] - this.focus[2]) * (1 - k);
    }
   }, {passive: false});
-  c.addEventListener('dblclick', () => Object.assign(cc, CAMERA, {lastInput: performance.now()}));
+  c.addEventListener('dblclick', () => Object.assign(cc, this.canvas.dataset.airportLayout === 'v11' ? V11_CAMERA : CAMERA, {lastInput: performance.now()}));
  }
   // Each viewport has a zoom control; the A/B camera stays synchronized.
  setupZoomButtons() {
