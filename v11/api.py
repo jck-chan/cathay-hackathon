@@ -18,14 +18,82 @@ from v7_product import V7Lab, experiment_grid
 from .audit import data_audit, live_consistency
 from .benchmark import paired_suite
 from .conductor import Conductor
+from .sandboxes import DispatchPolicy, Sandbox, SandboxManager
 
 ROOT = Path(__file__).resolve().parents[1]
 router = APIRouter(prefix='/v11/api')
+DEFAULT_SANDBOX_ID = 'relay'
+# The default RELAY sandbox retains the paired metrics used by the older
+# dashboards and the Control Tower's same-input comparison.
 conductor = Conductor(seed=2048)
+sandboxes = SandboxManager(
+    Sandbox('fcfs', 'FCFS Baseline', Conductor(seed=2048, dispatch_policies=('fcfs',))),
+    Sandbox(DEFAULT_SANDBOX_ID, 'RELAY', conductor),
+)
+
+
+def get_sandbox(sandbox_id: str) -> Sandbox:
+    try:
+        return sandboxes.get(sandbox_id)
+    except KeyError as e:
+        raise HTTPException(404, f'Unknown sandbox: {sandbox_id}') from e
+
+
+def sandbox_conductor(sandbox_id: str | None) -> Conductor:
+    return get_sandbox(DEFAULT_SANDBOX_ID if sandbox_id is None else sandbox_id).conductor
+
+
+class SandboxInfo(BaseModel):
+    id: str
+    name: str
+    policy: DispatchPolicy
+
+
+class SandboxCreate(BaseModel):
+    name: str
+    policy: DispatchPolicy = 'relay'
+    seed: int = Field(2048, ge=0, le=2147483647)
+
+
+@router.get('/sandboxes', tags=['Three-twin simulation'])
+def v11_list_sandboxes() -> list[SandboxInfo]:
+    return [SandboxInfo(id=s.id, name=s.name, policy=s.policy) for s in sandboxes.list()]
+
+
+@router.post('/sandboxes', tags=['Three-twin simulation'], status_code=201)
+def v11_create_sandbox(p: SandboxCreate) -> SandboxInfo:
+    try:
+        s = sandboxes.create(p.name, policy=p.policy, seed=p.seed)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    return SandboxInfo(id=s.id, name=s.name, policy=s.policy)
 
 
 @router.get('/state',tags=['Three-twin simulation'])
-def v11_state(awb:str|None=Query(None,max_length=80)):return conductor.snapshot(awb)
+def v11_state(awb: str | None = Query(None, max_length=80), sandbox_id: str | None = None):
+    target = sandbox_conductor(sandbox_id)
+    return {
+        **target.snapshot(awb),
+        'sandbox_id': sandbox_id or DEFAULT_SANDBOX_ID,
+        'ground_policy': target.lab.ground_policy,
+    }
+
+
+@router.get('/sandboxes/{sandbox_id}/ground', tags=['Three-twin simulation'])
+def v11_ground_state(sandbox_id: str):
+    sandbox = get_sandbox(sandbox_id)
+    target = sandbox.conductor
+    with target.guard:
+        state = target.lab.snapshot()
+        return {
+            'tick': state['tick'],
+            'clock': state['clock'],
+            'resources': state['resources'],
+            'latest_event': state['latest_event'],
+            'unified_events': list(target.events)[-35:],
+            'ground': state['policies'][sandbox.policy],
+            'v8': target.playback_state(),
+        }
 
 class EnvironmentSettings(BaseModel):
     rate:float|None=Field(None,ge=.25,le=5)
@@ -40,10 +108,11 @@ class SimulationControl(EnvironmentSettings):
     speed:int|None=None
     mode:str|None=None
     count:int=Field(1,ge=1,le=100)
-    seed:int=Field(2048,ge=0,le=2147483647)
+    seed:int|None=Field(None,ge=0,le=2147483647)
 
 @router.post('/control',tags=['Three-twin simulation'])
-def v11_control(p:SimulationControl):
+def v11_control(p:SimulationControl,sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     try:
         if p.action=='start':return conductor.start()
         if p.action=='pause':return conductor.pause()
@@ -67,7 +136,8 @@ class IncidentRequest(BaseModel):
     kind:IncidentKind
 
 @router.post('/incident',tags=['Three-twin simulation'])
-def v11_incident(p:IncidentRequest):
+def v11_incident(p:IncidentRequest,sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     try:return conductor.incident(p.kind)
     except ValueError as e:raise HTTPException(422,str(e)) from e
 
@@ -81,7 +151,8 @@ class OrderRequest(BaseModel):
     height_cm:int=Field(45,ge=15,le=180)
 
 @router.post('/order',tags=['Three-twin simulation'])
-def v11_order(p:OrderRequest):
+def v11_order(p:OrderRequest,sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     try:return conductor.order(**p.model_dump())
     except ValueError as e:raise HTTPException(422,str(e)) from e
 
@@ -91,23 +162,32 @@ class ReviewRequest(BaseModel):
     choice:Literal['approve','reject']
 
 @router.post('/review',tags=['Three-twin simulation'])
-def v11_review(p:ReviewRequest):
+def v11_review(p:ReviewRequest,sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     try:return conductor.review(p.choice,p.decision_id,p.expected_snapshot_version)
     except Conflict as e:raise HTTPException(409,str(e)) from e
 
 @router.post('/tasks/{task_id}/done',tags=['Three-twin simulation'])
-def v11_task_done(task_id:str):
+def v11_task_done(task_id:str,sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     try:return conductor.task_ack(task_id)
     except (Conflict,Missing) as e:raise HTTPException(409,str(e)) from e
 
 @router.get('/audit',tags=['Evidence Lab'])
-def v11_audit():return audit_lab(conductor.lab)
+def v11_audit(sandbox_id: str | None = None):
+    target = sandbox_conductor(sandbox_id)
+    with target.guard:
+        return audit_lab(target.lab)
 
 @router.get('/evidence',tags=['Evidence Lab'])
-def v11_evidence():return conductor.lab.evidence()
+def v11_evidence(sandbox_id: str | None = None):
+    target = sandbox_conductor(sandbox_id)
+    with target.guard:
+        return target.lab.evidence()
 
 @router.get('/uld3d',tags=['Evidence Lab'])
-def v11_uld3d(height_cm:int=Query(145,ge=50,le=300)):
+def v11_uld3d(height_cm:int=Query(145,ge=50,le=300),sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     with conductor.guard:
         state=project(conductor.lab.store,conductor.lab.store.clock())
         sid={j['id'] for j in conductor.lab.snapshot()['shipment_objects']
@@ -117,7 +197,8 @@ def v11_uld3d(height_cm:int=Query(145,ge=50,le=300)):
         return preflight(ps,us[0],height_cm,max_pieces=6) if ps and us else {'status':'NO_ELIGIBLE_PIECES','placements':[]}
 
 @router.get('/experiment',tags=['Evidence Lab'])
-def v11_experiment(episodes:int=Query(250,ge=100,le=2000),seed:int=707):
+def v11_experiment(episodes:int=Query(250,ge=100,le=2000),seed:int=707,sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     with conductor.guard:return experiment_grid(conductor.lab,episodes,seed)
 
 @router.get('/health',tags=['Evidence Lab'])
@@ -156,7 +237,8 @@ def v11_data_audit():
 
 
 @router.get('/trace',tags=['Evidence Lab'])
-def v11_trace():
+def v11_trace(sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     with conductor.guard:return live_consistency(conductor)
 
 
@@ -169,7 +251,8 @@ def v11_recompute(episodes:int=Query(100,ge=40,le=500),seed:int=2026):
 
 
 @router.get('/scope',tags=['Evidence Lab'])
-def v11_scope():
+def v11_scope(sandbox_id: str | None = None):
+    conductor = sandbox_conductor(sandbox_id)
     with conductor.guard:
         s=conductor.snapshot()
         return {'three_model_status':s.get('decision'),

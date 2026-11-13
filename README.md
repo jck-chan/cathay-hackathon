@@ -18,6 +18,20 @@ Changing visible cards **does not pause, reset or alter any policy state**. The 
 The original 30-day synthetic catalog and decision engine are shared code.
 The standalone research API in `relay.api:app` is separate from the Fusion server.
 
+### v11 sandboxes
+
+Ground Twin opens the first two listed sandboxes. Each pane can select any
+sandbox by name, including the same sandbox in both panes. Choose **Create
+sandbox…** in either selector to create a named RELAY run and open it in
+that pane. Ground controls apply to the distinct sandboxes on display.
+
+`GET /v11/api/sandboxes` lists IDs, names and dispatch policies in display
+order. `POST /v11/api/sandboxes` accepts a name and optional policy
+(`fcfs` or `relay`) and seed, and returns the created sandbox's ID.
+Pass `sandbox_id` as a query parameter to live simulation routes or as an
+argument to MCP tools. Calls without an ID use the default RELAY sandbox.
+Sandboxes live in the server process and are recreated on restart.
+
 ### Adding agents to the three twins
 
 Put new agent code under `v11/agents/` and use the HTTP routes defined in
@@ -43,7 +57,7 @@ guide to the harness in the `instructions` field of its MCP `initialize` reply.
 
 | View | Prefix | MCP tools |
 |---|---|---|
-| Ground environment | `ground_` | `ground_start_simulation`, `ground_pause_simulation`, `ground_step_simulation`, `ground_set_playback_speed`, `ground_configure_environment`, `ground_inject_incident` |
+| Ground environment | `ground_` | `ground_list_sandboxes`, `ground_create_sandbox`, `ground_start_simulation`, `ground_pause_simulation`, `ground_step_simulation`, `ground_set_playback_speed`, `ground_configure_environment`, `ground_inject_incident` |
 | Control centre | `control_` | `control_get_state`, `control_set_review_mode`, `control_recalculate_decision`, `control_review_decision`, `control_mark_task_done` |
 | Customer | `customer_` | `customer_place_order`, `customer_track_shipment` |
 
@@ -54,7 +68,7 @@ list. Orders, reviews, and ground work through MCP are synthetic.
 #### Agent workflow (MCP)
 
 The MCP `initialize.instructions` field contains the operational playbook,
-and all 13 tools have independent, context-rich descriptions. An agent can
+and each tool describes its inputs and effects. An agent can
 follow this example without referring to application source code:
 
 1. **Inspect and pause:** `control_get_state`, `ground_pause_simulation`,
@@ -82,7 +96,7 @@ booking or an unbounded optimum. Ground staging completion is not a flight
 milestone; approval and tentative arrival do not change confirmed customer
 ETA. `AUTO_SHADOW` auto-reviews eligible sandbox proposals;
 `MANUAL_REVIEW` requires explicit approval; `ADVISORY` disables
-automatic review. All views and MCP clients share mutable state.
+automatic review. Views and MCP clients targeting the same sandbox share its state.
 
 ### AI chat tab
 
@@ -93,7 +107,7 @@ One extra local tool, `create_artifact`, renders an interactive HTML panel in
 the chat; the panel runs in a sandboxed frame and reaches the simulation only
 through `POST /v11/api/chat/tool`, which accepts MCP tool names. The agent can
 also write `<relay-twin view="ground|tower|customer" />` in a reply to embed a
-live twin (`/v11?embed=…`).
+live twin. Add `sandbox_id="…"` to show a specific sandbox.
 
 `POST /v11/api/chat` speaks the Vercel AI SDK UI message stream protocol, so an
 AI SDK `useChat` client can use it as well as the bundled tab.

@@ -11,7 +11,7 @@
     const q = $('filterShipments').value.trim().toLowerCase();
     const shown = list.filter(x => `${x.awb} ${x.destination}`.toLowerCase().includes(q));
     text('portfolioCount', list.length);
-    const html = shown.map(x => `<button type="button" class="shipment-card ${x.awb === selected ? 'active' : ''}" data-awb="${escape(x.awb)}" aria-pressed="${x.awb === selected}"><b>${escape(x.awb)}</b><p>${escape(x.origin || 'HKG')} → ${escape(x.destination)} · ${escape(label(x.handling))}</p><small>${x.blocked_reason || x.dimension_conflict || x.customs_hold ? 'Needs attention' : escape(label(x.stage_relay || 'Received'))}</small></button>`).join('') || `<div class="empty-card">${list.length ? 'No shipments match your search.' : 'No shipments yet. Create a shipment to begin.'}</div>`;
+    const html = shown.map(x => `<button type="button" class="shipment-card ${x.awb === selected ? 'active' : ''}" data-awb="${escape(x.awb)}" aria-pressed="${x.awb === selected}"><b>${escape(x.awb)}</b><p>${escape(x.origin || 'HKG')} → ${escape(x.destination)} · ${escape(label(x.handling))}</p><small>${x.blocked_reason || x.dimension_conflict || x.customs_hold ? 'Needs attention' : escape(label(x.ground_stage || x.stage_relay || 'Received'))}</small></button>`).join('') || `<div class="empty-card">${list.length ? 'No shipments match your search.' : 'No shipments yet. Create a shipment to begin.'}</div>`;
     // Avoid replacing focused buttons on every polling tick.
     if ($('portfolioItems').innerHTML !== html) {
       const focused = document.activeElement?.dataset.awb;

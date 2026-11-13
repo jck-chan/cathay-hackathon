@@ -19,9 +19,9 @@ SPEEDS = (1, 4, 16, 32, 100)
 MODES = ('AUTO_SHADOW','MANUAL_REVIEW','ADVISORY')
 
 class Conductor:
-    def __init__(self,seed=2048):
+    def __init__(self,seed=2048,*,dispatch_policies=('fcfs','relay')):
         self.guard=RLock()
-        self.lab=V7Lab(seed=seed)
+        self.lab=V7Lab(seed=seed,dispatch_policies=dispatch_policies)
         self.running=False
         self.speed=1
         self.mode='AUTO_SHADOW'
@@ -113,7 +113,8 @@ class Conductor:
                     self.config['weather']=weather
                     self._record('WEATHER',f'Synthetic weather transition: {old} → {weather}; resource assumptions applied on next calculation',previous=old,current=weather)
         before_orders=len(self.lab.admitted)
-        before_complete=len(self.lab.policies['relay']['completed'])
+        ground_policy=self.lab.ground_policy
+        before_complete=len(self.lab.policies[ground_policy]['completed'])
         settings={k:self.config[k] for k in ('rate','chaos','handlers','cold_bays','stands')}
         wx=self.config['weather']
         if wx=='RAIN':
@@ -138,9 +139,9 @@ class Conductor:
         self.last_advance_ms=round(elapsed*1000,2)
         self._observe('TICK')
         added=max(0,len(self.lab.admitted)-before_orders)
-        finished=max(0,len(self.lab.policies['relay']['completed'])-before_complete)
+        finished=max(0,len(self.lab.policies[ground_policy]['completed'])-before_complete)
         if added:self._record('ARRIVAL',f'{added} synthetic orders entered the shared cargo simulation',count=added)
-        if finished:self._record('COMPLETED',f'{finished} synthetic RELAY staging jobs completed',count=finished)
+        if finished:self._record('COMPLETED',f'{finished} synthetic {ground_policy.upper()} staging jobs completed',count=finished)
         if self.running:
             now=time.monotonic()
             self._wall_samples.append((now,count))
@@ -156,7 +157,7 @@ class Conductor:
         try:
             while not stop_event.is_set():
                 with self.guard:
-                    if not self.running:break
+                    if stop_event.is_set() or not self.running:break
                     speed=self.speed
                     # Target: 1x = 0.5 simulated ticks/second (10 simulated minutes/tick).
                     # Solver CPU caps achieved throughput.  Never fabricate ticks.
@@ -170,9 +171,10 @@ class Conductor:
                 if stop_event.wait(max(.05,due-time.monotonic())):break
         except Exception as exc:
             with self.guard:
-                self.running=False
-                self.worker_error=type(exc).__name__+': '+str(exc)
-                self._record('ERROR',self.worker_error)
+                if self._stop is stop_event:
+                    self.running=False
+                    self.worker_error=type(exc).__name__+': '+str(exc)
+                    self._record('ERROR',self.worker_error)
         finally:
             with self.guard:
                 if self._stop is stop_event:self.running=False
@@ -188,8 +190,8 @@ class Conductor:
             self._thread.start()
             return self.snapshot()
     def pause(self):
-        self._stop.set()
         with self.guard:
+            self._stop.set()
             self.running=False
             self._record('PAUSE','Shared synthetic clock paused')
             return self.snapshot()
@@ -222,10 +224,11 @@ class Conductor:
                 self.last_decision_id=None
             self._observe('MODE')
             return self.snapshot()
-    def reset(self,seed=2048):
-        self._stop.set()
+    def reset(self,seed=None):
         with self.guard:
+            self._stop.set()
             self.running=False
+            seed=self.lab.seed if seed is None else seed
             self.lab.reset(seed)
             self.weather_mode='AUTO'
             self._weather_rng=random.Random(seed+8887)
@@ -281,19 +284,22 @@ class Conductor:
             self._record('TASK','Synthetic task marked DONE by operator',task_id=task_id,
                          shipment_id=owning['shipment_id'] if owning else None)
             return {'result':result,'state':self.snapshot()}
+    def playback_state(self):
+        return {'mode':self.mode,'running':self.running,'speed_target':self.speed,
+                'target_ticks_per_second':self.speed*.5,
+                'actual_ticks_per_second':self.actual_ticks_per_sec,
+                'last_batch_ms':self.last_advance_ms,
+                'weather_capacity_assumption':'RAIN: stands -1; STORM: stands -2 and crew -1; CLEAR/FOG: unchanged; non-certified synthetic',
+                'visualization_scope':'PROCEDURAL_FACILITY_REPRESENTATION; NOT SURVEYED CATHAY TERMINAL OR TRACKED AIRCRAFT',
+                'sequence':self.sequence,'worker_error':self.worker_error,
+                'weather_mode':self.weather_mode,
+                'config':dict(self.config),
+                'scope':'SINGLE_SERVER_OWNED_SYNTHETIC_CLOCK; PHYSICAL_AIRLINE_COMMANDS_DISABLED'}
+
     def snapshot(self,awb=None):
         with self.guard:
             s=self.lab.snapshot()
-            s['v8']={'mode':self.mode,'running':self.running,'speed_target':self.speed,
-                     'target_ticks_per_second':self.speed*.5,
-                     'actual_ticks_per_second':self.actual_ticks_per_sec,
-                     'last_batch_ms':self.last_advance_ms,
-                     'weather_capacity_assumption':'RAIN: stands -1; STORM: stands -2 and crew -1; CLEAR/FOG: unchanged; non-certified synthetic',
-                     'visualization_scope':'PROCEDURAL_FACILITY_REPRESENTATION; NOT SURVEYED CATHAY TERMINAL OR TRACKED AIRCRAFT',
-                     'sequence':self.sequence,'worker_error':self.worker_error,
-                     'weather_mode':self.weather_mode,
-                     'config':dict(self.config),
-                     'scope':'SINGLE_SERVER_OWNED_SYNTHETIC_CLOCK; PHYSICAL_AIRLINE_COMMANDS_DISABLED'}
+            s['v8']=self.playback_state()
             s['unified_events']=list(self.events)[-35:]
             s['view_clock_contract']={'ground_tick':s['tick'],'tower_tick':s['tick'],'customer_tick':s['tick'],
                                     'snapshot_version':s['snapshot_version']}
@@ -310,7 +316,8 @@ class Conductor:
                 sh=state['shipments'].get(sid)
                 if sh is None:continue
                 job=safe_job(sh,state['as_of'])
-                items.append({**job,'stage_baseline':statuses.get(sid,{}).get('fcfs','UNKNOWN'),
+                items.append({**job,'ground_stage':statuses.get(sid,{}).get(self.lab.ground_policy,'UNKNOWN'),
+                  'stage_baseline':statuses.get(sid,{}).get('fcfs','UNKNOWN'),
                   'stage_relay':statuses.get(sid,{}).get('relay','UNKNOWN'),
                   'assigned_flight_id':sh.get('assigned_flight_id'),
                   'dimension_conflict':sh.get('dimension_conflict',False),

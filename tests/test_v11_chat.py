@@ -10,12 +10,14 @@ from fusion_app import app
 from v11 import api
 from v11.chat import to_langchain
 from v11.conductor import Conductor
+from v11.sandboxes import Sandbox, SandboxManager
 
 
 @pytest.mark.parametrize('railway', [False, True])
 def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch, railway):
     conductor = Conductor(seed=2048)
-    monkeypatch.setattr(api, 'conductor', conductor)
+    registry = SandboxManager(Sandbox(api.DEFAULT_SANDBOX_ID, 'RELAY', conductor))
+    monkeypatch.setattr(api, 'sandboxes', registry)
     monkeypatch.setenv('RELAY_CHAT_MODEL', 'demo')
     base_url = 'http://127.0.0.1:8765'
     headers = {}

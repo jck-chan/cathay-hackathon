@@ -8,11 +8,13 @@ from mcp.client.streamable_http import streamable_http_client
 from fusion_app import app
 from v11 import api
 from v11.conductor import Conductor
+from v11.sandboxes import Sandbox, SandboxManager
 
 
 def test_mcp_tools_share_dashboard_state(monkeypatch):
     conductor = Conductor(seed=2048)
-    monkeypatch.setattr(api, 'conductor', conductor)
+    registry = SandboxManager(Sandbox(api.DEFAULT_SANDBOX_ID, 'RELAY', conductor))
+    monkeypatch.setattr(api, 'sandboxes', registry)
 
     async def exercise():
         async with app.router.lifespan_context(app) as state:
@@ -53,6 +55,7 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                             'control_review_decision', 'control_mark_task_done', 'ground_start_simulation',
                             'ground_pause_simulation', 'ground_step_simulation', 'ground_set_playback_speed',
                             'ground_configure_environment', 'control_set_review_mode', 'control_recalculate_decision',
+                            'ground_list_sandboxes', 'ground_create_sandbox',
                         }
 
                         legacy = await client.post('/v11/mcp', json={
@@ -60,12 +63,29 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                         }, headers={'Accept': 'application/json, text/event-stream'})
                         assert legacy.status_code == 200
 
-                        async def call(name, **arguments):
-                            result = await session.call_tool(name, arguments)
+                        async def call(tool_name, **arguments):
+                            result = await session.call_tool(tool_name, arguments)
                             assert not result.isError, result.content
                             return result.structuredContent
 
                         initial = await call('control_get_state')
+                        created = await call('ground_create_sandbox', name='Independent shift', policy='fcfs')
+                        sandbox_id = created['id']
+                        try:
+                            listed = (await call('ground_list_sandboxes'))['result']
+                            assert listed[-1] == created
+                            response = await client.get('/v11/api/sandboxes')
+                            assert response.json() == listed
+                            stepped = await call('ground_step_simulation', count=2, sandbox_id=sandbox_id)
+                            assert stepped['tick'] == 2
+                            response = await client.get(f'/v11/api/sandboxes/{sandbox_id}/ground')
+                            assert response.json()['tick'] == 2
+                            response = await client.get('/v11/api/state', params={'sandbox_id': sandbox_id})
+                            assert list(response.json()['policies']) == ['fcfs']
+                            assert (await call('control_get_state'))['tick'] == initial['tick']
+                            assert (await client.get('/v11/api/state', params={'sandbox_id': 'missing'})).status_code == 404
+                        finally:
+                            api.sandboxes.get(sandbox_id).conductor.lab._tmp.cleanup()
                         await call('control_mark_task_done', task_id=initial['tasks'][0]['id'])
                         await call('control_set_review_mode', mode='MANUAL_REVIEW')
                         await call('control_recalculate_decision')

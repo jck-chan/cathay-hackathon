@@ -25,7 +25,7 @@ class V7Lab(AuditedLab):
 
     def _stage_status(self):
         result={}
-        p=self.policies.get('relay',{})
+        p=self.policies[self.ground_policy]
         for j in p.get('waiting',[]):result[j['id']]='HOLD' if j.get('blocked_reason') else 'WAIT'
         for a in p.get('active',[]):result[a['job']['id']]='WORK'
         for sid in p.get('completed',[]):result[sid]='DONE'
@@ -46,7 +46,7 @@ class V7Lab(AuditedLab):
             if self._stage_last.get(sid)==phase:continue
             msg={"WAIT":"Work order admitted into a simulated staging queue",
                  "HOLD":"Ground work paused: independent verification / authorization required",
-                 "WORK":"Ground work started under RELAY scheduling (simulated)",
+                 "WORK":f"Ground work started under {self.ground_policy.upper()} scheduling (simulated)",
                  "DONE":"Ground staging work completed in the simulator; NOT an airline delivery milestone"}[phase]
             self._journal(sid,'GROUND_'+phase,msg)
         self._stage_last=status

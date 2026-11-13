@@ -15,10 +15,17 @@ async def main():
         html=c.get('/v11').text
         styles=[c.get(url).raise_for_status().text for url in re.findall(r'<link rel="stylesheet" href="([^"]+)">',html)]
         scripts=[c.get(url).raise_for_status().text for url in re.findall(r'<script\s+src="([^"]+)"\s*></script>',html)]
+        sandboxes=c.get('/v11/api/sandboxes').raise_for_status().json()
+        def ground_states():
+            return {f'/v11/api/sandboxes/{s["id"]}/ground':
+                    c.get(f'/v11/api/sandboxes/{s["id"]}/ground').raise_for_status().json()
+                    for s in sandboxes}
+
         c.post('/v11/api/control',json={'action':'reset','seed':2048})
-        initial=c.get('/v11/api/state').json()
-        c.post('/v11/api/control',json={'action':'step','count':12})
-        active=c.get('/v11/api/state').json()
+        initial={'state':c.get('/v11/api/state').json(), 'ground':ground_states()}
+        for sandbox in sandboxes:
+            c.post('/v11/api/control',params={'sandbox_id':sandbox['id']},json={'action':'step','count':12})
+        active={'state':c.get('/v11/api/state').json(), 'ground':ground_states()}
         report=c.get('/v11/api/kpis').json()
         audit=c.get('/v11/api/data-audit').json()
         trace=c.get('/v11/api/trace').json()
@@ -38,11 +45,12 @@ async def main():
         await page.goto('https://relay.test/v11',wait_until='domcontentloaded')
         for css in styles:
             await page.add_style_tag(content=css)
-        await page.evaluate('''(states)=>{window.__states=states;window.__pos=0;
-            window.fetch=async(u,o={})=>{if((o.method||'GET')!=='GET')window.__pos=1;
-                let data=window.__states[window.__pos];
+        await page.evaluate('''({states,sandboxes})=>{let pos=0;
+            window.fetch=async(u,o={})=>{if((o.method||'GET')!=='GET')pos=1;
+                const path=String(u).split('?')[0], frame=states[pos];
+                const data=path==='/v11/api/sandboxes'?sandboxes:(frame.ground[path]||frame.state);
                 return {ok:true,status:200,json:async()=>data,text:async()=>JSON.stringify(data)};
-            };}''',[initial,active])
+            };}''',{'states':[initial,active],'sandboxes':sandboxes})
         for script in scripts:
             await page.add_script_tag(content=script)
         await page.wait_for_function("window.RELAY_GROUND_SCENES?.length === 2 && window.RELAY_GROUND_SCENES.every(scene => scene.engine && scene.syncedTick >= 0)")

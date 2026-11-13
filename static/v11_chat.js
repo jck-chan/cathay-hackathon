@@ -103,13 +103,15 @@ function splitTwins(text, streaming) {
 function twinEmbed(attrs) {
   const view = TWIN_LABEL[attrs.view] ? attrs.view : 'ground';
   const query = new URLSearchParams({embed: view});
-  if (view === 'ground' && ['relay', 'fcfs'].includes(attrs.world)) query.set('world', attrs.world);
+  const sandboxId = attrs.sandbox_id || (view === 'ground' && attrs.world);
+  if (sandboxId) query.set('sandbox_id', sandboxId);
   if (view === 'customer' && attrs.awb) query.set('awb', attrs.awb);
-  const detail = query.get('world') ? (attrs.world === 'relay' ? ' · RELAY' : ' · FCFS baseline') : attrs.awb ? ' · ' + attrs.awb : '';
+  const detail = attrs.awb ? ' · ' + attrs.awb : '';
   const node = el('figure', 'embed twin', `<figcaption><span class="embed-title">${esc(TWIN_LABEL[view] + detail)}</span>` +
     `<span class="embed-meta">Live view</span><button type="button" data-open-tab="${view}">Open tab</button></figcaption>` +
     `<div class="embed-body twin-${view}"></div>`);
   node._src = '/v11?' + query;
+  node._sandboxId = sandboxId;
   startTwin(node);
   return node;
 }
@@ -534,7 +536,13 @@ thread.addEventListener('click', event => {
   const target = event.target.closest('button');
   if (!target) return;
   if (target.dataset.suggest) send(target.dataset.suggest);
-  else if (target.dataset.openTab) document.querySelector(`.tab[data-tab="${target.dataset.openTab}"]`)?.click();
+  else if (target.dataset.openTab) {
+    const twin = target.closest('.embed');
+    if (twin._sandboxId && target.dataset.openTab === 'ground') {
+      window.dispatchEvent(new CustomEvent('relay:show-ground-sandbox', {detail: twin._sandboxId}));
+    } else if (twin._sandboxId) window.open(twin._src, '_blank', 'noopener');
+    else document.querySelector(`.tab[data-tab="${target.dataset.openTab}"]`)?.click();
+  }
   else if (target.classList.contains('embed-resume')) startTwin(target.closest('.embed'));
   else if ('toggleCode' in target.dataset) {
     const figure = target.closest('.embed'), code = figure.querySelector('.artifact-code');

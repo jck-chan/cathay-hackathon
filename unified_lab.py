@@ -85,8 +85,10 @@ def new_policy():
 
 
 class UnifiedLab:
-    def __init__(self,seed=2048):
+    def __init__(self,seed=2048,*,dispatch_policies=('fcfs','relay')):
         self.lock=threading.RLock()
+        self.dispatch_policies=tuple(dispatch_policies)
+        self.ground_policy=self.dispatch_policies[-1]
         self._tmp=tempfile.TemporaryDirectory(prefix='relay-v4-shadow-')
         self._init(seed)
 
@@ -102,7 +104,7 @@ class UnifiedLab:
         self.chaos=.2
         self.handlers=3;self.stands=3;self.cold_bays=1
         self.admitted=set()
-        self.policies={'fcfs':new_policy(),'relay':new_policy()}
+        self.policies={name:new_policy() for name in self.dispatch_policies}
         self.history=[]
         self.latest=None
         self.recent_event=None
@@ -219,7 +221,7 @@ class UnifiedLab:
                 p['active'].append({'job':j,'remaining':j['duration'],'duration':j['duration']})
             p['last_selected']=[j['id'] for j in selected]
             p['last_meta']=meta
-            if name=='relay' and (selected or p['waiting']):
+            if name==self.ground_policy and (selected or p['waiting']):
                 self._log('DISPATCH',f"staging queue={len(p['waiting'])}, selected={','.join(p['last_selected']) or 'none'}; "
                           f"rule={meta['status']}; crew≤{self.handlers}, stands≤{self.stands}, cold≤{self.cold_bays}",
                           'SHARED_OBSERVED_WORK_ORDERS')

@@ -6,27 +6,43 @@ const $=id=>document.getElementById(id), $$=s=>[...document.querySelectorAll(s)]
  num=(x,d=0)=>Number.isFinite(Number(x))?Number(x).toLocaleString('en-GB',{maximumFractionDigits:d,minimumFractionDigits:d}):'—',
  when=s=>{if(!s)return 'Not available';const d=new Date(s);return isNaN(d)?s:d.toLocaleString('en-GB',{timeZone:'UTC',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})+' UTC'},
  txt=(id,value)=>{const e=$(id);if(e)e.textContent=value??'—';};
-let state=null,selectedAwb=null,currentTab='ground',pollBusy=false,actionBusy=false,lastSeq=-1,toastTimer=0,drawStart=performance.now(),lightHour=11;
-const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs'),new RelayV6.GroundScene($('relayWorld'),'relay')],globe=new RelayV6.CustomerGlobe($('customerGlobe'));
+let state=null,selectedAwb=null,currentTab='ground',pollBusy=false,actionBusy=false,toastTimer=0,drawStart=performance.now(),lightHour=11;
+const query=new URLSearchParams(location.search), embed=document.documentElement.dataset.embed;
+const sandboxSelects=$$('[data-sandbox-select]'), sandboxDialog=$('createSandbox');
+const embeddedSandbox=embed&&(query.get('sandbox_id')||(embed==='ground'&&query.get('world')))||null;
+const singleGround=embed==='ground'&&embeddedSandbox;
+const sandboxIds=singleGround?[embeddedSandbox]:[null,null];
+const groundStates=new Map(), groundErrors=new Map();
+let sandboxList=[], createSlot=0, creatingSandbox=false, refreshPending=false;
+const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs')];
+if(!singleGround)worlds.push(new RelayV6.GroundScene($('relayWorld'),'relay'));
+const globe=new RelayV6.CustomerGlobe($('customerGlobe'));
 function toast(message,bad=false){let t=$('toast');t.textContent=message;t.classList.toggle('error',bad);t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3700)}
 async function api(path,method='GET',payload){let c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);try{let r=await fetch(path,{method,signal:c.signal,cache:'no-store',headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});let t=await r.text();let o;try{o=JSON.parse(t)}catch{o={detail:t.slice(0,250)}}if(!r.ok)throw Error(typeof o.detail==='string'?o.detail:JSON.stringify(o.detail||o).slice(0,270));return o}finally{clearTimeout(tm)}}
-function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);}
+function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);if(sandboxDialog)refreshState();}
 function drawer(title,html){txt('drawerTitle',title);$('drawerContent').innerHTML=html;$('drawer').hidden=false;$('backdrop').hidden=false;$('closeDrawer').focus()}
 function closeDrawer(){$('drawer').hidden=true;$('backdrop').hidden=true}
 function statusLabel(d){if(!d)return 'Preparing model';if(d.stale)return 'Recalculation required';if(d.approval_blocked_external_evidence)return 'Verify flight observation';if(d.model_ii?.cases?.some(x=>x.action==='HOLD'))return 'Hold & verify dimensions';let n=d.proposed_actions?.length||0;if(n)return 'Review '+n+' recovery option'+(n!==1?'s':'');return 'Continue current plan'}
 function render(s){state=s;window.dispatchEvent(new CustomEvent('relay:state',{detail:s}));const v=s.v8||{},d=s.decision||{},baseline=s.policies?.fcfs||{},relay=s.policies?.relay||{};
- txt('clock',when(s.clock));if(s.clock&&$('simulationControls'))$('clock').dateTime=s.clock;txt('simTime',when(s.clock));txt('liveState',v.running?'RUNNING':'PAUSED');$('statusPulse').classList.toggle('on',v.running);
- txt('achieved',`${num(v.actual_ticks_per_second,1)} ticks/s actual`);$('speed').value=String(v.speed_target||1);
- const play=$('globalPlay'),playLabel=play.querySelector('.control-label');if(playLabel){play.dataset.running=String(Boolean(v.running));playLabel.textContent=v.running?'Pause all':'Start all'}else{play.textContent=v.running?'❚❚ Pause all':'▶ Start all'}txt('tickPill','TICK '+s.tick);txt('ordersNumber',s.work_orders_total);txt('queuesNumber',relay.waiting);txt('crewNumber',s.resources.handlers);
+ renderPlayback(groundReference()||s);
+ txt('ordersNumber',s.work_orders_total);txt('queuesNumber',relay.waiting);txt('crewNumber',s.resources.handlers);
  $('autonomy').value=v.mode||'AUTO_SHADOW';txt('navCount',(d.proposed_actions||[]).length);txt('groundNarrative',v.worker_error?'Simulation error: '+v.worker_error:'One operational clock · Three synchronized perspectives · Scenario version '+s.snapshot_version);
  let evt=s.latest_event;txt('incidentSummary',evt?`${evt.event_type.replaceAll('_',' ')} · ${evt.entity_id}`:document.querySelector('.v11-workspace')?'No material disruption recorded':'◉ No material disruption recorded');
  let costA=baseline.cost_units||0,costB=relay.cost_units||0,delta=costA-costB;
  txt('costBefore',num(costA,1));txt('costAfter',num(costB,1));txt('costDelta',(delta>=0?'+':'')+num(delta,1));txt('decisionHeadline',statusLabel(d));
  txt('decisionExplain',d?.proposed_actions?.length?`${d.proposed_actions.length} tentative route change(s). Internal review is not carrier confirmation.`:d?.model_ii?.affected_shipments?.length?'Verification decisions are gating uncertain shipments.':'Network and ground queue recomputed from shared synthetic events.');
- txt('baselineFooter',`${baseline.active||0} moving · ${baseline.completed||0} completed · ${baseline.blocked||0} blocked`);
- txt('relayFooter',`${relay.active||0} moving · ${relay.completed||0} completed · ${relay.blocked||0} blocked`);
- worlds[0].state=baseline;worlds[1].state=relay;worlds.forEach(x=>x.incident=Boolean(evt && s.tick>=0));
+ if($('ctCompareTitle'))$('ctCompareTitle').closest('article').hidden=!(s.policies?.fcfs&&s.policies?.relay);
  (window.RELAY_TOWER?.render||renderTower)(s,baseline,relay,delta,statusLabel);renderCustomer(s);v9Render(s);window.RELAY_V10?.render(s,{selectedAwb,currentTab,globe,worlds});if(v.worker_error)toast('Simulation stopped: '+v.worker_error,true);
+}
+function renderPlayback(s){
+ const v=s.v8||{}, running=sandboxDialog&&currentTab==='ground'?
+   sandboxIds.some(id=>groundStates.get(id)?.v8.running):v.running;
+ txt('clock',when(s.clock));if(s.clock&&$('simulationControls'))$('clock').dateTime=s.clock;txt('simTime',when(s.clock));txt('liveState',running?'RUNNING':'PAUSED');$('statusPulse').classList.toggle('on',running);
+ txt('achieved',`${num(v.actual_ticks_per_second,1)} ticks/s actual`);$('speed').value=String(v.speed_target||1);
+ const play=$('globalPlay'),playLabel=play.querySelector('.control-label');
+ if(playLabel){play.dataset.running=String(Boolean(running));playLabel.textContent=sandboxDialog&&currentTab!=='ground'?(running?'Pause':'Start'):(running?'Pause all':'Start all')}
+ else{play.textContent=running?'❚❚ Pause all':'▶ Start all'}
+ txt('tickPill','TICK '+s.tick);
 }
 function renderTower(s,a,b,delta){const d=s.decision||{},v=s.v8||{};
  let cards=(s.unified_events||[]).filter(x=>!['CLOCK','READY','PAUSE','PLAY','SPEED','MODE'].includes(x.kind)).slice(-3).reverse();
@@ -63,9 +79,91 @@ function renderCustomer(s){let list=s.shipment_objects||[];if(!selectedAwb||!lis
  txt('shipUpdate',last?.message||customer.customer_service_message||'No new synthetic milestones recorded yet.');
  txt('shipWarning',rd.tentative_alternative_flights?.length?`Candidate: ${rd.tentative_alternative_flights.join(' → ')} · ${rd.review_status.replaceAll('_',' ')}. This is NOT a confirmed carrier route.`:'No carrier confirmation or real customer notification is performed by RELAY.');
 }
-async function fetchState(){if(pollBusy)return;pollBusy=true;try{const d=await api('/v11/api/state'+(selectedAwb?'?awb='+encodeURIComponent(selectedAwb):''));if(d.v8.sequence!==lastSeq){lastSeq=d.v8.sequence;render(d)}else{render(d)}}catch(e){txt('liveState','OFFLINE');$('statusPulse').classList.remove('on');console.error(e)}finally{pollBusy=false}}
-async function action(path,body,success){if(actionBusy)return;actionBusy=true;try{const d=await api(path,'POST',body);render(d.state||d);if(success)toast(success)}catch(e){toast(e.message,true)}finally{actionBusy=false}}
-async function ctrl(actionName,more={}){await action('/v11/api/control',{action:actionName,...more},actionName==='start'?'All three Twins are now running on one clock':actionName==='pause'?'Shared simulation paused':null)}
+function scopedPath(path,id=embeddedSandbox,params={}){
+ const search=new URLSearchParams(params);
+ if(id)search.set('sandbox_id',id);
+ return search.size?path+'?'+search:path;
+}
+function visibleSandboxIds(){return [...new Set(sandboxIds.filter(Boolean))]}
+function groundReference(){return currentTab==='ground'?groundStates.get(sandboxIds[0]):null}
+function refreshState(){
+ if(pollBusy||actionBusy)refreshPending=true;
+ else fetchState();
+}
+function updateSandboxOptions(){
+ sandboxSelects.slice(0,sandboxIds.length).forEach((select,slot)=>{
+  const entries=sandboxList.slice();
+  const selectedId=sandboxIds[slot];
+  if(selectedId&&!entries.some(s=>s.id===selectedId))entries.push({id:selectedId,name:'Unknown sandbox'});
+  select.replaceChildren(...entries.map(s=>new Option(s.name,s.id)),new Option('Create sandbox…',''));
+  select.value=selectedId||'';
+  select.disabled=false;
+ });
+}
+function selectSandbox(slot,id){
+ sandboxIds[slot]=id;
+ updateSandboxOptions();
+ renderGround();
+ refreshState();
+}
+async function pollGround(){
+ const list=await api('/v11/api/sandboxes');
+ const known=new Set(sandboxList.map(s=>s.id));
+ const added=list.filter(s=>!known.has(s.id));
+ sandboxList.push(...added);
+ sandboxIds.forEach((id,slot)=>{if(!id)sandboxIds[slot]=list[slot]?.id||list[0]?.id||null});
+ if(added.length)updateSandboxOptions();
+ const ids=visibleSandboxIds();
+ const results=await Promise.allSettled(ids.map(id=>api('/v11/api/sandboxes/'+encodeURIComponent(id)+'/ground')));
+ groundStates.clear();
+ groundErrors.clear();
+ results.forEach((result,index)=>{
+  if(result.status==='fulfilled')groundStates.set(ids[index],result.value);
+  else groundErrors.set(ids[index],result.reason.message);
+ });
+ renderGround();
+}
+async function fetchState(){
+ if(pollBusy||actionBusy)return;
+ pollBusy=true;
+ try{
+  const ground=sandboxDialog&&currentTab==='ground';
+  const [dashboard]=await Promise.allSettled([
+   ground&&embed?null:api(scopedPath('/v11/api/state',embeddedSandbox,selectedAwb?{awb:selectedAwb}:{})),
+   ground?pollGround().catch(e=>{console.error(e);if(!sandboxList.length)sandboxSelects.forEach(select=>{select.options[0].textContent='Sandboxes unavailable'})}):null,
+  ]);
+  if(dashboard.status==='rejected')throw dashboard.reason;
+  if(dashboard.value)render(dashboard.value);
+  else if(groundReference())renderPlayback(groundReference());
+ }catch(e){txt('liveState','OFFLINE');$('statusPulse').classList.remove('on');console.error(e)}
+ finally{
+  pollBusy=false;
+  if(refreshPending){refreshPending=false;refreshState()}
+ }
+}
+async function action(path,body,success,ids=[embeddedSandbox]){
+ if(actionBusy)return;
+ actionBusy=true;
+ try{
+  const results=await Promise.allSettled(ids.map(id=>api(scopedPath(path,id),'POST',body)));
+  if(!sandboxDialog&&results[0]?.status==='fulfilled'){
+   const data=results[0].value;
+   render(data.state||data);
+  }
+  const failure=results.find(r=>r.status==='rejected');
+  if(failure)toast(failure.reason.message,true);
+  else if(success)toast(success);
+ }finally{
+  actionBusy=false;
+  if(sandboxDialog)refreshState();
+ }
+}
+function groundTargets(){return sandboxDialog&&currentTab==='ground'?visibleSandboxIds():[embeddedSandbox]}
+async function ctrl(actionName,more={}){
+ const ids=['mode','recalculate'].includes(actionName)?[embeddedSandbox]:groundTargets();
+ const message=sandboxDialog?null:({start:'All three Twins are now running on one clock',pause:'Shared simulation paused'})[actionName];
+ await action('/v11/api/control',{action:actionName,...more},message,ids);
+}
 const disruptionScenarios = {
  crew: {handlers:1},
  cold: {cold_bays:0},
@@ -82,7 +180,7 @@ function advanceConfig(){
 function applyDisruptionSettings(settings,message){
  closePops();
  $('injectBtn').focus();
- action('/v11/api/control',{action:'tune',...settings},message);
+ action('/v11/api/control',{action:'tune',...settings},message,groundTargets());
 }
 function setPop(id, open) {
  const panel = $(id);
@@ -160,22 +258,22 @@ function eventStreamMarkup(events){
   : '<p>No events recorded yet.</p>');
 }
 async function showEvidence(kind){if(kind==='events'){
- const events=streamEvents(state);
+ const events=streamEvents(groundReference()||state);
  drawer(EVENT_STREAM_TITLE,eventStreamMarkup(events));
  $('drawerContent').dataset.seq=String(events.at(-1)?.seq||0);
  return;
 }
  if(kind==='journey'){let c=state?.customer_projection;details('Customer journey · '+(c?.awb||'—'),`<p>Observed synthetic milestones stay separate from simulated ground actions and tentative routing.</p>${(c?.journey_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind||e.code)} · ${e.observed?'Recorded synthetic source':'Simulated overlay'}</b>${esc(e.message)}<br><small>${esc(when(e.at))} · ${esc(e.authority)}</small></div>`).join('')}`);return}
  if(kind==='math'||['model_i','model_ii','model_iii'].includes(kind)){let d=state?.decision||{},k=kind==='math'?'model_iii':kind;details(kind==='math'?'Mathematical decision trace':'Inspect '+k.toUpperCase(),`<p>Model I = bounded 2D arrangement; Model II = one-step Bayesian verification; Model III = finite-column capacity MILP.</p><pre>${esc(JSON.stringify(kind==='math'?d:d[k]||{},null,2))}</pre><button class="btn soft" id="fullEvidence">Load source provenance ↗</button>`);return}
- if(kind==='audit'||kind==='source'){details(kind==='audit'?'Runtime integrity audit':'OAG / dataset provenance','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(kind==='audit'?'/v11/api/audit':'/v11/api/evidence');$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
+ if(kind==='audit'||kind==='source'){details(kind==='audit'?'Runtime integrity audit':'OAG / dataset provenance','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(scopedPath(kind==='audit'?'/v11/api/audit':'/v11/api/evidence',groundReference()?sandboxIds[0]:embeddedSandbox));$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
  if(kind==='tasks'){details('Simulated team handoffs',(state?.tasks||[]).map(t=>`<div class="ledger-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||'Ground handoff')}</b>${esc(t.status)}</div>`).join('')||'No simulated tasks.');return}
 }
 function newOrderForm(){drawer('New synthetic cargo request',`<p>This form adds a request to the SAME event-sourced catalog used by Ground and Control. It does not create an airline booking.</p><form id="orderForm"><label>Destination<select name="destination"><option value="NRT">Tokyo · NRT</option><option value="LHR">London · LHR</option><option value="SIN">Singapore · SIN</option><option value="SYD">Sydney · SYD</option><option value="FRA">Frankfurt · FRA</option><option value="BKK">Bangkok · BKK</option><option value="LAX">Los Angeles · LAX</option><option value="DXB">Dubai · DXB</option></select></label><label>Weight (kg)<input name="weight_kg" type="number" required min="10" max="450" value="125"></label><label>Service<select name="service"><option value="PRIORITY">Priority</option><option value="STANDARD">Standard</option><option value="CRITICAL">Critical</option></select></label><label>Handling<select name="handling"><option value="GENERAL">General</option><option value="COL">Cold chain</option></select></label><div class="fieldgrid"><label>Length cm<input name="length_cm" type="number" value="70" min="15" max="180"></label><label>Width cm<input name="width_cm" type="number" value="55" min="15" max="180"></label><label>Height cm<input name="height_cm" type="number" value="45" min="15" max="180"></label></div><button type="submit" class="btn primary full">Create & send to all Twins</button></form>`)}
 $$('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-$('globalPlay').addEventListener('click',()=>ctrl(state?.v8.running?'pause':'start'));
+$('globalPlay').addEventListener('click',()=>ctrl($('globalPlay').dataset.running==='true'||!sandboxDialog&&state?.v8.running?'pause':'start'));
 $('speed').addEventListener('change',()=>ctrl('speed',{speed:+$('speed').value}));
 $('stepOnce').addEventListener('click',()=>ctrl('step',{count:1}));
-$('resetBtn').addEventListener('click',()=>{if(confirm('Reset synthetic orders, decisions and ground states for all three Twins?'))ctrl('reset',{seed:2048})});
+$('resetBtn').addEventListener('click',()=>{if(confirm(sandboxDialog&&currentTab==='ground'?'Reset the displayed sandboxes?':'Reset synthetic orders, decisions and ground states for all three Twins?'))ctrl('reset')});
 $('settingsBtn').addEventListener('click',()=>showPop('settingsPop'));
 $('injectBtn').addEventListener('click',()=>showPop('incidentPop'));
 $('viewSettingsBtn')?.addEventListener('click',()=>showPop('viewSettingsPop'));
@@ -193,12 +291,12 @@ for(let id of ['rate','crew','cold','stands','chaos']){$(id).addEventListener('i
 $('applySettings').addEventListener('click',()=>{closePops();ctrl('tune',advanceConfig())});
 $('applyWeather')?.addEventListener('click',()=>applyDisruptionSettings({weather:$('weather').value},'Weather scenario updated'));
 $$('[data-scenario]').forEach(b=>b.addEventListener('click',()=>{
- applyDisruptionSettings(disruptionScenarios[b.dataset.scenario],b.textContent+' applied to both ground simulations');
+ applyDisruptionSettings(disruptionScenarios[b.dataset.scenario],b.textContent+' applied');
 }));
 $$('[data-incident]').forEach(b=>b.addEventListener('click',()=>{
  closePops();
  $('injectBtn').focus();
- action('/v11/api/incident',{kind:b.dataset.incident},b.textContent.trim()+' recorded in the shared simulation');
+ action('/v11/api/incident',{kind:b.dataset.incident},b.textContent.trim()+' recorded',groundTargets());
 }));
 $('seeDecision')?.addEventListener('click',()=>showTab('tower'));
 $('whyGround')?.addEventListener('click',()=>showEvidence('math'));
@@ -227,36 +325,105 @@ document.addEventListener('keydown',e=>{
  if(open)document.querySelector(`[aria-controls="${open.id}"]`)?.focus();
 });
 $('drawerContent').addEventListener('click',async e=>{if(e.target.id==='fullEvidence')showEvidence('source')});
-$('drawerContent').addEventListener('submit',async e=>{if(e.target.id!=='orderForm')return;e.preventDefault();const raw=Object.fromEntries(new FormData(e.target).entries());for(let k of ['weight_kg','length_cm','width_cm','height_cm'])raw[k]=+raw[k];try{let out=await api('/v11/api/order','POST',raw);selectedAwb=out.awb;render(out.state);closeDrawer();toast('New synthetic order '+out.awb+' linked to all three Twins')}catch(x){toast(x.message,true)}});
+$('drawerContent').addEventListener('submit',async e=>{if(e.target.id!=='orderForm')return;e.preventDefault();const raw=Object.fromEntries(new FormData(e.target).entries());for(let k of ['weight_kg','length_cm','width_cm','height_cm'])raw[k]=+raw[k];try{let out=await api(scopedPath('/v11/api/order'),'POST',raw);selectedAwb=out.awb;render(out.state);closeDrawer();toast('New synthetic order '+out.awb+' linked to all three Twins')}catch(x){toast(x.message,true)}});
+if(sandboxDialog){
+ window.addEventListener('relay:show-ground-sandbox',event=>{
+  selectSandbox(0,event.detail);
+  showTab('ground');
+ });
+ const form=sandboxDialog.querySelector('form'), submit=form.querySelector('[type="submit"]');
+ const input=$('sandboxName'), error=$('sandboxError'), cancel=$('cancelSandbox');
+ sandboxSelects.forEach((select,slot)=>select.addEventListener('change',()=>{
+  if(select.value){selectSandbox(slot,select.value);return}
+  select.value=sandboxIds[slot]||'';
+  createSlot=slot;
+  form.reset();
+  error.hidden=true;
+  sandboxDialog.showModal();
+ }));
+ cancel.addEventListener('click',()=>sandboxDialog.close());
+ sandboxDialog.addEventListener('cancel',event=>{if(creatingSandbox)event.preventDefault()});
+ form.addEventListener('submit',async event=>{
+  event.preventDefault();
+  if(creatingSandbox)return;
+  creatingSandbox=true;
+  input.disabled=cancel.disabled=submit.disabled=true;
+  error.hidden=true;
+  try{
+   const sandbox=await api('/v11/api/sandboxes','POST',{name:input.value});
+   if(!sandboxList.some(s=>s.id===sandbox.id))sandboxList.push(sandbox);
+   selectSandbox(createSlot,sandbox.id);
+   sandboxDialog.close();
+   sandboxSelects[createSlot].focus();
+  }catch(e){error.textContent=e.message;error.hidden=false}
+  finally{creatingSandbox=false;input.disabled=cancel.disabled=submit.disabled=false;if(sandboxDialog.open)input.focus()}
+ });
+}
 function animate(t){const dt=Math.min(Math.max(t-drawStart,0),250);drawStart=t;recordV9Fps(dt);if(state?.v8.running)lightHour=(lightHour+dt/1000*Math.max(0,state.v8.actual_ticks_per_second||0)/6)%24;
- worlds.forEach(w=>{w.hour=lightHour;if(currentTab==='ground')w.render(t)});if(currentTab==='customer')globe.render(t);window.RELAY_V10?.frame(t,{currentTab,worlds,globe});requestAnimationFrame(animate)}
+ worlds.forEach(w=>{if(!sandboxDialog)w.hour=lightHour;if(currentTab==='ground')w.render(t)});if(currentTab==='customer')globe.render(t);window.RELAY_V10?.frame(t,{currentTab,worlds,globe});requestAnimationFrame(animate)}
 
 // V9 presentation-only integration: observable ticks are server-authoritative.
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 let v9LastEvent=0,v9LastTick=-1,v9VisualSettings={ambientVehicles:4,warehouseLevels:7},v9FrameStart=performance.now(),v9FrameCount=0,v9Fps=0,v9Orbit=false;
 function recordV9Fps(dt){v9FrameCount++;if(performance.now()-v9FrameStart>=1000){v9Fps=Math.round(v9FrameCount*1000/(performance.now()-v9FrameStart));v9FrameCount=0;v9FrameStart=performance.now();txt('renderFps',v9Fps)}}
 function v9LogCard(e){let label=({'DISRUPTION':'Disruption','MODEL':'Decision recalculated','AUTO_SHADOW':'Auto review','ORDER':'New order','TASK':'Handoff','CLOCK':'Clock advance','TUNE':'Resources updated','ERROR':'Simulation error'})[e.kind]||e.kind;return `<div class="v9-toast-item ${e.kind==='ERROR'||e.kind==='DISRUPTION'?'warn':''}"><span class="v9-event-dot"></span><div><strong>${esc(label)}</strong><small>${esc(e.message).slice(0,100)}</small></div><span class="v9-event-tick">T${e.tick}</span></div>`}
+function renderGround(){
+ if(!sandboxDialog)return;
+ sandboxIds.forEach((id,slot)=>{
+  const s=groundStates.get(id), ground=s?.ground, v=s?.v8, cfg=v?.config;
+  const world=worlds[slot], footer=slot===0?'baselineFooter':'relayFooter';
+  if(world.sandboxId!==id){
+   world.sandboxId=id;
+   world.ops.reset();
+  }
+  world.state=ground||{objects:[]};
+  world.sceneControls={...cfg,...s?.resources,configured:cfg,...v9VisualSettings};
+  world.weather=cfg?.weather||'CLEAR';
+  world.simTick=s?.tick??0;
+  world.running=Boolean(v?.running);
+  world.requestedSpeed=v?.speed_target||1;
+  world.actualTicksPerSecond=v?.actual_ticks_per_second||0;
+  world.incident=Boolean(s?.latest_event);
+  world.autoOrbit=v9Orbit;
+  const clock=new Date(s?.clock);
+  if(!Number.isNaN(+clock))world.hour=(clock.getUTCHours()+8+clock.getUTCMinutes()/60)%24;
+  txt(footer,groundErrors.get(id)||v?.worker_error||
+   (ground?`Tick ${s.tick} · ${v.running?'Running':'Paused'} · ${ground.active} moving · ${ground.completed} completed`:id?'Loading sandbox…':''));
+ });
+ const reference=groundReference();
+ if(reference){
+  renderPlayback(reference);
+  renderEnvironment(reference.v8);
+ }
+}
+function renderEnvironment(v){
+ const cfg=v.config||{};
+ const selectedWeather=v.weather_mode==='AUTO'?'AUTO':(cfg.weather||'CLEAR');
+ if(!($('applyWeather')&&!$('incidentPop').hidden)&&document.activeElement!==$('weather'))$('weather').value=selectedWeather;
+ if(!($('applyWeather')&&!$('settingsPop').hidden))for(const [id,key] of [['rate','rate'],['crew','handlers'],['cold','cold_bays'],['stands','stands'],['chaos','chaos']]){
+  const el=$(id), value=cfg[key];
+  if(!el||document.activeElement===el||value==null)continue;
+  el.value=value;
+  el.dispatchEvent(new Event('input'));
+ }
+}
 function v9Render(s){let badge=document.querySelector('.brand small');if(badge&&!$('simulationControls'))badge.textContent=worlds[0].gl?'DIGITAL TWIN / V10 · WebGL2':'DIGITAL TWIN / V10 · Canvas fallback';let v=s.v8||{},cfg=v.config||{},p=s.policies||{},tps=Math.max(0,Number(v.actual_ticks_per_second||0)),req=Math.max(1,Number(v.target_ticks_per_second||.5));
  const actual=tps/.5;txt('speedActual',num(actual,1)+'×');txt('speedRequested',String(v.speed_target||1)+'×');txt('speedScope',`Tick ${s.tick} · ${num(tps,2)} completed ticks/s · ${v.running?'running':'paused'}`);
  let bar=$('speedBar');if(bar)bar.style.width=clamp(100*tps/req,0,100)+'%';$('simHeartbeat')?.classList.toggle('on',Boolean(v.running));
  txt('flowArrivals',s.work_orders_total||0);txt('flowActive',(p.fcfs?.active||0)+(p.relay?.active||0));txt('flowFinished',p.relay?.completed||0);
- const selectedWeather=v.weather_mode==='AUTO'?'AUTO':(cfg.weather||'CLEAR');
- const editingWeather=$('applyWeather')&&!$('incidentPop').hidden;
- if(!editingWeather&&document.activeElement!==$('weather'))$('weather').value=selectedWeather;
- const editingResources=$('applyWeather')&&!$('settingsPop').hidden;
- if(!editingResources)for(let [id,key] of [['rate','rate'],['crew','handlers'],['cold','cold_bays'],['stands','stands'],['chaos','chaos']]){
-   const el=$(id), value=cfg[key];
-   if(!el||document.activeElement===el||value==null)continue;
-   el.value=value;
-   el.dispatchEvent(new Event('input'));
+ if(!sandboxDialog){
+  renderEnvironment(v);
+  txt('baselineFooter',`${p.fcfs?.active||0} moving · ${p.fcfs?.completed||0} completed · ${p.fcfs?.blocked||0} blocked`);
+  txt('relayFooter',`${p.relay?.active||0} moving · ${p.relay?.completed||0} completed · ${p.relay?.blocked||0} blocked`);
+  let t9=new Date(s.clock);if(!Number.isNaN(+t9))lightHour=(t9.getUTCHours()+8+t9.getUTCMinutes()/60+t9.getUTCSeconds()/3600)%24;worlds.forEach(w=>{w.state=p[w.name]||{objects:[]};w.sceneControls={...cfg,handlers:s.resources?.handlers??cfg.handlers,stands:s.resources?.stands??cfg.stands,cold_bays:s.resources?.cold_bays??cfg.cold_bays,configured:cfg,...v9VisualSettings};w.weather=cfg.weather||'CLEAR';w.simTick=s.tick;w.running=!!v.running;w.requestedSpeed=v.speed_target||1;w.actualTicksPerSecond=tps;w.incident=Boolean(s.latest_event&&s.tick>=0);w.autoOrbit=v9Orbit});
  }
- let t9=new Date(s.clock);if(!Number.isNaN(+t9))lightHour=(t9.getUTCHours()+8+t9.getUTCMinutes()/60+t9.getUTCSeconds()/3600)%24;worlds.forEach(w=>{w.state=p[w.name]||{objects:[]};w.sceneControls={...cfg,handlers:s.resources?.handlers??cfg.handlers,stands:s.resources?.stands??cfg.stands,cold_bays:s.resources?.cold_bays??cfg.cold_bays,configured:cfg,...v9VisualSettings};w.weather=cfg.weather||'CLEAR';w.simTick=s.tick;w.running=!!v.running;w.requestedSpeed=v.speed_target||1;w.actualTicksPerSecond=tps;w.incident=Boolean(s.latest_event&&s.tick>=0);w.autoOrbit=v9Orbit});
  let events=streamEvents(s);let last=events.at(-1)?.seq||0;
  if(last>v9LastEvent){const arrivals=events.filter(e=>e.seq>v9LastEvent);v9LastEvent=last;const mount=$('eventLive');const fresh=arrivals.slice(-3);if(mount)for(let e of fresh){const el=document.createElement('div');el.innerHTML=v9LogCard(e);el.className='v9-event-animation';mount.prepend(el);while(mount.children.length>3)mount.lastElementChild.remove();setTimeout(()=>{el.classList.add('aging')},4800)}}
  // Live drawers must re-render IN PLACE, without requiring close/reopen.
  if(!$('drawer').hidden&&$('drawerTitle').textContent===EVENT_STREAM_TITLE){
-  const content=$('drawerContent'),seq=String(last);
-  if(content.dataset.seq!==seq){content.innerHTML=eventStreamMarkup(events);content.dataset.seq=seq}
+  const content=$('drawerContent'),reference=groundReference(),rows=reference?streamEvents(reference):events;
+  const seq=JSON.stringify([reference?sandboxIds[0]:embeddedSandbox,rows.at(-1)?.seq]);
+  if(content.dataset.seq!==seq){content.innerHTML=eventStreamMarkup(rows);content.dataset.seq=seq}
  }
  if(!$('drawer').hidden&&$('drawerTitle').textContent.startsWith('Customer journey')){const c=s.customer_projection;if(c&&$('drawerContent').dataset.journeySeq!==String(c.journey_events?.length||0)){let box=$('drawerContent');box.innerHTML='<p>Live synthetic customer milestones; internal approval does not confirm an airline route.</p>'+((c.journey_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind)}</b>${esc(e.message)}<br><small>${esc(when(e.at))} · ${esc(e.authority)}</small></div>`).join(''));box.dataset.journeySeq=String(c.journey_events?.length||0)}}
  if(s.tick!==v9LastTick){v9LastTick=s.tick;$('tickPill').classList.remove('tick-flash');void $('tickPill').offsetWidth;$('tickPill').classList.add('tick-flash')}
@@ -278,6 +445,8 @@ $('presetPeak')?.addEventListener('click',()=>setPreset(disruptionScenarios.peak
 $('presetStorm')?.addEventListener('click',()=>setPreset(disruptionScenarios.storm));
 
 requestAnimationFrame(animate);
-{const q=new URLSearchParams(location.search),embed=document.documentElement.dataset.embed;if(embed)selectedAwb=q.get('awb');showTab(embed||(['ground','tower','customer','chat'].includes(location.hash.slice(1))?location.hash.slice(1):'ground'));}
-fetchState().then(()=>{toast('Synchronized synthetic engine connected')});setInterval(fetchState,950);
+if(embed)selectedAwb=query.get('awb');
+showTab(embed||(['ground','tower','customer','chat'].includes(location.hash.slice(1))?location.hash.slice(1):'ground'));
+if(!sandboxDialog)fetchState().then(()=>{toast('Synchronized synthetic engine connected')});
+setInterval(fetchState,950);
 })();
