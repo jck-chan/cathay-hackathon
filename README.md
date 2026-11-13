@@ -31,10 +31,13 @@ order. `GET /v11/api/sandbox-models` lists the dispatch model IDs and names.
 `POST /v11/api/sandboxes` accepts a name and optional policy and seed,
 and returns the created sandbox's ID.
 `DELETE /v11/api/sandboxes/{sandbox_id}` stops and removes a sandbox.
-Pass `sandbox_id` as a query parameter to live simulation routes or as an
-argument to MCP tools. Calls without an ID use the initial RELAY sandbox
-when available, or the first remaining sandbox. Created sandboxes are
-available until deletion or server restart.
+Pass `sandbox_id` as a query parameter to REST simulation routes. REST calls
+without an ID use the initial RELAY sandbox when available, or the first
+remaining sandbox. **MCP uses different default scoping:** every read and write
+targets **all currently existing sandboxes**, unless `scope="sandboxes"` and
+`sandbox_ids=["id1", "id2"]` select a subset. Results identify each sandbox
+and report partial failures; single-sandbox reads are returned in the same
+batch envelope. Created sandboxes are available until deletion or restart.
 
 ### Adding agents to the three twins
 
@@ -61,9 +64,32 @@ guide to the harness in the `instructions` field of its MCP `initialize` reply.
 
 | View | Prefix | MCP tools |
 |---|---|---|
-| Ground environment | `ground_` | `ground_list_sandboxes`, `ground_create_sandbox`, `ground_start_simulation`, `ground_pause_simulation`, `ground_step_simulation`, `ground_set_playback_speed`, `ground_configure_environment`, `ground_inject_incident` |
+| Ground environment | `ground_` | `ground_list_sandboxes`, `ground_create_sandbox`, `ground_delete_sandbox`, `ground_start_simulation`, `ground_pause_simulation`, `ground_step_simulation`, `ground_set_playback_speed`, `ground_configure_environment`, `ground_inject_incident` |
 | Control centre | `control_` | `control_get_state`, `control_set_review_mode`, `control_recalculate_decision`, `control_review_decision`, `control_mark_task_done` |
-| Customer | `customer_` | `customer_place_order`, `customer_track_shipment` |
+| Customer | `customer_` | `customer_place_order`, `customer_place_order_all_sandboxes`, `customer_track_shipment` |
+
+**MCP target scope example** (the same pattern works for step, start, pause,
+state, orders, incidents and review operations):
+
+```json
+{"count": 5}
+```
+
+Advances **all** sandboxes five ticks each. To target only two:
+
+```json
+{"count": 5, "scope": "sandboxes", "sandbox_ids": ["relay", "fcfs"]}
+```
+
+Sandboxes are separate `Conductor` and simulated shipment/flight stores,
+with independent ticks, clocks, configuration and progression. Within **one**
+sandbox, the Customer, Ground and Control Tower projections share the same
+tick/clock. Identical starting seeds may yield matching initial catalogs, but
+that is **not** a shared mutable store. Order fan-out deliberately assigns one
+common synthetic AWB for cross-policy comparison; orders remain independent.
+The MCP's default all-sandbox operations are best-effort fan-out, **not atomic
+transactions**. Always examine `complete`, `results`, and `failed`; reviews
+and task completion may fail in sandboxes with different decision/task IDs.
 
 Reset stays in the dashboard and REST API. The Evidence Lab, benchmark runs,
 the five-world arena, and the standalone research API are outside the MCP tool
