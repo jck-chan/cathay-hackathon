@@ -2,7 +2,13 @@
    chat uses to show a live twin inline. */
 
 /* ---- embed mode: one twin, no page chrome ---- */
-html[data-embed] :is(.topbar, .simulation-controls, .bottomline, .toast, .drawer, .backdrop) { display: none !important; }
+.twin-workspace.v11-workspace { grid-template-rows: auto minmax(0, 1fr); }
+.v11-workspace .shared-simulation :is(#auditBtn, .evidence-link) {
+  opacity: .8;
+  transition: opacity .18s, background .18s, transform .18s;
+}
+.v11-workspace .shared-simulation :is(#auditBtn, .evidence-link):is(:hover, :focus-visible) { opacity: 1; }
+html[data-embed] :is(.topbar, .simulation-controls, .toast, .drawer, .backdrop) { display: none !important; }
 html[data-embed] .twin-workspace { grid-template-rows: minmax(0, 1fr); }
 html[data-embed="ground"][data-world="relay"] .world:first-child,
 html[data-embed="ground"][data-world="fcfs"] .world:last-child,
@@ -40,6 +46,7 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
   color: #24565b;
 }
 .chat-action:hover { background: #f2f7f7; }
+.chat-actions .chat-action { padding: 8px 13px; font-size: 13px; }
 .chat-mcp {
   max-width: min(380px, calc(100% - 32px));
   padding: 16px;
@@ -55,7 +62,7 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .chat-thread {
   width: min(100% - 40px, 780px);
   margin: 0 auto;
-  padding: 48px 0 20px;
+  padding: 54px 0 20px;
   display: flex;
   flex-direction: column;
   gap: 22px;
@@ -96,8 +103,6 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
   animation: chat-pulse 1.1s ease-in-out infinite;
 }
 @keyframes chat-pulse { 50% { opacity: .25; } }
-.chat-word-fade { animation-name: chat-word-in; animation-timing-function: ease-out; }
-@keyframes chat-word-in { from { opacity: .15; } to { opacity: 1; } }
 
 .part.text { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .md { overflow-wrap: anywhere; }
@@ -134,13 +139,12 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .md th { font-size: 12px; font-weight: 600; color: #637c83; }
 
 /* ---- reasoning ---- */
-.thought { color: #637c83; font-size: 13px; }
+.thought { color: inherit; font-size: 13px; }
 .thought summary, .tool summary { cursor: pointer; list-style: none; user-select: none; }
 .thought summary::-webkit-details-marker, .tool summary::-webkit-details-marker { display: none; }
 .thought summary { display: inline-flex; align-items: center; gap: 6px; }
 .thought summary::after { content: "›"; transition: transform .15s; }
 .thought[open] summary::after { transform: rotate(90deg); }
-.thought.streaming summary { animation: chat-pulse 1.4s ease-in-out infinite; }
 .thought-body {
   margin-top: 6px;
   padding-left: 12px;
@@ -258,7 +262,8 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .chat-send.stop { background: #fff; color: #24565b; box-shadow: inset 0 0 0 1px #cfdfe0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .msg.assistant.working::after, .thought.streaming summary, .tool-state, .artifact-pending, .chat-word-fade { animation: none; }
+  .msg.assistant.working::after, .tool-state, .artifact-pending { animation: none; }
+  .v11-workspace .shared-simulation :is(#auditBtn, .evidence-link) { transition: none; }
 }
 @media (max-width: 760px) {
   .chat-suggestions { grid-template-columns: 1fr; }

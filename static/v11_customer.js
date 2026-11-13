@@ -24,19 +24,23 @@
     text('shipAwb', selected || 'No shipment selected');
     text('shipRoute', route);
     $('fullJourney').disabled = !c;
+    const serviceMessage = c?.customer_service_message;
+    const update = c && serviceMessage !== 'Shipment milestones and estimated arrival are being updated.'
+      ? serviceMessage || c.journey_events?.at(-1)?.message || ''
+      : '';
+    text('shipUpdate', update);
+    $('shipUpdate').hidden = !update;
     globe.setRoutes?.(list, selected);
     if (item && (globe.route[0] !== (item.origin || 'HKG') || globe.route[1] !== item.destination)) globe.setRoute(item.origin || 'HKG', item.destination);
     if (!c) {
       text('shipStatus', item ? 'Loading details' : 'No shipment');
       text('shipEta', 'Arrival estimate unavailable'); text('shipHeadline', item ? 'Loading shipment details' : 'Your portfolio is empty');
-      text('shipUpdate', item ? 'Retrieving the selected shipment’s latest status.' : 'Create a synthetic shipment to see its progress here.');
       text('shipWarning', ''); $('shipWarning').hidden = true; $('journeySteps').replaceChildren(); return;
     }
     const rd = c.route_decision || {}, phase = c.ground_twin?.phase;
     text('shipStatus', label(c.status || 'Simulated'));
     text('shipEta', c.eta_past_due_without_arrival_confirmation ? 'Recorded ETA overdue · arrival not confirmed' : `Recorded arrival estimate: ${time(c.estimated_arrival_utc)}`);
     text('shipHeadline', c.ground_twin?.phase_label || label(c.journey_events?.at(-1)?.kind || 'Order received'));
-    text('shipUpdate', c.customer_service_message || c.journey_events?.at(-1)?.message || 'No further updates recorded.');
     const proposals = rd.tentative_alternative_flights || [];
     $('shipWarning').hidden = false;
     text('shipWarning', proposals.length ? `Proposed route: ${proposals.join(' → ')}. Review: ${label(rd.review_status)}. Carrier confirmation is ${rd.carrier_confirmed ? 'recorded' : 'pending'}.` : rd.carrier_confirmed ? 'Carrier confirmation recorded in the simulation.' : 'Carrier confirmation pending. This simulation does not book cargo or confirm delivery.');

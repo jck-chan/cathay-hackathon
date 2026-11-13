@@ -54,7 +54,8 @@ with sync_playwright() as pw:
     canvas = page.locator('#customerGlobe')
     box = canvas.bounding_box()
     overview = page.locator('.cx-overview').bounding_box()
-    progress = page.locator('#journeySteps').locator('..').bounding_box()
+    progress = page.locator('.cx-progress').bounding_box()
+    assert page.locator('.cx-card').count() == 1
     assert overview['x'] < box['x'] < overview['x'] + overview['width']
     assert box['y'] + box['height'] <= overview['y'] + overview['height']
     assert progress['x'] >= overview['x'] + overview['width']
