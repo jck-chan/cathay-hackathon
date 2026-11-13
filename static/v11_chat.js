@@ -13,6 +13,7 @@ const el = (tag, className, html) => { const n = document.createElement(tag); if
 const STORE = 'relay.v11.chat';
 const MAX_LIVE_TWINS = 2;   // each ground embed holds WebGL contexts; older ones pause
 const WORD_INTERVAL_MS = 30;
+const WORD_FADE_MS = 180;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const wordSegmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, {granularity: 'word'}) : null;
 const unspacedScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
@@ -182,15 +183,57 @@ addEventListener('relay:state', event => {
 /* ---------- part views ---------- */
 const toolName = part => part.type.slice(5);
 const pretty = value => { const s = typeof value === 'string' ? value : JSON.stringify(value, null, 2) ?? ''; return s.length > 6000 ? s.slice(0, 6000) + '\n… truncated' : s; };
+const visibleText = part => part.text.slice(0, part._visibleLength);
+const hasPendingText = part => part._visibleLength < part.text?.length;
+
+function fadeNewText(node, revealedLength) {
+  const text = node.textContent;
+  const previous = node._plainText || '';
+  const now = performance.now();
+  const animate = !reducedMotion.matches && revealedLength;
+  let fades = animate ? (node._wordFades || []).filter(fade => now - fade.started < WORD_FADE_MS) : [];
+  if (animate && text !== previous) {
+    let start = Math.max(0, text.length - revealedLength);
+    while (start < text.length && text[start] === previous[start]) start++;
+    fades = fades.filter(fade => fade.end <= start);
+    if (start < text.length) fades.push({start, end: text.length, started: now});
+  }
+  node._plainText = text;
+  node._wordFades = fades;
+  if (!fades.length) return;
+
+  // Markdown is rebuilt as it arrives. Restore each active fade at its current progress.
+  const walker = document.createTreeWalker(node, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  for (let child; (child = walker.nextNode());) textNodes.push(child);
+  const newestFirst = fades.slice().reverse();
+  let offset = 0;
+  for (const child of textNodes) {
+    const end = offset + child.length;
+    for (const fade of newestFirst) {
+      const start = Math.max(offset, fade.start), stop = Math.min(end, fade.end);
+      if (start >= stop) continue;
+      const fragment = start === offset ? child : child.splitText(start - offset);
+      if (stop - start < fragment.length) fragment.splitText(stop - start);
+      if (fragment.data.trim()) {
+        const span = el('span', 'chat-word-fade');
+        span.style.animationDuration = `${WORD_FADE_MS}ms`;
+        span.style.animationDelay = `${fade.started - now}ms`;
+        fragment.replaceWith(span);
+        span.append(fragment);
+      }
+    }
+    offset = end;
+  }
+}
 
 function updateText(part) {
   const node = part._el ||= el('div', 'part text');
   part._twins ||= [];
   const wanted = [];
   let twinIndex = 0;
-  const visibleText = part.text.slice(0, part._visibleLength ?? part.text.length);
-  const streaming = part.state === 'streaming' || visibleText.length < part.text.length;
-  for (const segment of splitTwins(visibleText, streaming)) {
+  const streaming = part.state === 'streaming' || hasPendingText(part);
+  for (const segment of splitTwins(visibleText(part), streaming)) {
     if (segment.twin) wanted.push(part._twins[twinIndex++] ||= twinEmbed(segment.twin));
     else if (segment.md.trim()) wanted.push({md: segment.md});
   }
@@ -198,23 +241,42 @@ function updateText(part) {
     let child = node.children[i];
     if (item.md != null) {
       if (!child?.classList.contains('md')) { child = el('div', 'md'); node.insertBefore(child, node.children[i] || null); }
-      if (child._source !== item.md) { child._source = item.md; child.innerHTML = markdown(item.md); }
+      if (child._source !== item.md) {
+        child._source = item.md;
+        child.innerHTML = markdown(item.md);
+        fadeNewText(child, part._revealedLength);
+      }
     } else if (child !== item) node.insertBefore(item, child || null);
   });
   while (node.children.length > wanted.length) node.lastChild.remove();
   return node;
 }
 function updateReasoning(part) {
+  const playing = part.state === 'streaming' || hasPendingText(part);
   if (!part._el) {
     part._el = el('details', 'part thought', '<summary></summary><div class="thought-body"></div>');
-    part._el.open = part.state === 'streaming';
+    part._el.open = playing;
   }
-  const streaming = part.state === 'streaming';
+  const body = part._el.lastChild;
+  const text = visibleText(part);
+  if (body.textContent !== text) {
+    body.textContent = text;
+    fadeNewText(body, part._revealedLength);
+  }
+  const lastFade = body._wordFades?.at(-1);
+  const fadeRemaining = lastFade && !reducedMotion.matches ? lastFade.started + WORD_FADE_MS - performance.now() : 0;
+  if (!playing && fadeRemaining > 0 && !part._collapseTimer) {
+    part._collapseTimer = setTimeout(() => {
+      part._collapseTimer = null;
+      part._dirty = true;
+      queueRender();
+    }, fadeRemaining);
+  }
+  const streaming = playing || fadeRemaining > 0;
   if (part._wasStreaming && !streaming) part._el.open = false;
   part._wasStreaming = streaming;
   part._el.classList.toggle('streaming', streaming);
   part._el.firstChild.textContent = streaming ? 'Thinking' : part.seconds ? `Thought for ${part.seconds}s` : 'Thought';
-  part._el.lastChild.textContent = part.text;
   return part._el;
 }
 function argumentSummary(input) {
@@ -281,6 +343,7 @@ function renderMessage(message) {
     if (!part._dirty && part._el) continue;
     part._dirty = false;
     const node = updatePart(part);
+    part._revealedLength = 0;
     if (node && node.parentNode !== message._el) message._el.append(node);
   }
   message._el.classList.toggle('working', Boolean(message._working));
@@ -334,30 +397,30 @@ function nextWordLength(pending, ended) {
 
 function paceText(reply, signal) {
   let timer = null, resolveDrain;
-  const pending = part => part.type === 'text' && part._visibleLength < part.text.length;
-  function reveal(part, length) {
+  function reveal(part, length, animate) {
     part._visibleLength += length;
+    part._revealedLength = animate ? (part._revealedLength || 0) + length : 0;
     part._dirty = true;
     queueRender();
   }
   function flush() {
     clearTimeout(timer);
     timer = null;
-    for (const part of reply.parts.filter(pending)) reveal(part, part.text.length - part._visibleLength);
+    for (const part of reply.parts.filter(hasPendingText)) reveal(part, part.text.length - part._visibleLength, false);
     resolveDrain?.();
   }
   function schedule() {
     if (signal.aborted || document.hidden || reducedMotion.matches) {
       flush();
-    } else if (!reply.parts.some(pending)) {
+    } else if (!reply.parts.some(hasPendingText)) {
       resolveDrain?.();
     } else if (timer === null) {
       timer = setTimeout(() => {
         timer = null;
         if (document.hidden || reducedMotion.matches) { flush(); return; }
-        const part = reply.parts.find(pending);
+        const part = reply.parts.find(hasPendingText);
         const length = nextWordLength(part.text.slice(part._visibleLength), part.state === 'done');
-        if (length) { reveal(part, length); schedule(); }
+        if (length) { reveal(part, length, true); schedule(); }
       }, WORD_INTERVAL_MS);
     }
   }
@@ -378,15 +441,11 @@ function applyEvent(message, event) {
   switch (event.type) {
     case 'start': if (event.messageId) message.id = event.messageId; return;  // the server keys its history on this id
     case 'start-step': parts.push({type: 'step-start'}); return;
-    case 'text-start':
-      parts.push({type: 'text', id: event.id, text: '', state: 'streaming', _visibleLength: 0}); return;
-    case 'reasoning-start':
-      parts.push(part = {type: 'reasoning', id: event.id, text: '', state: 'streaming', _started: performance.now()}); break;
-    case 'text-delta':
+    case 'text-start': case 'reasoning-start':
+      parts.push(part = {type: event.type.split('-')[0], id: event.id, text: '', state: 'streaming', _visibleLength: 0, _started: performance.now()}); break;
+    case 'text-delta': case 'reasoning-delta':
       if ((part = byId(event.id))) part.text += event.delta;
       return;
-    case 'reasoning-delta':
-      if ((part = byId(event.id))) part.text += event.delta; break;
     case 'text-end': case 'reasoning-end':
       if ((part = byId(event.id))) { part.state = 'done'; if (part.type === 'reasoning') part.seconds = Math.max(1, Math.round((performance.now() - part._started) / 1000)); } break;
     case 'tool-input-start':

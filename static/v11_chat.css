@@ -96,6 +96,8 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
   animation: chat-pulse 1.1s ease-in-out infinite;
 }
 @keyframes chat-pulse { 50% { opacity: .25; } }
+.chat-word-fade { animation-name: chat-word-in; animation-timing-function: ease-out; }
+@keyframes chat-word-in { from { opacity: .15; } to { opacity: 1; } }
 
 .part.text { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .md { overflow-wrap: anywhere; }
@@ -256,7 +258,7 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .chat-send.stop { background: #fff; color: #24565b; box-shadow: inset 0 0 0 1px #cfdfe0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .msg.assistant.working::after, .thought.streaming summary, .tool-state, .artifact-pending { animation: none; }
+  .msg.assistant.working::after, .thought.streaming summary, .tool-state, .artifact-pending, .chat-word-fade { animation: none; }
 }
 @media (max-width: 760px) {
   .chat-suggestions { grid-template-columns: 1fr; }
