@@ -20,9 +20,9 @@ const urgencyCss = ['#1f9f7c', '#d99a12', '#e2711d', '#d63a33'];
 const CAMERA = {yaw: 2.2, pitch: .52, zoom: 1, panX: 0, panZ: 0, custom: false};
 // Ground point just inside the apron, beside the staging yard.
 const ORBIT_PIVOT = {x: 13, z: -8};
-// V11: fixed world-space target at the light head of the central apron floodlight.
+// V11: fixed world-space target at half the central floodlight's height.
 // Keep this literal: the camera never tracks or reads the lamp instance.
-const V11_ORBIT_PIVOT = {x: 10.4, y: 14, z: 0};
+const V11_ORBIT_PIVOT = {x: 10.4, y: 7, z: 0};
 const LIGHTING = {day: 11.2, dusk: 18.35, night: 22.5};
 const PX = 16;                  // ground paint pixels per unit
 const hash = (text) => {
