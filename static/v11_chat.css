@@ -92,7 +92,7 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 
 .chat-empty { margin-top: 9vh; }
 .chat-empty h2 { margin: 0 0 6px; font-size: 20px; font-weight: 700; letter-spacing: -.2px; }
-.chat-empty p { margin: 0 0 20px; color: #637c83; max-width: 56ch; }
+.chat-empty p { margin: 0 0 clamp(32px, 7vh, 64px); color: #637c83; max-width: 56ch; }
 .chat-suggestions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .chat-suggestions button {
   text-align: left;
@@ -129,6 +129,9 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 @keyframes chat-word-in { from { opacity: .15; } to { opacity: 1; } }
 
 .part.text { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.msg.assistant > .part.text { color: #172126; }
+.msg.assistant > .part.text .chat-word-fade { animation-name: chat-reply-word-in; }
+@keyframes chat-reply-word-in { from { opacity: .85; } to { opacity: 1; } }
 .md { overflow-wrap: anywhere; }
 .md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
@@ -161,6 +164,8 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .md table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .md th, .md td { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid #e3ecec; }
 .md th { font-size: 12px; font-weight: 600; color: #637c83; }
+.msg.assistant > .part.text .md a { color: #075e56; }
+.msg.assistant > .part.text .md :is(blockquote, th) { color: inherit; }
 
 /* ---- reasoning ---- */
 .thought { color: inherit; font-size: 13px; }
@@ -284,7 +289,8 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
 .chat-send.stop { background: #fff; color: #24565b; box-shadow: inset 0 0 0 1px #cfdfe0; }
 
 @media (prefers-reduced-motion: reduce) {
-  .msg.assistant.working::after, .tool-state, .artifact-pending, .chat-word-fade { animation: none; }
+  .msg.assistant.working::after, .tool-state, .artifact-pending, .chat-word-fade,
+  .msg.assistant > .part.text .chat-word-fade { animation: none; }
   .v11-workspace .shared-simulation :is(#auditBtn, .evidence-link) { transition: none; }
 }
 @media (max-width: 760px) {
