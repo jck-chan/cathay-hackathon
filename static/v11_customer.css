@@ -15,6 +15,7 @@
 #customer-screen button:focus-visible,#customer-screen input:focus-visible{outline:3px solid #328bba;outline-offset:3px}
 .cx-card{--cx-card-padding:24px;position:relative;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);align-content:start;gap:32px;min-width:0;background:white;border:1px solid #dce3e7;border-radius:6px;padding:var(--cx-card-padding);padding-block-end:calc(60px + var(--cx-card-padding));overflow-wrap:anywhere}
 .cx-progress{margin-top:28px}
+.cx-progress .cx-section-heading{justify-content:flex-start;flex-wrap:wrap;gap:8px 16px}
 .cx-identity{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px}
 .cx-identity h2{font-size:20px;margin:0}.cx-route{font-size:30px;font-weight:650;letter-spacing:.5px}.cx-card p{font-size:14px;line-height:1.65;color:#536872}
 #customer-screen .status-chip{font-size:11px;white-space:normal;max-width:100%;background:#edf2f3;color:#3b5960;border-radius:4px;padding:6px 8px}
