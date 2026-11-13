@@ -307,3 +307,32 @@ html,body{background:#eaf1f1}
   border-color: #86c7b7;
   outline-offset: 2px;
 }
+
+/* Customer order form: modal presentation, while other evidence keeps its side drawer. */
+.twin-workspace .drawer.order-popup {
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(540px, calc(100vw - 32px));
+  max-height: min(780px, calc(100dvh - 32px));
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #dce8e7;
+  box-shadow: 0 24px 90px #082b3655;
+}
+.twin-workspace .drawer.order-popup .drawer-head { padding: 18px 22px; }
+.twin-workspace .drawer.order-popup .drawer-content { padding: 12px 22px 22px; min-height: 0; overflow: auto; }
+.twin-workspace .drawer.order-popup .drawer-content label { margin: 9px 0; }
+.twin-workspace .drawer.order-popup .drawer-content input,
+.twin-workspace .drawer.order-popup .drawer-content select { padding: 10px; }
+.twin-workspace .drawer.order-popup .drawer-end { padding: 10px 22px; }
+.twin-workspace .order-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.twin-workspace .order-actions .btn { min-width: 0; padding: 11px 8px; }
+.twin-workspace .order-error { margin: 10px 0 0; color: #b33d36; font-size: 12px; }
+.twin-workspace button[data-request-pending="true"] { opacity: .46 !important; cursor: progress !important; pointer-events: none; }
+.twin-workspace button:disabled { opacity: .48; cursor: not-allowed; }
+@media (max-width: 560px) {
+  .twin-workspace .drawer.order-popup .drawer-head { padding: 14px 16px; }
+  .twin-workspace .drawer.order-popup .drawer-content { padding: 8px 16px 18px; }
+  .twin-workspace .drawer.order-popup .drawer-end { padding: 9px 16px; }
+  .twin-workspace .order-actions { grid-template-columns: 1fr; gap: 8px; }
+}
