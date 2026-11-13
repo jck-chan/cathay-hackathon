@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 from typing import Annotated, Any, Literal
+from contextlib import ExitStack
+from uuid import uuid4
+from . import api as simulation_api
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
@@ -36,12 +39,14 @@ LEGACY_MCP_PATH = '/v11/mcp'
 INSTRUCTIONS = """RELAY Three Twins -- MCP agent operating guide
 
 What this server is
-Each v11 sandbox has its own shipments, event store, decisions and 10-minute
-clock, shared by its Customer, Ground and Control Tower views. Use
-ground_list_sandboxes to find IDs and ground_create_sandbox to create one.
-Pass the same sandbox_id throughout a workflow. Omitting it targets the
-initial RELAY sandbox or the first available sandbox if RELAY was deleted.
-Writes affect every client viewing the targeted sandbox.
+Each v11 sandbox has its own shipments, flights, event store, decisions and 10-minute
+clock, shared by its Customer, Ground and Control Tower views. DIFFERENT sandboxes
+do not share clocks or stores. Use ground_list_sandboxes, ground_create_sandbox,
+and ground_delete_sandbox to manage the dynamic sandbox registry.
+Every MCP read/write defaults to scope='all', targeting every existing sandbox.
+For a subset pass scope='sandboxes' AND sandbox_ids=['id1','id2'].
+Each result carries sandbox_id; inspect complete/failed for partial success.
+Writes affect every client viewing the targeted sandbox(s).
 This is a research/demo sandbox, NOT a connection to real Cathay systems:
 no actual airline booking, cargo move, customer notification, certified
 aircraft loading, or established financial ROI. The separate v12 five-policy
@@ -56,7 +61,7 @@ The three views
   routing decisions; acknowledge dependent simulated work orders. Internal
   approval is NOT carrier confirmation or authorization for physical work.
 
-Read control_get_state for the target sandbox
+Read control_get_state for all sandboxes (or a selected subset)
 Read tick, clock, v8.running/mode/config, decision.id/status/snapshot_version/
 stale/warnings/proposed_actions, tasks[].depends_on_task_id, policies[ground_policy],
 shipment_objects, unified_events, portfolio_coverage
@@ -66,14 +71,14 @@ use decision.snapshot_version (not the top-level version). Check
 decision_scope before claiming global optimality.
 
 End-to-end scenario (customer -> ground -> control -> customer)
-1. Pause with ground_pause_simulation to obtain a stable clock. This pauses
-   the target sandbox for every viewer. Set control_set_review_mode to
+1. Pause with ground_pause_simulation to obtain stable clocks. This pauses
+   every sandbox by default, or the selected sandbox IDs. Set control_set_review_mode to
    MANUAL_REVIEW if you want explicit operator-style review. Read state.
-2. Create a synthetic order with customer_place_order (one sandbox), or
-   customer_place_order_all_sandboxes (all existing sandboxes). For the latter,
+2. Create a synthetic order with customer_place_order (all sandboxes by default)
+   or an explicit subset. customer_place_order_all_sandboxes is an alias. For both,
    the AWB and shipment ID are shared so policies can be compared directly;
    check complete/failed for any partial writes. Save the AWB and track it
-   with customer_track_shipment in the chosen sandbox.
+   with customer_track_shipment in selected sandboxes.
 3. Optionally call ground_configure_environment and/or
    ground_inject_incident. The simulator chooses which entity an incident
    affects; inspect the returned event, never invent a flight ID.
@@ -115,7 +120,7 @@ warnings are operational boundaries, not instructions to circumvent.
 The FCFS/RELAY comparison and cost units are synthetic, not airline ROI.
 
 Clock and safety
-One tick = 10 SIMULATED minutes. Manual stepping requires paused autoplay.
+One tick = 10 SIMULATED minutes PER SANDBOX. Manual stepping requires paused autoplay in every target.
 Speed is a REQUESTED multiplier; actual_ticks_per_second may be lower.
 The dashboard and REST API provide reset. Never claim to have sent
 real flight, warehouse, customer or booking commands.
@@ -167,90 +172,197 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
         sandbox = await run_in_threadpool(v11_create_sandbox, SandboxCreate(name=name, policy=policy, seed=seed))
         return sandbox.model_dump()
 
-    @mcp.tool(annotations=read_only)
-    async def control_get_state(sandbox_id: str | None = None) -> dict[str, Any]:
-        """Start here: read the authoritative, potentially large synthetic three-view snapshot. Inspect tick/clock, v8.running/mode/config, decision.id/status/snapshot_version/warnings/proposed_actions, tasks and depends_on_task_id, policies[ground_policy], shipment_objects and view_clock_contract. Use decision.snapshot_version for reviews; a candidate route is never a booking."""
-        return await run_in_threadpool(v11_state, None, sandbox_id)
-
-    @mcp.tool(annotations=read_only)
-    async def customer_track_shipment(awb: Annotated[str, Field(min_length=1, max_length=80)], sandbox_id: str | None = None) -> dict[str, Any]:
-        """Track a synthetic shipment using the AWB returned by customer_place_order or listed in control_get_state.shipment_objects. Separately inspect source-recorded synthetic milestones, ground_twin staging state and route_decision candidate itinerary. Ground DONE or internal approval does NOT mean flight departure, airline-confirmed routing, customer ETA change or delivery."""
-        state = await run_in_threadpool(v11_state, awb, sandbox_id)
-        customer = state['customer_projection']
-        if customer is None:
-            raise ValueError(f'No admitted shipment with AWB {awb}')
-        return customer
 
     @mcp.tool()
-    async def customer_place_order(order: OrderRequest, sandbox_id: str | None = None) -> dict[str, Any]:
-        """Create one synthetic HKG-origin cargo request in exactly one sandbox (default: RELAY). Supply destination, weight, handling, service and dimensions. This does not book cargo with any airline. For all sandboxes use customer_place_order_all_sandboxes."""
-        result = await run_in_threadpool(v11_order, order, sandbox_id)
-        return {'awb': result['awb'], 'shipment_id': result['shipment_id']}
+    async def ground_delete_sandbox(sandbox_id: str) -> dict[str, Any]:
+        """Permanently delete ONE synthetic sandbox by its ID, stopping its playback and disposing its simulation. The other sandboxes are untouched. Call ground_list_sandboxes first."""
+        from .api import v11_delete_sandbox
+        await run_in_threadpool(v11_delete_sandbox, sandbox_id)
+        return {'deleted': True, 'sandbox_id': sandbox_id}
+
+    @mcp.tool(annotations=read_only)
+    async def control_get_state(
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Read independent simulation snapshots from ALL sandboxes by default, or selected sandbox_ids with scope='sandboxes'. Every result includes its sandbox ID, tick, clock, flights, shipments, tasks, review decisions, and policies. Each sandbox has its OWN clock and store; only Ground/Control/Customer views WITHIN that sandbox share a clock."""
+        return await run_in_threadpool(_fanout, lambda sid: v11_state(None, sid), scope, sandbox_ids)
+
+    @mcp.tool(annotations=read_only)
+    async def customer_track_shipment(
+        awb: Annotated[str, Field(min_length=1, max_length=80)],
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Track a synthetic AWB across all sandboxes by default, or selected sandbox_ids. Missing AWBs are reported per sandbox; shipment histories and routing are independent even if identifiers match. This is NOT carrier tracking."""
+        def track(sid: str) -> dict[str, Any]:
+            state = v11_state(awb, sid)
+            customer = state['customer_projection']
+            if customer is None:
+                raise ValueError(f'No admitted shipment with AWB {awb}')
+            return customer
+        return await run_in_threadpool(_fanout, track, scope, sandbox_ids)
+
+    @mcp.tool()
+    async def customer_place_order(
+        order: OrderRequest, scope: Literal['all', 'sandboxes'] = 'all',
+        sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create the SAME synthetic shipment in all sandboxes by default, or only selected sandbox_ids. A shared generated AWB/ID allows comparison, but the orders are separate records in separate sandboxes. No airline booking. Returns per-sandbox successes/failures; do not blindly retry partial writes."""
+        return await run_in_threadpool(_place_order_scoped, order, scope, sandbox_ids)
 
     @mcp.tool()
     async def customer_place_order_all_sandboxes(order: OrderRequest) -> dict[str, Any]:
-        """Create the SAME synthetic cargo request in every existing v11 sandbox, using one common AWB/shipment ID for comparable policies. No real booking. Returns created_count, target_count, created and failed entries, and complete; a partial result requires inspection before retrying (retries may duplicate orders)."""
-        result = await run_in_threadpool(v11_order_all, order)
-        return result
+        """Compatibility alias: create one identical synthetic request across all current independent sandboxes, with a common AWB/ID for comparisons. For explicit subsets use customer_place_order(scope='sandboxes', sandbox_ids=[...])."""
+        return await run_in_threadpool(_place_order_scoped, order, 'all', None)
 
     @mcp.tool()
-    async def ground_inject_incident(incident: IncidentRequest, sandbox_id: str | None = None) -> dict[str, Any]:
-        """Create one synthetic disruption: flight_delay, flight_cancelled, capacity_changed, terminal_congestion, shipment_dimension_conflict or shipment_dimension_verified. The simulator chooses the affected flight/shipment; the caller cannot select its ID. Inspect returned event_id/entity_id, then check control_get_state for changed recommendations. No real airline event is created."""
-        state = await run_in_threadpool(v11_incident, incident, sandbox_id)
-        return state['latest_event']
+    async def ground_inject_incident(
+        incident: IncidentRequest, scope: Literal['all', 'sandboxes'] = 'all',
+        sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Inject the specified SYNTHETIC incident independently into all or selected sandboxes. Each simulator independently chooses an affected entity; events and IDs may differ. Returns one result/error per sandbox."""
+        return await run_in_threadpool(_fanout, lambda sid: v11_incident(incident, sid)['latest_event'], scope, sandbox_ids)
 
     @mcp.tool()
-    async def control_review_decision(review: ReviewRequest, sandbox_id: str | None = None) -> dict[str, Any]:
-        """Approve or reject the CURRENT pending synthetic Control Tower proposal, usually after setting MANUAL_REVIEW. First read control_get_state.decision for status, stale, warnings, id and snapshot_version. Pass review.decision_id=decision.id, review.expected_snapshot_version=decision.snapshot_version, choice=approve/reject. On stale/conflict, re-read before acting. Approval creates simulated work orders; it does NOT book flights or authorize physical dispatch."""
-        result = await run_in_threadpool(v11_review, review, sandbox_id)
-        return result['review']
+    async def control_review_decision(
+        review: ReviewRequest, scope: Literal['all', 'sandboxes'] = 'all',
+        sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Review a pending synthetic recommendation in all or selected sandboxes. The supplied decision_id and expected_snapshot_version are checked independently in EACH sandbox; mismatches are reported as errors, never silently approved. Get each sandbox's decision first. Never represents a carrier booking."""
+        return await run_in_threadpool(_fanout, lambda sid: v11_review(review, sid)['review'], scope, sandbox_ids)
 
     @mcp.tool()
-    async def control_mark_task_done(task_id: str, sandbox_id: str | None = None) -> dict[str, Any]:
-        """Acknowledge a simulated work order with task_id from control_get_state.tasks after internal approval. Check its status, task_type and depends_on_task_id, and respect prerequisites. A DONE acknowledgment logs a sandbox handoff, NOT aircraft loading, airline booking or customer notification. Fresh decisions/ticks may supersede task lists; re-read shared state."""
-        result = await run_in_threadpool(v11_task_done, task_id, sandbox_id)
-        return result['result']
+    async def control_mark_task_done(
+        task_id: str, scope: Literal['all', 'sandboxes'] = 'all',
+        sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Acknowledge a synthetic task in all or selected sandboxes. IDs and prerequisite chains may differ; unknown task IDs generate per-sandbox errors. This does not initiate real ground handling."""
+        return await run_in_threadpool(_fanout, lambda sid: v11_task_done(task_id, sid)['result'], scope, sandbox_ids)
 
     @mcp.tool()
-    async def ground_start_simulation(sandbox_id: str | None = None) -> dict[str, Any]:
-        """Start autoplay of the targeted synthetic Ground/Control/Customer clock. Progress may admit orders, complete ground staging and recalculate decisions for all connected users. Use ground_pause_simulation before manual stepping or stable review. Requested speed is not guaranteed actual throughput; no real airline activity occurs."""
-        return await apply_control(SimulationControl(action='start'), sandbox_id)
+    async def ground_start_simulation(
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Start each selected sandbox's INDEPENDENT autoplay clock; targets all existing sandboxes unless scoped. Returns per-sandbox tick, clock, and running state, with individual errors."""
+        return await apply_control(SimulationControl(action='start'), scope, sandbox_ids)
 
     @mcp.tool()
-    async def ground_pause_simulation(sandbox_id: str | None = None) -> dict[str, Any]:
-        """Pause the server-owned synthetic sandbox for its connected clients without resetting its current tick, orders or decisions. Pause before ground_step_simulation and when a stable review snapshot is required. Returns shared clock and playback settings."""
-        return await apply_control(SimulationControl(action='pause'), sandbox_id)
+    async def ground_pause_simulation(
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Pause all independent sandbox clocks by default, or selected sandbox_ids. Pausing one does not pause another unless both are targeted."""
+        return await apply_control(SimulationControl(action='pause'), scope, sandbox_ids)
 
     @mcp.tool()
-    async def ground_step_simulation(count: Annotated[int, Field(ge=1, le=100)] = 1, sandbox_id: str | None = None) -> dict[str, Any]:
-        """Advance 1-100 ticks of 10 simulated minutes each while autoplay is PAUSED; the shared Ground, Control Tower and Customer views update together. May admit shipments, complete staging and replace pending decisions/tasks. Running autoplay causes a conflict: call ground_pause_simulation first."""
-        return await apply_control(SimulationControl(action='step', count=count), sandbox_id)
+    async def ground_step_simulation(
+        count: Annotated[int, Field(ge=1, le=100)] = 1,
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Advance each selected sandbox by count 10-minute ticks, all by default. EACH targeted sandbox must be paused. Their clocks are independent; partial successes and running-sandbox conflicts are explicitly reported."""
+        return await apply_control(SimulationControl(action='step', count=count), scope, sandbox_ids)
 
     @mcp.tool()
-    async def ground_set_playback_speed(speed: Literal[1, 4, 16, 32, 100], sandbox_id: str | None = None) -> dict[str, Any]:
-        """Configure a REQUESTED synthetic autoplay speed of 1x, 4x, 16x, 32x or 100x, without advancing time by this call. Solver CPU work can prevent reaching the target: compare speed_target and target_ticks_per_second with actual_ticks_per_second. Applies to all three views."""
-        return await apply_control(SimulationControl(action='speed', speed=speed), sandbox_id)
+    async def ground_set_playback_speed(
+        speed: Literal[1, 4, 16, 32, 100],
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Request playback speed for all existing independent sandboxes by default, or selected IDs. Actual throughput may differ. Returns per-sandbox settings."""
+        return await apply_control(SimulationControl(action='speed', speed=speed), scope, sandbox_ids)
 
     @mcp.tool()
-    async def ground_configure_environment(settings: EnvironmentSettings, sandbox_id: str | None = None) -> dict[str, Any]:
-        """Tune shared synthetic simulation settings: rate (arrival intensity), chaos (disruption probability), handlers, stands, cold_bays or weather (AUTO/CLEAR/RAIN/FOG/STORM). Omitted values stay unchanged. RAIN reduces effective stands by 1; STORM reduces stands by 2 and handlers by 1, each floored at 1. These are non-certified scenario assumptions."""
-        control = SimulationControl(action='tune', **settings.model_dump(exclude_none=True))
-        return await apply_control(control, sandbox_id)
+    async def ground_configure_environment(
+        settings: EnvironmentSettings, scope: Literal['all', 'sandboxes'] = 'all',
+        sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Set synthetic demand, disruption rate, resources, or weather independently in all or selected sandbox IDs. Identical settings do not imply shared state or identical evolving outcomes."""
+        return await apply_control(SimulationControl(action='tune', **settings.model_dump(exclude_none=True)), scope, sandbox_ids)
 
     @mcp.tool()
-    async def control_set_review_mode(mode: Literal['AUTO_SHADOW', 'MANUAL_REVIEW', 'ADVISORY'], sandbox_id: str | None = None) -> dict[str, Any]:
-        """Set shared synthetic review mode. AUTO_SHADOW may immediately approve eligible pending internal proposals but is blocked by applicable safety/evidence gates; MANUAL_REVIEW waits for explicit control_review_decision; ADVISORY suppresses automatic approval and treats recommendations as advice (explicit review API still exists). None authorizes real bookings or movements."""
-        return await apply_control(SimulationControl(action='mode', mode=mode), sandbox_id)
+    async def control_set_review_mode(
+        mode: Literal['AUTO_SHADOW', 'MANUAL_REVIEW', 'ADVISORY'],
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Set internal synthetic decision review mode for all sandboxes by default, or selected sandbox IDs. AUTO_SHADOW may approve independently eligible proposals; never real airline operations."""
+        return await apply_control(SimulationControl(action='mode', mode=mode), scope, sandbox_ids)
 
     @mcp.tool()
-    async def control_recalculate_decision(sandbox_id: str | None = None) -> dict[str, Any]:
-        """Re-run the synthetic Control Tower recommendation at the SAME tick using Model I bounded 2D placement, Model II one-step uncertainty verification, and Model III finite-column network routing. May supersede decision ID/version and current task view. Inspect returned proposal/warnings and re-read control_get_state before review. No time advance or airline booking."""
-        state = await run_in_threadpool(v11_control, SimulationControl(action='recalculate'), sandbox_id)
-        return {'decision': state['decision']}
+    async def control_recalculate_decision(
+        scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Recalculate independent synthetic Control Tower decisions for all or selected sandboxes at their OWN current ticks. Returns each sandbox's decision separately; no actual bookings."""
+        return await run_in_threadpool(_fanout, lambda sid: {'decision': v11_control(SimulationControl(action='recalculate'), sid)['decision']}, scope, sandbox_ids)
 
     return mcp
 
+def _targets(scope: str, sandbox_ids: list[str] | None) -> tuple[str, ...]:
+    """Freeze a target set at call start; reject invalid/missing IDs without mutating anything."""
+    if scope == 'all':
+        if sandbox_ids is not None:
+            raise ValueError("sandbox_ids requires scope='sandboxes'")
+        targets = tuple(s.id for s in simulation_api.sandboxes.list())
+    elif scope == 'sandboxes':
+        if not sandbox_ids:
+            raise ValueError("scope='sandboxes' requires a nonempty sandbox_ids array")
+        if len(sandbox_ids) != len(set(sandbox_ids)):
+            raise ValueError('Duplicate sandbox IDs are not allowed')
+        targets = tuple(sandbox_ids)
+        for sid in targets:
+            simulation_api.get_sandbox(sid)
+    else:
+        raise ValueError(f'Unknown scope: {scope}')
+    if not targets:
+        raise ValueError('No sandboxes available')
+    return targets
 
-async def apply_control(control: SimulationControl, sandbox_id: str | None) -> dict[str, Any]:
-    state = await run_in_threadpool(v11_control, control, sandbox_id)
-    return {'tick': state['tick'], 'clock': state['clock'], **state['v8']}
+
+def _fanout(fn: Any, scope: str, sandbox_ids: list[str] | None) -> dict[str, Any]:
+    targets = _targets(scope, sandbox_ids)
+    results: list[dict[str, Any]] = []
+    failures: list[dict[str, str]] = []
+    for sid in targets:
+        try:
+            results.append({'sandbox_id': sid, 'result': fn(sid)})
+        except Exception as exc:
+            failures.append({'sandbox_id': sid, 'error': str(getattr(exc, 'detail', exc))})
+    return {
+        'scope': scope, 'target_count': len(targets), 'success_count': len(results),
+        'failure_count': len(failures), 'complete': not failures,
+        'results': results, 'failed': failures,
+    }
+
+
+def _place_order_scoped(order: OrderRequest, scope: str, sandbox_ids: list[str] | None) -> dict[str, Any]:
+    """Preflight and lock selected stores; use one shipment ID without sharing state."""
+    targets = _targets(scope, sandbox_ids)
+    selected = [simulation_api.get_sandbox(sid) for sid in targets]
+    with ExitStack() as stack:
+        for sandbox in sorted(selected, key=lambda s: s.id):
+            stack.enter_context(sandbox.conductor.guard)
+        full = [s.id for s in selected
+                if sum(sid.startswith('SYN-DEMO-') for sid in s.conductor.lab.admitted) >= 30]
+        if full:
+            raise ValueError('Order capacity reached in sandboxes: ' + ', '.join(full))
+        shipment_id = 'SYN-DEMO-' + uuid4().hex[:12].upper()
+        created, failed = [], []
+        for sandbox in selected:
+            try:
+                result = sandbox.conductor.order(**order.model_dump(), shipment_id=shipment_id)
+                created.append({'sandbox_id': sandbox.id, 'result': {
+                    'awb': result['awb'], 'shipment_id': result['shipment_id']}})
+            except Exception as exc:
+                failed.append({'sandbox_id': sandbox.id, 'error': str(exc)})
+    return {
+        'scope': scope, 'awb': 'SYN-CX-D' + shipment_id[-8:],
+        'shipment_id': shipment_id, 'target_count': len(targets),
+        'success_count': len(created), 'failure_count': len(failed),
+        'created_count': len(created), 'complete': not failed,
+        'results': created, 'created': created, 'failed': failed,
+    }
+
+
+async def apply_control(
+    control: SimulationControl, scope: str = 'all', sandbox_ids: list[str] | None = None,
+) -> dict[str, Any]:
+    def perform(sid: str) -> dict[str, Any]:
+        state = v11_control(control, sid)
+        return {'tick': state['tick'], 'clock': state['clock'], **state['v8']}
+    return await run_in_threadpool(_fanout, perform, scope, sandbox_ids)
