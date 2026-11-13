@@ -1,12 +1,12 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css?v=simulation-status"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css?v=timeline-heading"><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RELAY 11 · Cargo Decision Digital Twins — Validated Synthetic Lab</title><link rel="stylesheet" href="/v8.css"><link rel="stylesheet" href="/v9.css"><link rel="stylesheet" href="/v10.css"><link rel="stylesheet" href="/v11_chat.css?v=simulation-status"><link rel="stylesheet" href="/v11_tower.css"><link rel="stylesheet" href="/v11_customer.css?v=globe-outside"><style>.control-icon{display:inline-flex;align-items:center;vertical-align:-2px;margin-right:5px;color:#327674}.control-icon svg{display:block;width:15px;height:15px}#globalPlay .control-icon{margin-right:4px;color:#fff}</style><script>{const q=new URLSearchParams(location.search),e=q.get("embed");if(["ground","tower","customer"].includes(e)){document.documentElement.dataset.embed=e;if(q.get("world"))document.documentElement.dataset.world=q.get("world")}}</script><link rel="icon" href="data:,"></head>
 <body><div id="app" class="twin-workspace v11-workspace">
-<header class="topbar"><div class="brand"><span class="brand-glyph">R<span>·</span></span><span><b>RELAY</b><small>CARGO DIGITAL TWINS / V11</small></span></div>
+<header class="topbar"><div class="brand"><span class="brand-glyph">R<span>·</span></span><span><b>RELAY</b><small>CARGO DIGITAL TWINS</small></span></div>
 <nav class="tabs" aria-label="Three synchronized workspaces"><button data-tab="ground" class="tab active">Ground Twin</button><button data-tab="tower" class="tab">Control Tower <i id="navCount" class="navcount">0</i></button><button data-tab="customer" class="tab">Customer Twin</button><button data-tab="chat" class="tab">AI Chat</button></nav>
 <div class="shared-simulation">
   <div class="simulation-actions" role="group" aria-label="Shared simulation controls">
-    <button class="btn primary" id="globalPlay">▶ Start all</button>
-    <button class="btn soft" id="stepOnce"><span class="control-icon" aria-hidden="true">⏭</span>Step</button>
-    <button class="btn soft" id="resetBtn"><span class="control-icon" aria-hidden="true">↺</span>Reset</button>
+    <button class="btn primary" id="globalPlay"><span class="control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.8c0-.93 1.02-1.5 1.81-1.01l11.4 7.2c.73.46.73 1.55 0 2.01l-11.4 7.2A1.19 1.19 0 0 1 7 19.2V4.8z"/></svg></span>Start all</button>
+    <button class="btn soft" id="stepOnce"><span class="control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg></span>Step</button>
+    <button class="btn soft" id="resetBtn"><span class="control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></span>Reset</button>
     <button class="btn soft" id="auditBtn">Integrity audit ↗</button>
     <a class="btn soft evidence-link" href="/v11/evidence" target="_blank" rel="noopener">Evidence & KPIs ↗</a>
   </div>
@@ -24,7 +24,7 @@
 <section class="screen active" id="ground-screen" aria-label="Ground twin simulator"><div class="worlds"><div class="world"><canvas id="baselineWorld" data-aircraft-windows="hidden" data-airport-layout="v11" aria-label="WebGL2 3D synthetic terminal baseline work orders"></canvas><div class="worldlabel"><span class="world-dot baseline-dot"></span><b>BEFORE</b><small>FCFS · Baseline</small></div><span class="worldfooter" id="baselineFooter">Waiting for simulated orders</span></div><div class="world"><canvas id="relayWorld" data-aircraft-windows="hidden" data-airport-layout="v11" aria-label="WebGL2 3D synthetic terminal RELAY work orders"></canvas><div class="worldlabel"><span class="world-dot relay-dot"></span><b>AFTER</b><small>RELAY · Optimized staging</small></div><span class="worldfooter" id="relayFooter">Waiting for simulated orders</span></div></div>
 <section class="simulation-controls" id="simulationControls" aria-label="Ground controls">
   <div class="control-anchor">
-    <button class="btn soft" id="viewSettingsBtn" aria-expanded="false" aria-controls="viewSettingsPop"><span class="control-icon" aria-hidden="true">◈</span>View settings</button>
+    <button class="btn soft" id="viewSettingsBtn" aria-expanded="false" aria-controls="viewSettingsPop"><span class="control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg></span>View settings</button>
     <div class="settings-pop card control-popover" id="viewSettingsPop" hidden>
       <div class="pop-head"><b>View settings</b><button class="icon-btn" data-close="viewSettingsPop" aria-label="Close view settings">×</button></div>
       <div class="view-options" role="group" aria-label="Camera view">
@@ -36,13 +36,13 @@
     </div>
   </div>
   <div class="control-anchor">
-    <button class="btn soft" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop"><span class="control-icon" aria-hidden="true">⚙</span>Resources</button>
+    <button class="btn soft" id="settingsBtn" aria-expanded="false" aria-controls="settingsPop"><span class="control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span>Resources</button>
     <div class="settings-pop card control-popover" id="settingsPop" hidden><div class="pop-head"><b>Adjust the world</b><button class="icon-btn" data-close="settingsPop" aria-label="Close resources">×</button></div><p>Applies to both scenes on the next tick.</p><label>Orders per tick <b id="rateN">2.0</b><input id="rate" type="range" min="0.25" max="5" step="0.25" value="2"></label><label>Ground crew <b id="crewN">3</b><input id="crew" type="range" min="1" max="6" step="1" value="3"></label><label>Cold bays <b id="coldN">1</b><input id="cold" type="range" min="0" max="3" step="1" value="1"></label><label>Aircraft stands <b id="standsN">3</b><input id="stands" type="range" min="1" max="6" step="1" value="3"></label><label>Disruption chance <b id="chaosN">20%</b><input id="chaos" type="range" min="0" max="1" step=".05" value=".2"></label>
       <button class="btn primary full" id="applySettings" type="button">Apply to all Twins</button>
     </div>
   </div>
   <div class="control-anchor">
-    <button class="btn soft" id="injectBtn" aria-expanded="false" aria-controls="incidentPop"><span class="control-icon" aria-hidden="true">⚡</span>Disruption</button>
+    <button class="btn soft" id="injectBtn" aria-expanded="false" aria-controls="incidentPop"><span class="control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>Disruption</button>
     <div class="incident-pop card control-popover" id="incidentPop" hidden>
       <div class="pop-head"><b>Simulate a disruption</b><button class="icon-btn" data-close="incidentPop" aria-label="Close disruptions">×</button></div>
       <div class="scenario-control">
@@ -86,7 +86,7 @@
       </div>
     </div>
   </div>
-  <button class="btn soft" id="logsBtn"><span class="control-icon" aria-hidden="true">≡</span>Event stream</button>
+  <button class="btn soft" id="logsBtn"><span class="control-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></span>Event stream</button>
 </section>
 </section>
 <section class="screen tower" id="tower-screen" aria-label="Control tower decisions">
@@ -200,9 +200,9 @@
       <div id="journeySteps" class="steps"></div>
     </section>
   </div>
-  <div class="cx-map"><canvas id="customerGlobe" data-style="customer" tabindex="0" aria-label="Illustrative route globe. Drag or use arrow keys to rotate. Press Home to reset."></canvas></div>
   <button type="button" class="btn primary cx-new-shipment" id="newOrderBtn"><span aria-hidden="true">+</span> New shipment</button>
 </article>
+<div class="cx-map"><canvas id="customerGlobe" data-style="customer" tabindex="0" aria-label="Illustrative route globe. Drag or use arrow keys to rotate. Press Home to reset."></canvas></div>
 </div>
 </div></section>
 <section class="screen chat" id="chat-screen" aria-label="AI chat">
