@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
+from uuid import uuid4
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -185,6 +187,43 @@ def v11_order(p:OrderRequest,sandbox_id: str | None = None):
     conductor = sandbox_conductor(sandbox_id)
     try:return conductor.order(**p.model_dump())
     except ValueError as e:raise HTTPException(422,str(e)) from e
+
+
+@router.post('/order/all', tags=['Three-twin simulation'])
+def v11_order_all(p: OrderRequest):
+    """Place an identical synthetic request in every existing sandbox.
+
+    A single generated shipment ID keeps the AWB identical across sandboxes,
+    allowing direct policy comparisons. No airline booking is performed.
+    """
+    targets = sandboxes.list()
+    if not targets:
+        raise HTTPException(404, 'No sandboxes available')
+    # Lock all snapshots before checking capacity; a full sandbox must not
+    # cause an avoidable partial fan-out into the others.
+    with ExitStack() as locks:
+        for sandbox in sorted(targets, key=lambda item: item.id):
+            locks.enter_context(sandbox.conductor.guard)
+        full = [sandbox.name for sandbox in targets
+                if sum(sid.startswith('SYN-DEMO-') for sid in sandbox.conductor.lab.admitted) >= 30]
+        if full:
+            raise HTTPException(409, 'Order capacity reached in: ' + ', '.join(full))
+        shipment_id = 'SYN-DEMO-' + uuid4().hex[:12].upper()
+        created = []
+        failed = []
+        for sandbox in targets:
+            try:
+                result = sandbox.conductor.order(**p.model_dump(), shipment_id=shipment_id)
+                created.append({'sandbox_id': sandbox.id, 'sandbox_name': sandbox.name,
+                                'awb': result['awb']})
+            except Exception as exc:
+                # Preserve and report successful writes; there is no fake global
+                # transaction across independent synthetic stores.
+                failed.append({'sandbox_id': sandbox.id, 'sandbox_name': sandbox.name,
+                               'error': str(exc)})
+    return {'awb': 'SYN-CX-D' + shipment_id[-8:], 'shipment_id': shipment_id,
+            'created_count': len(created), 'target_count': len(targets),
+            'created': created, 'failed': failed, 'complete': not failed}
 
 class ReviewRequest(BaseModel):
     decision_id:str
