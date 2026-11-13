@@ -15,7 +15,7 @@ const human = x => {
 };
 
 const PROPOSAL_PREVIEW = 5;
-const EVENT_ROWS = 7;
+const EVENT_ROWS = 5;
 const HIDDEN_EVENTS = ['CLOCK', 'READY', 'PAUSE', 'PLAY', 'SPEED', 'MODE'];
 const EVENT_LABEL = {
   WEATHER: 'Weather changed', DISRUPTION: 'Disruption', ARRIVAL: 'Cargo inbound', COMPLETED: 'Ground work completed',
@@ -26,9 +26,9 @@ const EVENT_TONE = {DISRUPTION: 'bad', REVIEW_REQUIRED: 'bad', ERROR: 'bad', AUT
 const OPEN_TASK = ['PENDING', 'ACKNOWLEDGED', 'READY', 'OPEN', 'QUEUED_SIMULATED'];
 const DONE_TASK = ['DONE', 'COMPLETED'];
 const MODE_NOTE = {
-  AUTO_SHADOW: 'Auto mode approves safe, fresh proposals inside the sandbox on its own. It never books cargo or loads aircraft.',
-  MANUAL_REVIEW: 'A supervisor decides whether to simulate these work orders. Nothing is booked with a carrier.',
-  ADVISORY: 'Advisory mode: recommendations are shown for reference and cannot be accepted.',
+  AUTO_SHADOW: 'Safe proposals are approved automatically in the simulation. Carrier confirmation is separate.',
+  MANUAL_REVIEW: 'Approval issues simulated work orders. Carrier confirmation is separate.',
+  ADVISORY: 'Switch to Manual to review and approve simulated work orders.',
 };
 
 let showAllProposals = false;
@@ -132,16 +132,19 @@ function render(s, baseline, relay, delta, statusLabel) {
 
   const [chip, tone] = decisionStatus(d);
   text('towerStatus', chip, tone);
-  text('towerDecision', statusLabel ? statusLabel(d) : chip);
+  text('towerDecision', d.stale || d.approval_blocked_external_evidence
+    ? (statusLabel ? statusLabel(d) : chip)
+    : d.status === 'APPROVED_SIMULATION_ONLY' ? 'Recovery plan approved'
+    : String(d.status).startsWith('REJECTED') ? 'Recovery plan rejected'
+    : statusLabel ? statusLabel(d) : chip);
   text('towerRationale', d.stale ? 'Source data changed after this was calculated. Recalculate before approving.'
     : d.approval_blocked_external_evidence ? 'An external flight observation must be verified before this can be approved.'
     : !d.id ? 'The solver evaluates all three model layers on every operational change.'
-    : `${count} tentative route change${count === 1 ? '' : 's'} from the latest solve. Internal review is not carrier confirmation.`);
+    : d.status === 'APPROVED_SIMULATION_ONLY' ? 'Follow the resulting work orders in Team handoffs.'
+    : 'Review the proposed routes and model evidence below.');
   text('impactedCount', count);
   text('scopeCount', `${s.decision_scope?.evaluated ?? 0} / ${s.decision_scope?.eligible ?? 0}`);
-  text('ctSolve', d.engine_runtime_ms != null ? `${num(d.engine_runtime_ms, 0)} ms` : '—');
-  text('reviewState', chip);
-  $('reviewState')?.classList.add('ct-text');
+  text('ctSolve', (d.engine_runtime_ms ?? d.solver_runtime_ms) != null ? `${num(d.engine_runtime_ms ?? d.solver_runtime_ms, 0)} ms` : '—');
   html('ctProposals', proposals(d));
   text('actionText', d.stale ? 'This decision is out of date and cannot be approved.' : MODE_NOTE[mode] || MODE_NOTE.MANUAL_REVIEW);
 
