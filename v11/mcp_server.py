@@ -184,7 +184,7 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
     async def control_get_state(
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Read independent simulation snapshots from ALL sandboxes by default, or selected sandbox_ids with scope='sandboxes'. Every result includes its sandbox ID, tick, clock, flights, shipments, tasks, review decisions, and policies. Each sandbox has its OWN clock and store; only Ground/Control/Customer views WITHIN that sandbox share a clock."""
+        """Read independent synthetic simulation snapshots from ALL sandboxes by default, or selected sandbox_ids with scope='sandboxes'. Every result includes its sandbox ID, tick, clock, flights, shipments, tasks, review decisions, and policies. Each sandbox has its OWN clock and store; only Ground/Control/Customer views WITHIN that sandbox share a clock."""
         return await run_in_threadpool(_fanout, lambda sid: v11_state(None, sid), scope, sandbox_ids)
 
     @mcp.tool(annotations=read_only)
@@ -242,14 +242,14 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
     async def ground_start_simulation(
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Start each selected sandbox's INDEPENDENT autoplay clock; targets all existing sandboxes unless scoped. Returns per-sandbox tick, clock, and running state, with individual errors."""
+        """Start each selected synthetic sandbox's INDEPENDENT autoplay clock; targets all existing sandboxes unless scoped. Returns per-sandbox tick, clock, and running state, with individual errors."""
         return await apply_control(SimulationControl(action='start'), scope, sandbox_ids)
 
     @mcp.tool()
     async def ground_pause_simulation(
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Pause all independent sandbox clocks by default, or selected sandbox_ids. Pausing one does not pause another unless both are targeted."""
+        """Pause all independent synthetic sandbox clocks by default, or selected sandbox_ids. Pausing one does not pause another unless both are targeted."""
         return await apply_control(SimulationControl(action='pause'), scope, sandbox_ids)
 
     @mcp.tool()
@@ -257,7 +257,7 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
         count: Annotated[int, Field(ge=1, le=100)] = 1,
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Advance each selected sandbox by count 10-minute ticks, all by default. EACH targeted sandbox must be paused. Their clocks are independent; partial successes and running-sandbox conflicts are explicitly reported."""
+        """Advance each selected synthetic sandbox by count 10-minute ticks, all by default. EACH targeted sandbox must be PAUSED. Their clocks are independent; partial successes and running-sandbox conflicts are explicitly reported."""
         return await apply_control(SimulationControl(action='step', count=count), scope, sandbox_ids)
 
     @mcp.tool()
@@ -265,7 +265,7 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
         speed: Literal[1, 4, 16, 32, 100],
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Request playback speed for all existing independent sandboxes by default, or selected IDs. Actual throughput may differ. Returns per-sandbox settings."""
+        """Request synthetic playback speed for all existing independent sandboxes by default, or selected IDs. Actual throughput may differ. Returns per-sandbox settings."""
         return await apply_control(SimulationControl(action='speed', speed=speed), scope, sandbox_ids)
 
     @mcp.tool()
