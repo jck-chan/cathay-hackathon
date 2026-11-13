@@ -43,6 +43,7 @@ app.include_router(v11_chat_router)
 V12 = FiveWorldArena(conductor.lab, seed=9099)
 
 app.mount('/aircraft', StaticFiles(directory=ROOT / 'static' / 'aircraft'), name='aircraft')
+app.mount('/scene', StaticFiles(directory=ROOT / 'static' / 'scene'), name='scene')
 
 # Frontend assets shared by the three-twin views.
 @app.get('/v8', include_in_schema=False)

@@ -1,7 +1,8 @@
 """Chromium UI visual QA with real TestClient-produced data captured offline.
 No browser-to-server HTTP E2E is implied; local browser traffic may be blocked by sandbox.
 """
-import asyncio,base64,json,re,sys
+import asyncio,base64,re,sys
+from os import environ
 from pathlib import Path
 from fastapi.testclient import TestClient
 from playwright.async_api import async_playwright
@@ -11,6 +12,9 @@ from fusion_app import app
 
 async def main():
     with TestClient(app) as c:
+        html=c.get('/v11').text
+        styles=[c.get(url).raise_for_status().text for url in re.findall(r'<link rel="stylesheet" href="([^"]+)">',html)]
+        scripts=[c.get(url).raise_for_status().text for url in re.findall(r'<script\s+src="([^"]+)"\s*></script>',html)]
         c.post('/v11/api/control',json={'action':'reset','seed':2048})
         initial=c.get('/v11/api/state').json()
         c.post('/v11/api/control',json={'action':'step','count':12})
@@ -20,24 +24,29 @@ async def main():
         trace=c.get('/v11/api/trace').json()
     error=[]
     async with async_playwright() as pw:
-        browser=await pw.chromium.launch(headless=True,executable_path='/usr/bin/chromium',args=['--no-sandbox','--disable-dev-shm-usage','--ignore-gpu-blocklist','--enable-webgl','--use-gl=angle','--use-angle=gl'])
+        system_chromium=Path('/usr/bin/chromium')
+        browser=await pw.chromium.launch(
+            headless=True,
+            executable_path=environ.get('CHROME_EXECUTABLE') or (str(system_chromium) if system_chromium.is_file() else None),
+            args=['--use-angle=swiftshader','--enable-unsafe-swiftshader'],
+        )
         page=await browser.new_page(viewport={'width':1440,'height':900})
         page.on('pageerror',lambda e:error.append(str(e)))
-        html=(ROOT/'static/v11.html').read_text()
         html=re.sub(r'<link\s+[^>]*>', '', html)
         html=re.sub(r'<script\s+src="[^"]+"\s*></script>', '', html)
-        await page.set_content(html,wait_until='domcontentloaded')
-        for css in ('v8.css','v9.css','v10.css'):
-            await page.add_style_tag(content=(ROOT/'static'/css).read_text())
+        await page.route('https://relay.test/v11',lambda route: route.fulfill(content_type='text/html',body=html))
+        await page.goto('https://relay.test/v11',wait_until='domcontentloaded')
+        for css in styles:
+            await page.add_style_tag(content=css)
         await page.evaluate('''(states)=>{window.__states=states;window.__pos=0;
             window.fetch=async(u,o={})=>{if((o.method||'GET')!=='GET')window.__pos=1;
                 let data=window.__states[window.__pos];
                 return {ok:true,status:200,json:async()=>data,text:async()=>JSON.stringify(data)};
             };}''',[initial,active])
-        for name in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v10_scene.js','v10_ui.js','v9.js'):
-            await page.add_script_tag(content=(ROOT/'static'/name).read_text())
-        await page.wait_for_timeout(850)
-        assert await page.locator('[data-tab]').count()==3
+        for script in scripts:
+            await page.add_script_tag(content=script)
+        await page.wait_for_function("window.RELAY_GROUND_SCENES?.length === 2 && window.RELAY_GROUND_SCENES.every(scene => scene.engine && scene.syncedTick >= 0)")
+        assert await page.locator('[data-tab]').count()==4
         await page.screenshot(path=str(ROOT/'reports/V11_BROWSER_GROUND_OFFLINE.png'))
         for tab in ('tower','customer','ground'):
             await page.locator(f'[data-tab="{tab}"]').click()
@@ -52,7 +61,8 @@ async def main():
         m=re.search(r'<script>([\s\S]+?)</script>',raw)
         assert m,'no evidence script found'
         raw=raw.replace(m.group(0),'')
-        await ev.set_content(raw,wait_until='domcontentloaded')
+        await ev.route('https://relay.test/v11/evidence',lambda route: route.fulfill(content_type='text/html',body=raw))
+        await ev.goto('https://relay.test/v11/evidence',wait_until='domcontentloaded')
         await ev.evaluate('''(data)=>{window.fetch=async(url)=>{
             const u=String(url);const result=u.includes('data-audit')?data.audit:
                u.includes('trace')?data.trace:data.report;
@@ -72,6 +82,6 @@ async def main():
         await ev.screenshot(path=str(ROOT/'reports/V11_BROWSER_EVIDENCE_QA.png'),full_page=True)
         assert await ev.locator('#kpiRows tr').count()==6
         assert not error,error
-        print('Chromium offline: three tabs, six evidence rows, real PNGs, 0 JS errors')
+        print('Chromium offline: four tabs, two WebGL scenes, six evidence rows, 0 JS errors')
         await browser.close()
 if __name__=='__main__':asyncio.run(main())
