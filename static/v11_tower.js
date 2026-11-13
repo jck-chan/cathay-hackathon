@@ -106,7 +106,7 @@ function tasks(list) {
       ${items.map(t => {
         const isDone = DONE_TASK.includes(t.status);
         return `<div class="ct-task"${isDone ? ' data-done' : ''}>
-          <span class="ct-task-mark" aria-hidden="true">${isDone ? '✓' : ''}</span>
+          <span class="ct-task-mark" aria-hidden="true">${isDone ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' : ''}</span>
           <div class="ct-task-text"><span>${esc(human(t.task_type || t.type || 'Team handoff'))}</span><small>${esc(human(t.team || 'Team'))} · ${esc(isDone ? 'Done' : t.status === 'QUEUED_SIMULATED' ? 'Queued' : human(t.status || 'PENDING'))}</small></div>
           ${OPEN_TASK.includes(t.status) ? `<button type="button" data-task="${esc(t.id)}" aria-label="Mark ${esc(human(t.task_type))} for ${esc(shipment)} done">Mark done</button>` : ''}
         </div>`;

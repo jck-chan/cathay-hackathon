@@ -101,33 +101,55 @@ function showPop(id) {
 function explainIntro(){return '<p><b>Scope:</b> 30 days of generated data; staging queue + finite MILP + one-step Bayesian model. No airline inventory booking, ULD safety certificate or real customer notifications.</p>'}
 function details(title,body){drawer(title,explainIntro()+body)}
 const EVENT_STREAM_TITLE='Event stream';
+const STREAM_ICONS={
+ play:'<path d="M7 4.8c0-.93 1.02-1.5 1.81-1.01l11.4 7.2c.73.46.73 1.55 0 2.01l-11.4 7.2A1.19 1.19 0 0 1 7 19.2V4.8z"/>',
+ pause:'<line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/>',
+ reset:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+ gauge:'<path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/>',
+ swap:'<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/>',
+ sliders:'<line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/>',
+ cloud:'<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+ zap:'<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+ trendUp:'<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
+ package:'<path d="M11 21.73a2 2 0 0 0 2 0l7.5-4.06a2 2 0 0 0 1-1.74V7.82a2 2 0 0 0-1-1.74L13 2.03a2 2 0 0 0-2 0L3.5 6.08a2 2 0 0 0-1 1.74v8.11a2 2 0 0 0 1 1.74z"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/>',
+ plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+ check:'<path d="M20 6 9 17l-5-5"/>',
+ refresh:'<path d="M21 12a9 9 0 1 1-2.64-6.36L21 8"/><path d="M21 3v5h-5"/>',
+ shield:'<path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/>',
+ eye:'<path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/>',
+ arrow:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+ x:'<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+ ready:'<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+ dot:'<circle cx="12" cy="12" r="9"/>',
+};
+const streamIcon=name=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${STREAM_ICONS[name]||STREAM_ICONS.dot}</svg>`;
 const EVENT_TYPES=new Map([
- ['READY',['Simulation ready','○','neutral']],
- ['PLAY',['Simulation started','▶','neutral']],
- ['PAUSE',['Simulation paused','Ⅱ','neutral']],
- ['RESET',['Simulation reset','↺','neutral']],
- ['SPEED',['Speed changed','»','neutral']],
- ['MODE',['Review mode changed','⇄','neutral']],
- ['TUNE',['Scenario adjusted','⚙︎','neutral']],
- ['WEATHER',['Weather changed','☁︎','blue']],
- ['DISRUPTION',['Disruption','⚠︎','red']],
- ['RECOVERY_WINDOW',['Recovery window','↑','green']],
- ['ARRIVAL',['Cargo inbound','↓','blue']],
- ['ORDER',['New shipment','⊕','blue']],
- ['COMPLETED',['Ground work completed','✓','green']],
- ['MODEL',['Decision recalculated','◇','purple']],
- ['AUTO_SHADOW',['Auto-approved in sandbox','✦','purple']],
- ['REVIEW_REQUIRED',['Review needed','!','amber']],
- ['REVIEW',['Supervisor review','≡','amber']],
- ['TASK',['Handoff updated','↗','green']],
- ['ERROR',['Engine error','×','red']],
+ ['READY',['Simulation ready','ready','neutral']],
+ ['PLAY',['Simulation started','play','neutral']],
+ ['PAUSE',['Simulation paused','pause','neutral']],
+ ['RESET',['Simulation reset','reset','neutral']],
+ ['SPEED',['Speed changed','gauge','neutral']],
+ ['MODE',['Review mode changed','swap','neutral']],
+ ['TUNE',['Scenario adjusted','sliders','neutral']],
+ ['WEATHER',['Weather changed','cloud','blue']],
+ ['DISRUPTION',['Disruption','zap','red']],
+ ['RECOVERY_WINDOW',['Recovery window','trendUp','green']],
+ ['ARRIVAL',['Cargo inbound','package','blue']],
+ ['ORDER',['New shipment','plus','blue']],
+ ['COMPLETED',['Ground work completed','check','green']],
+ ['MODEL',['Decision recalculated','refresh','purple']],
+ ['AUTO_SHADOW',['Auto-approved in sandbox','shield','purple']],
+ ['REVIEW_REQUIRED',['Review needed','eye','amber']],
+ ['REVIEW',['Supervisor review','eye','amber']],
+ ['TASK',['Handoff updated','arrow','green']],
+ ['ERROR',['Engine error','x','red']],
 ]);
 function streamEvents(s){return (s?.unified_events||[]).filter(e=>e.kind!=='CLOCK')}
 function eventStreamMarkup(events){
  const rows=events.slice().reverse().map(e=>{
-  const [label,icon,tone]=EVENT_TYPES.get(e.kind)||[String(e.kind||'Event').replaceAll('_',' '),'•','neutral'];
+  const [label,icon,tone]=EVENT_TYPES.get(e.kind)||[String(e.kind||'Event').replaceAll('_',' '),'dot','neutral'];
   return `<li class="event-stream-row ledger-row">
-    <span class="event-stream-icon" data-tone="${tone}" aria-hidden="true">${icon}</span>
+    <span class="event-stream-icon" data-tone="${tone}" aria-hidden="true">${streamIcon(icon)}</span>
     <div><b>${esc(label)}</b><p>${esc(e.message)}</p>
       <small><time datetime="${esc(e.at||'')}">${esc(when(e.at))}</time> · Tick ${esc(e.tick)}</small>
     </div>
