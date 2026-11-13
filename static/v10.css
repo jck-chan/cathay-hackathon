@@ -268,3 +268,42 @@ html,body{background:#eaf1f1}
   .twin-workspace .worlds { grid-template-rows: repeat(2, minmax(180px, 1fr)); overflow: auto; }
   .twin-workspace .world canvas { touch-action: pan-y; }
 }
+
+/* V11 ground viewport: prevent iOS/iPadOS long-press text selection and callouts. */
+.twin-workspace #ground-screen .world,
+.twin-workspace #ground-screen .world * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Zoom controls float above scene canvases and never alter their camera gestures. */
+.twin-workspace #ground-screen .scene-zoom-controls {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+}
+.twin-workspace #ground-screen .scene-zoom-controls button {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  padding: 0;
+  border: 1px solid #d5e5e2;
+  border-radius: 8px;
+  background: #fffffff2;
+  color: #185c5b;
+  box-shadow: 0 2px 10px #153e4424;
+  font: 700 19px/1 'Segoe UI', sans-serif;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.twin-workspace #ground-screen .scene-zoom-controls button:is(:hover, :focus-visible) {
+  background: #e3f4ee;
+  border-color: #86c7b7;
+  outline-offset: 2px;
+}
