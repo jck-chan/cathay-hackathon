@@ -5,17 +5,32 @@
 const id=n=>document.getElementById(n),clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),safe=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let lastSeq=-1,lastTick=-1,prev={orders:0,completed:0},now=null,selected='',start=performance.now(),kinds={WEATHER:'Weather shifted',DISRUPTION:'Flight / cargo incident',ARRIVAL:'Cargo inbound',COMPLETED:'Ground work completed',MODEL:'New model solution',AUTO_SHADOW:'Sandbox decision approved',REVIEW_REQUIRED:'Review needed',ORDER:'New shipment',TASK:'Task updated',TUNE:'Scenario adjusted',ERROR:'Engine warning'},history=[];
 const ICON={WEATHER:'☁',DISRUPTION:'⚠',ARRIVAL:'▣',COMPLETED:'✓',MODEL:'◈',AUTO_SHADOW:'✦',REVIEW_REQUIRED:'!',ORDER:'⊕',TASK:'↗',TUNE:'⚙',ERROR:'!'};
+// Old versions retain their markers; V11 uses true SVG, never an emoji fallback.
+const V11_PATH={
+ WEATHER:'<path d="M20 16.6a4.5 4.5 0 0 0-3.9-7.8A6 6 0 0 0 4.5 11 4.5 4.5 0 0 0 7 19h11a3 3 0 0 0 2-2.4Z"/>',
+ DISRUPTION:'<path d="m10.3 3.9-8.5 14.2A2 2 0 0 0 3.5 21h17a2 2 0 0 0 1.7-2.9L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 4h.01"/>',
+ ARRIVAL:'<path d="m12 2 9 5-9 5-9-5 9-5ZM3 7v10l9 5 9-5V7M12 12v10"/>',
+ COMPLETED:'<path d="m20 6-11 11-5-5"/>',
+ MODEL:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+ AUTO_SHADOW:'<path d="m12 3 1.9 6.1L20 11l-6.1 1.9L12 19l-1.9-6.1L4 11l6.1-1.9L12 3ZM19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z"/>',
+ REVIEW_REQUIRED:'<circle cx="12" cy="12" r="10"/><path d="M12 7v6m0 4h.01"/>',
+ ORDER:'<circle cx="12" cy="12" r="10"/><path d="M12 8v8m-4-4h8"/>',
+ TASK:'<rect x="5" y="4" width="14" height="18" rx="2"/><rect x="9" y="2" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/>',
+ TUNE:'<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="2" fill="white"/><circle cx="16" cy="17" r="2" fill="white"/>',
+ ERROR:'<circle cx="12" cy="12" r="10"/><path d="M12 7v6m0 4h.01"/>'
+};
+function eventIcon(kind){if(!document.querySelector('.v11-workspace'))return safe(ICON[kind]||'•');return `<svg class="v11-event-icon" viewBox="0 0 24 24" aria-hidden="true">${V11_PATH[kind]||'<circle cx="12" cy="12" r="9"/>'}</svg>`}
 function message(e){return `${kinds[e.kind]||e.kind} · ${(e.message||'').slice(0,95)}`}
 function pushEvent(e){
  if(['CLOCK','SPEED','MODE','PLAY','PAUSE','READY'].includes(e.kind))return;
  history.unshift(e);history=history.slice(0,65);
  const box=id('v10ActivityStream');if(box){const node=document.createElement('div');node.className='v10-event-row';
- node.innerHTML=`<span>${safe(ICON[e.kind]||'•')}</span><div><b>${safe(kinds[e.kind]||e.kind)}</b><small>${safe((e.message||'').slice(0,78))}</small></div><time>T${e.tick}</time>`;
+ node.innerHTML=`<span>${eventIcon(e.kind)}</span><div><b>${safe(kinds[e.kind]||e.kind)}</b><small>${safe((e.message||'').slice(0,78))}</small></div><time>T${e.tick}</time>`;
  box.prepend(node);while(box.children.length>7)box.lastChild.remove();}
  // Raised toast only for MATERIAL, non-clock events. They do not cover interaction targets.
  if(['DISRUPTION','WEATHER','REVIEW_REQUIRED','ERROR','AUTO_SHADOW'].includes(e.kind)){
    const stack=id('v10EventFlash');if(!stack)return;const n=document.createElement('div');n.className='v10-notification'+(['ERROR','DISRUPTION','REVIEW_REQUIRED'].includes(e.kind)?' danger':'');
-   n.innerHTML=`<span class="notify-symbol">${safe(ICON[e.kind]||'◉')}</span><div><b>${safe(kinds[e.kind]||'Update')}</b><small>${safe((e.message||'').slice(0,94))}</small></div>`;
+   n.innerHTML=`<span class="notify-symbol">${eventIcon(e.kind)}</span><div><b>${safe(kinds[e.kind]||'Update')}</b><small>${safe((e.message||'').slice(0,94))}</small></div>`;
    stack.prepend(n);while(stack.children.length>2)stack.lastChild.remove();setTimeout(()=>n.remove(),4500);
  }
 }

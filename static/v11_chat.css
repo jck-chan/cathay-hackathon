@@ -298,3 +298,39 @@ html[data-embed="ground"][data-world] .world { width: 100%; height: 100%; }
   .chat-thread, .chat-composer { width: calc(100% - 24px); }
   .msg.user { max-width: 92%; }
 }
+
+
+/* v11-only, font-independent vector controls. Icons remain stable on iOS. */
+.v11-workspace .v11-vector {
+  display: block;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: currentColor;
+}
+.v11-workspace :is(#auditBtn, .evidence-link, #recalculate, #viewMath, #allEvents, #fullJourney) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.v11-workspace .icon-btn .v11-vector { width: 17px; height: 17px; }
+.v11-workspace .ct-model-head .v11-vector { width: 15px; height: 15px; }
+.v11-workspace #globalPlay .icon-pause { display: none; }
+.v11-workspace #globalPlay[data-running="true"] .icon-play { display: none; }
+.v11-workspace #globalPlay[data-running="true"] .icon-pause { display: block; }
+.v11-workspace .v11-event-icon {
+  display: block;
+  width: 17px;
+  height: 17px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (max-width: 760px) {
+  .v11-workspace .shared-simulation .simulation-actions { justify-content: flex-start; gap: 6px; }
+  .v11-workspace .shared-simulation #auditBtn { margin-inline-start: 0; }
+  .v11-workspace .shared-simulation :is(#auditBtn, .evidence-link) { padding: 8px 6px; }
+}
