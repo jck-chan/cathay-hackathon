@@ -22,6 +22,19 @@ async function api(path,method='GET',payload){let c=new AbortController(),tm=set
 function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);if(sandboxDialog)refreshState();}
 function drawer(title,html){txt('drawerTitle',title);$('drawerContent').innerHTML=html;$('drawer').hidden=false;$('backdrop').hidden=false;$('closeDrawer').focus()}
 function closeDrawer(){$('drawer').hidden=true;$('backdrop').hidden=true}
+const JOURNEY_EVENT_LABELS = {
+ INTERNAL_APPROVE: 'Internal approval (simulated)',
+ GROUND_QUEUED: 'Ground processing queued',
+ RECOVERY_PROPOSED: 'Recovery proposed',
+ RCS: 'Cargo received',
+};
+function journeyEventLabel(e) {
+ const kind = String(e.kind || e.code || '');
+ return JOURNEY_EVENT_LABELS[kind] || (kind ? kind.toLowerCase().replace(/[_-]+/g, ' ').replace(/^./, c => c.toUpperCase()) : 'Shipment update');
+}
+function journeyEventRows(events) {
+ return (events || []).slice().reverse().map(e => `<div class="ledger-row"><b>${esc(journeyEventLabel(e))}</b>${esc(e.message)}<br><small>${esc(when(e.at))}</small></div>`).join('');
+}
 function statusLabel(d){if(!d)return 'Preparing model';if(d.stale)return 'Recalculation required';if(d.approval_blocked_external_evidence)return 'Verify flight observation';if(d.model_ii?.cases?.some(x=>x.action==='HOLD'))return 'Hold & verify dimensions';let n=d.proposed_actions?.length||0;if(n)return 'Review '+n+' recovery option'+(n!==1?'s':'');return 'Continue current plan'}
 function render(s){state=s;window.dispatchEvent(new CustomEvent('relay:state',{detail:s}));const v=s.v8||{},d=s.decision||{},baseline=s.policies?.fcfs||{},relay=s.policies?.relay||{};
  renderPlayback(groundReference()||s);
@@ -293,7 +306,7 @@ async function showEvidence(kind){if(kind==='events'){
  $('drawerContent').dataset.seq=String(events.at(-1)?.seq||0);
  return;
 }
- if(kind==='journey'){let c=state?.customer_projection;details('Customer journey · '+(c?.awb||'—'),`<p>Observed synthetic milestones stay separate from simulated ground actions and tentative routing.</p>${(c?.journey_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind||e.code)} · ${e.observed?'Recorded synthetic source':'Simulated overlay'}</b>${esc(e.message)}<br><small>${esc(when(e.at))} · ${esc(e.authority)}</small></div>`).join('')}`);return}
+ if(kind==='journey'){let c=state?.customer_projection;details('Customer journey · '+(c?.awb||'—'),`<p>Observed synthetic milestones stay separate from simulated ground actions and tentative routing.</p>${journeyEventRows(c?.journey_events)}`);return}
  if(kind==='math'||['model_i','model_ii','model_iii'].includes(kind)){let d=state?.decision||{},k=kind==='math'?'model_iii':kind;details(kind==='math'?'Mathematical decision trace':'Inspect '+k.toUpperCase(),`<p>Model I = bounded 2D arrangement; Model II = one-step Bayesian verification; Model III = finite-column capacity MILP.</p><pre>${esc(JSON.stringify(kind==='math'?d:d[k]||{},null,2))}</pre><button class="btn soft" id="fullEvidence">Load source provenance ↗</button>`);return}
  if(kind==='audit'||kind==='source'){details(kind==='audit'?'Runtime integrity audit':'OAG / dataset provenance','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(scopedPath(kind==='audit'?'/v11/api/audit':'/v11/api/evidence',groundReference()?sandboxIds[0]:embeddedSandbox));$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
  if(kind==='tasks'){details('Simulated team handoffs',(state?.tasks||[]).map(t=>`<div class="ledger-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||'Ground handoff')}</b>${esc(t.status)}</div>`).join('')||'No simulated tasks.');return}
@@ -535,7 +548,7 @@ function v9Render(s){let badge=document.querySelector('.brand small');if(badge&&
   const seq=JSON.stringify([reference?sandboxIds[0]:embeddedSandbox,rows.at(-1)?.seq]);
   if(content.dataset.seq!==seq){content.innerHTML=eventStreamMarkup(rows);content.dataset.seq=seq}
  }
- if(!$('drawer').hidden&&$('drawerTitle').textContent.startsWith('Customer journey')){const c=s.customer_projection;if(c&&$('drawerContent').dataset.journeySeq!==String(c.journey_events?.length||0)){let box=$('drawerContent');box.innerHTML='<p>Live synthetic customer milestones; internal approval does not confirm an airline route.</p>'+((c.journey_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind)}</b>${esc(e.message)}<br><small>${esc(when(e.at))} · ${esc(e.authority)}</small></div>`).join(''));box.dataset.journeySeq=String(c.journey_events?.length||0)}}
+ if(!$('drawer').hidden&&$('drawerTitle').textContent.startsWith('Customer journey')){const c=s.customer_projection;if(c&&$('drawerContent').dataset.journeySeq!==String(c.journey_events?.length||0)){let box=$('drawerContent');box.innerHTML='<p>Live synthetic customer milestones; internal approval does not confirm an airline route.</p>'+journeyEventRows(c.journey_events);box.dataset.journeySeq=String(c.journey_events?.length||0)}}
  if(s.tick!==v9LastTick){v9LastTick=s.tick;$('tickPill').classList.remove('tick-flash');void $('tickPill').offsetWidth;$('tickPill').classList.add('tick-flash')}
 }
 function v9View(mode){worlds.forEach(w=>w.setMode?.(mode));$('view3D').classList.toggle('selected',mode==='3D');$('view2D').classList.toggle('selected',mode==='2D');$('view3D').setAttribute('aria-pressed',mode==='3D');$('view2D').setAttribute('aria-pressed',mode==='2D')}
