@@ -12,6 +12,10 @@ const el = (tag, className, html) => { const n = document.createElement(tag); if
 
 const STORE = 'relay.v11.chat';
 const MAX_LIVE_TWINS = 2;   // each ground embed holds WebGL contexts; older ones pause
+const WORD_INTERVAL_MS = 30;
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+const wordSegmenter = typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, {granularity: 'word'}) : null;
+const unspacedScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
 const SUGGESTIONS = [
   'Summarise what is happening in the simulation right now',
   'Cancel a flight and show me how the ground twin reacts',
@@ -83,7 +87,7 @@ const TWIN_TAG = /<relay-twin\b([^>]*?)\/?>(?:\s*<\/relay-twin>)?/g;
 function splitTwins(text, streaming) {
   if (streaming) {  // hide a tag that is still being written
     const open = text.lastIndexOf('<'), tail = open < 0 ? '' : text.slice(open);
-    if (tail && !tail.includes('>') && ('<relay-twin'.startsWith(tail) || tail.startsWith('<relay-twin'))) text = text.slice(0, open);
+    if (tail && !tail.includes('>') && ('<relay-twin'.startsWith(tail) || tail.startsWith('<relay-twin') || '</relay-twin>'.startsWith(tail))) text = text.slice(0, open);
   }
   const segments = [];
   let last = 0;
@@ -184,7 +188,9 @@ function updateText(part) {
   part._twins ||= [];
   const wanted = [];
   let twinIndex = 0;
-  for (const segment of splitTwins(part.text, part.state === 'streaming')) {
+  const visibleText = part.text.slice(0, part._visibleLength ?? part.text.length);
+  const streaming = part.state === 'streaming' || visibleText.length < part.text.length;
+  for (const segment of splitTwins(visibleText, streaming)) {
     if (segment.twin) wanted.push(part._twins[twinIndex++] ||= twinEmbed(segment.twin));
     else if (segment.md.trim()) wanted.push({md: segment.md});
   }
@@ -310,15 +316,76 @@ function setBusy(value) {
 }
 
 /* ---------- stream ---------- */
+function nextWordLength(pending, ended) {
+  const match = /^(\s*)(\S+)\s*/u.exec(pending);
+  if (!match) return ended ? pending.length : 0;
+  const [span, leading, word] = match;
+  if (wordSegmenter && unspacedScript.test(word)) {
+    let foundWord = false;
+    for (const segment of wordSegmenter.segment(word)) {
+      if (!segment.isWordLike) continue;
+      if (foundWord) return leading.length + segment.index;
+      foundWord = true;
+    }
+  }
+  // A delta can end in the middle of a word. Wait for its boundary or the end of the part.
+  return ended || span.length > leading.length + word.length ? span.length : 0;
+}
+
+function paceText(reply, signal) {
+  let timer = null, resolveDrain;
+  const pending = part => part.type === 'text' && part._visibleLength < part.text.length;
+  function reveal(part, length) {
+    part._visibleLength += length;
+    part._dirty = true;
+    queueRender();
+  }
+  function flush() {
+    clearTimeout(timer);
+    timer = null;
+    for (const part of reply.parts.filter(pending)) reveal(part, part.text.length - part._visibleLength);
+    resolveDrain?.();
+  }
+  function schedule() {
+    if (signal.aborted || document.hidden || reducedMotion.matches) {
+      flush();
+    } else if (!reply.parts.some(pending)) {
+      resolveDrain?.();
+    } else if (timer === null) {
+      timer = setTimeout(() => {
+        timer = null;
+        if (document.hidden || reducedMotion.matches) { flush(); return; }
+        const part = reply.parts.find(pending);
+        const length = nextWordLength(part.text.slice(part._visibleLength), part.state === 'done');
+        if (length) { reveal(part, length); schedule(); }
+      }, WORD_INTERVAL_MS);
+    }
+  }
+  // Stopping the request also completes playback of text already received.
+  signal.addEventListener('abort', flush, {once: true});
+  return {
+    schedule,
+    async finish() {
+      await new Promise(resolve => { resolveDrain = resolve; schedule(); });
+      signal.removeEventListener('abort', flush);
+    },
+  };
+}
+
 function applyEvent(message, event) {
   const parts = message.parts, byId = id => parts.findLast(p => p.id === id), byCall = id => parts.findLast(p => p.toolCallId === id);
   let part = null;
   switch (event.type) {
     case 'start': if (event.messageId) message.id = event.messageId; return;  // the server keys its history on this id
     case 'start-step': parts.push({type: 'step-start'}); return;
-    case 'text-start': case 'reasoning-start':
-      parts.push(part = {type: event.type.split('-')[0], id: event.id, text: '', state: 'streaming', _started: performance.now()}); break;
-    case 'text-delta': case 'reasoning-delta':
+    case 'text-start':
+      parts.push({type: 'text', id: event.id, text: '', state: 'streaming', _visibleLength: 0}); return;
+    case 'reasoning-start':
+      parts.push(part = {type: 'reasoning', id: event.id, text: '', state: 'streaming', _started: performance.now()}); break;
+    case 'text-delta':
+      if ((part = byId(event.id))) part.text += event.delta;
+      return;
+    case 'reasoning-delta':
       if ((part = byId(event.id))) part.text += event.delta; break;
     case 'text-end': case 'reasoning-end':
       if ((part = byId(event.id))) { part.state = 'done'; if (part.type === 'reasoning') part.seconds = Math.max(1, Math.round((performance.now() - part._started) / 1000)); } break;
@@ -347,6 +414,7 @@ async function send(text) {
   render();
   scroller.scrollTop = scroller.scrollHeight;
   abort = new AbortController();
+  const reveal = paceText(reply, abort.signal);
   const body = JSON.stringify({id: chatId, messages}, (key, value) => key.startsWith('_') || key === 'raw' ? undefined : value);
   messages.push(reply);
   queueRender();
@@ -362,6 +430,7 @@ async function send(text) {
         const line = buffer.slice(0, cut);
         if (line.startsWith('data: ') && line !== 'data: [DONE]') applyEvent(reply, JSON.parse(line.slice(6)));
       }
+      reveal.schedule();
       queueRender();
     }
   } catch (error) {
@@ -371,6 +440,8 @@ async function send(text) {
       if (part.state === 'streaming') { part.state = 'done'; part._dirty = true; }
       if (part.state === 'input-streaming' || part.state === 'input-available') { part.state = 'output-error'; part.errorText = 'Stopped before the tool finished'; part._dirty = true; }
     }
+    queueRender();
+    await reveal.finish();
     reply._working = false;
     abort = null;
     setBusy(false);
