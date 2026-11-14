@@ -168,10 +168,10 @@ def test_manual_delay_and_congestion_update_the_canonical_projection():
 def test_v11_http_report_and_provenance():
     with TestClient(app) as client:
         for p in ['/','/v11','/v11/evidence','/v11/api/health','/v11/api/kpis','/v11/api/v10-original-kpis',
-                  '/v11/api/data-audit','/v11/api/trace','/v11/api/scope','/v10']:
+                  '/v11/api/data-audit','/v11/api/trace','/v11/api/scope']:
             response=client.get(p)
             assert response.status_code==200,(p,response.text[:200])
-        assert 'RELAY 11' in client.get('/v11').text  # v12 uses / as its entry point
+        assert 'RELAY 11' in client.get('/v11').text
         health=client.get('/v11/api/health').json()
         assert health['ground_dispatch']=='V11_OBSERVABLE_TRIAGE'
         assert health['real_commands_sent'] is False and health['production_safety_certified'] is False
@@ -265,13 +265,11 @@ def test_v11_synthetic_cost_accounting_is_exact_sum_of_charges():
 
 def test_v11_frontend_static_assets_available_and_scope_labels_present():
     with TestClient(app) as client:
-        for path in ('/v10.css','/v10_scene.js','/v10_ui.js','/v9_scene.js'):
+        for path in ('/v8.css','/v8_scene.js','/v9.css','/v9.js','/v10.css','/v10_scene.js','/v10_ui.js'):
             r=client.get(path)
             assert r.status_code==200 and len(r.content)>1000
-        # Running v11 servers already serve /v10.css before the new controls ship.
         page = client.get('/v11').text
-        assert 'href="/v10.css"' in page
-        assert 'href="/v11.css"' not in page
+        assert 'href="/v10.css' in page
         assert '.simulation-controls {' in client.get('/v10.css').text
         doc=client.get('/v11/evidence').text
         assert 'NOT airline ROI' in doc or 'not a claim of airline ROI' in doc

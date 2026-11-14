@@ -1,4 +1,4 @@
-"""v8 critical invariants. Mathematical bounds remain the v5 bounded solver contract."""
+"""Regression tests for the shared clock, projections and simulation controls."""
 import time,pytest
 from fastapi.testclient import TestClient
 from v11.conductor import Conductor
@@ -106,10 +106,10 @@ def test_same_shipments_cost_and_feasibility(c):
     assert s['decision']['model_iii']['status'] in ('OPTIMAL_ENUMERATED_MILP','TIME_LIMIT_WITH_INCUMBENT','INFEASIBLE')
     assert all(p['shipment_id'] not in {x['shipment_id'] for x in s['decision']['model_ii']['cases']} for p in s['decision']['proposed_actions'])
 
-def test_v8_http_routes_and_validation():
+def test_v11_http_routes_and_validation():
     with TestClient(app) as client:
         assert 'RELAY' in client.get('/').text
-        for path in ['/v8','/v8.css','/v8.js','/v8_scene.js','/v11/api/state','/v11/api/audit','/v11/api/health','/v11']:
+        for path in ['/v11/api/state','/v11/api/audit','/v11/api/health','/v11']:
             assert client.get(path).status_code==200,path
         assert client.post('/v11/api/control',json={'action':'speed','speed':101}).status_code==422
         assert client.post('/v11/api/order',json={'destination':'NRT','handling':'DGR'}).status_code==422

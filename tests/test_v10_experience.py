@@ -1,4 +1,4 @@
-"""Focused V10 UI, data-lineage and synthetic scenario invariants.
+"""Regression tests for the shared UI, model data and synthetic weather.
 These tests cannot establish certified physical ground movement or real airline ROI.
 """
 from pathlib import Path
@@ -6,13 +6,6 @@ from fastapi.testclient import TestClient
 from fusion_app import app
 from v11.conductor import Conductor
 ROOT=Path(__file__).resolve().parents[1]
-
-def test_v10_entrypoint_and_assets():
-    with TestClient(app) as client:
-        for endpoint in ['/v10', '/v10.css','/v10_scene.js','/v10_ui.js','/v9_scene.js','/v9.js']:
-            assert client.get(endpoint).status_code==200,endpoint
-        assert 'RELAY 10' in client.get('/v10').text
-        assert client.get('/v10').text.count('data-tab="')==3
 
 def test_v10_math_three_existing_backends_remain_intact():
     with TestClient(app) as client:
@@ -28,9 +21,9 @@ def test_v10_gfx_uses_real_model_fields_not_claimed_mutation():
     assert 'No cluster mutation execution is implied' in js
     assert 'JSON.stringify(s.decision?.[source]' in js
 
-def test_v10_has_visible_causal_status_and_status_controls():
-    h=(ROOT/'static/v10.html').read_text()
-    for field in ['v10EventFlash','v10Tempo','v10Throughput','v10ActivityStream','v10MathOne','v10MathTwo','v10MathThree','v10InsightToggle','v10-globe-legend']:
+def test_v11_has_simulation_controls_and_model_visuals():
+    h=(ROOT/'static/v11.html').read_text()
+    for field in ('simulationControls','liveState','achieved','v10MathOne','v10MathTwo','v10MathThree','customerGlobe'):
         assert field in h,field
     assert '<option value="AUTO">' in h
     assert 'v10_scene.js' in h and 'v10_ui.js' in h
@@ -44,7 +37,7 @@ def test_v10_synthetic_weather_cannot_be_mislabelled_real():
     c.configure({'weather':'AUTO'})
     assert c.snapshot()['v8']['weather_mode']=='AUTO'
     assert c.snapshot()['v8']['config']['weather']=='RAIN'  # last effective weather, not fake reset
-    assert 'SYNTHETIC' in (ROOT/'static/v10.html').read_text()
+    assert 'SYNTHETIC' in (ROOT/'static/v11.html').read_text()
 
 def test_v10_weather_transition_seed_reproducible_and_not_actual_metar():
     a=Conductor(seed=41);b=Conductor(seed=41)

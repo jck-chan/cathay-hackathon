@@ -55,31 +55,19 @@ def request_button_css():
     return FileResponse(ROOT / 'static' / 'request_button.css', media_type='text/css')
 
 
-# Frontend assets shared by the three-twin views.
-@app.get('/v8', include_in_schema=False)
-def v8_home():return FileResponse(ROOT/'static'/'v8.html', media_type='text/html',headers={'Cache-Control':'no-store'})
-
+# Frontend assets loaded by the v11 twins and v12 arena.
 @app.get('/v8.css',include_in_schema=False)
 def v8_css():return FileResponse(ROOT/'static'/'v8.css',media_type='text/css')
-
-@app.get('/v8.js',include_in_schema=False)
-def v8_js():return FileResponse(ROOT/'static'/'v8.js',media_type='text/javascript')
 
 @app.get('/v8_scene.js',include_in_schema=False)
 def v8_scene():return FileResponse(ROOT/'static'/'v6_scene.js',media_type='text/javascript',headers={'Cache-Control':'no-cache'})
 
-# Presentation assets shared by the three-twin UI.
-@app.get('/v9',include_in_schema=False)
-def v9_home():return FileResponse(ROOT/'static'/'v10.html',media_type='text/html',headers={'Cache-Control':'no-store'})
 @app.get('/v9.css',include_in_schema=False)
 def v9_css():return FileResponse(ROOT/'static'/'v9.css',media_type='text/css',headers={'Cache-Control':'no-store'})
 @app.get('/v9.js',include_in_schema=False)
 def v9_js():return FileResponse(ROOT/'static'/'v9.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
 @app.get('/v9_scene.js',include_in_schema=False)
 def v9_scene():return FileResponse(ROOT/'static'/'v9_scene.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
-@app.get('/v10',include_in_schema=False)
-def v10_home():
-    return FileResponse(ROOT/'static'/'v10.html',media_type='text/html',headers={'Cache-Control':'no-store'})
 
 @app.get('/v10.css',include_in_schema=False)
 def v10_css():

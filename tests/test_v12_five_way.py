@@ -167,7 +167,7 @@ def test_http_endpoints_and_guards():
  paths=c.get('/openapi.json').json()['paths']
  assert {'/v11/api/order','/v11/api/incident','/v11/api/review','/v11/api/kpis','/v12/api/control'} <= paths.keys()
  assert all(path.startswith(('/v11/api/','/v12/api/')) for path in paths)
- for path in ('/v1/digital-twin/state','/api/live/state','/fusion/overview',
+ for path in ('/v8','/v8.js','/v9','/v10','/v1/digital-twin/state','/api/live/state','/fusion/overview',
               '/v4/api/state','/v5/api/state','/v7/api/state','/v8/api/state','/v9/api/health'):
   assert c.get(path).status_code==404,path
  h=c.get('/v12/api/health').json();assert h['parallel_policies']==5 and not h['real_commands_sent']

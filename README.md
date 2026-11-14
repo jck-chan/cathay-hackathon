@@ -17,6 +17,8 @@ Changing visible cards **does not pause, reset or alter any policy state**. The 
 
 The original 30-day synthetic catalog and decision engine are shared code.
 The standalone research API in `relay.api:app` is separate from the Fusion server.
+Earlier standalone demos and release notes are available in Git history. The
+current twins still use versioned frontend assets and shared simulation modules.
 
 ### v11 sandboxes
 
@@ -199,7 +201,7 @@ or production certification.
 1. Extract the ZIP until you see `RELAY_Fusion_v12/run_windows.bat`.
 2. Stop any previous RELAY server using `127.0.0.1:8766` (Ctrl+C).
 3. Double-click `run_windows.bat`. It makes a standalone `.venv` and installs requirements if missing.
-4. Open **http://127.0.0.1:8766/**. The default app opens the five-policy Ground Comparison Arena. The preserved three-perspective Ground / Control Tower / Customer system is available at `http://127.0.0.1:8766/v11`. The arena and preserved system are separate synthetic simulations; they do not share a live control clock.
+4. Open **http://127.0.0.1:8766/** or **http://127.0.0.1:8766/v11** for the Ground, Control Tower, and Customer twins. The arena runs a separate synthetic simulation with its own clock.
 5. Open **http://127.0.0.1:8766/v11/evidence** for interactive cost, SLA, risk, probability, convergence and strictly hypothetical ROI visualizations. Open **http://127.0.0.1:8766/v12** for the five-policy arena.
 6. API docs: **http://127.0.0.1:8766/docs**.
 
@@ -247,7 +249,7 @@ to that hostname, for example `relay.example.com`, without a scheme or path.
 .\.venv\Scripts\python.exe -m pytest -q upstream_tests tests\test_v11_quality.py
 ```
 
-The full historic test suite includes slow stress/benchmark cases; prefer running bounded groups and do not treat a timed-out aggregate run as an all-pass verdict. `scripts/v11_offline_visual_qa.py` needs Chromium/Playwright and is an optional offline UI check, not a runtime requirement.
+The test suite includes slow stress and benchmark cases. `scripts/v11_offline_visual_qa.py` is an optional offline UI check that needs Chromium and Playwright.
 
 ## Key pinned synthetic percentages (seed 2026, 500 paired episodes per case)
 

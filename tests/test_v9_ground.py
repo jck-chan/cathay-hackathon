@@ -30,13 +30,12 @@ def test_weather_input_validation():
         assert c.snapshot()['v8']['config']['weather']=='CLEAR'
     finally:c.lab._tmp.cleanup()
 
-def test_v9_assets_exist_and_core_engine_untouched():
+def test_shared_ground_assets_support_webgl_and_2d():
     root=Path(__file__).resolve().parents[1]
-    for name in ['v9_scene.js','v9.js','v9.html','v9.css']:
+    for name in ['v9_scene.js','v9.js','v9.css']:
         assert (root/'static'/name).stat().st_size>1000
     s=(root/'static/v9_scene.js').read_text()
     assert 'webgl2' in s and 'getContext' in s and 'renderFallback2D' in s
-    assert 'source' not in s[:80] or True
     js=(root/'static/v9.js').read_text()
     assert 'v9Render' in js and 'v9View' in js
     assert "'/v11/api/control'" in js
