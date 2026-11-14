@@ -86,10 +86,12 @@ through `relay.call`) and a link to the live apron.
   claude mcp add --transport http relay-v13 http://127.0.0.1:8813/mcp
   ```
 
-- **Origin safety**: the server binds `127.0.0.1` and checks every request. A `Host` header
+- **Origin safety**: the server binds `127.0.0.1` by default and checks every request. A `Host` header
   that is not loopback gets 421, which blocks DNS rebinding. A browser `Origin` that is not
   loopback gets 403, which blocks cross-site use. A `POST` without `application/json` gets 415,
   which closes the simple-request CSRF hole. CORS headers are returned only to allowed origins.
+  The server also allows `cathay.ckchan.com`, `RELAY_PUBLIC_DOMAIN`, and
+  `RAILWAY_PUBLIC_DOMAIN` as hosts and permits their HTTPS origins.
   To allow more, set `RELAY_ALLOWED_ORIGINS=https://app.example` or
   `RELAY_ALLOWED_HOSTS=myhost:8813`.
 

@@ -15,4 +15,4 @@ RUN chown relay:relay /app/data
 USER relay
 EXPOSE 8766
 
-CMD ["python", "-m", "uvicorn", "fusion_app:app", "--host", "0.0.0.0", "--port", "8766", "--workers", "1"]
+CMD ["python", "v13/server.py", "--host", "0.0.0.0", "--port", "8766"]

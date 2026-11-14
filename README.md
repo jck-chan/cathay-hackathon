@@ -179,7 +179,7 @@ docker build -t relay-fusion .
 docker run --rm -p 127.0.0.1:8766:8766 relay-fusion
 ```
 
-Open the [RELAY interface](http://127.0.0.1:8766/). To enable chat with your local
+Open [RELAY v13 Live Apron](http://127.0.0.1:8766/). To enable chat with your local
 `.env` file, add `--env-file .env` before the image name in the run command.
 
 On Railway, browser writes use the HTTPS origin of `RAILWAY_PUBLIC_DOMAIN`.

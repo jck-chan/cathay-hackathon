@@ -1,4 +1,4 @@
-"""RELAY v13 localhost server. Standard library only; binds 127.0.0.1.
+"""RELAY v13 server. Standard library only; binds 127.0.0.1 by default.
 
 The simulation clock runs on a background thread: one engine tick = 1 simulated
 minute, executed at the target `tps` (ticks per real second) while playing.
@@ -90,8 +90,17 @@ class Clock:
 CLOCK = None
 CHAT = None
 LOOPBACK = {'127.0.0.1', 'localhost', '::1', '[::1]'}
-EXTRA_HOSTS = {h.strip().lower() for h in os.environ.get('RELAY_ALLOWED_HOSTS', '').split(',') if h.strip()}
-EXTRA_ORIGINS = {o.strip().rstrip('/').lower() for o in os.environ.get('RELAY_ALLOWED_ORIGINS', '').split(',') if o.strip()}
+PUBLIC_DOMAINS = {
+    'cathay.ckchan.com',
+    os.environ.get('RELAY_PUBLIC_DOMAIN', '').strip().lower(),
+    os.environ.get('RAILWAY_PUBLIC_DOMAIN', '').strip().lower(),
+} - {''}
+EXTRA_HOSTS = PUBLIC_DOMAINS | {
+    h.strip().lower() for h in os.environ.get('RELAY_ALLOWED_HOSTS', '').split(',') if h.strip()
+}
+EXTRA_ORIGINS = {f'https://{domain}' for domain in PUBLIC_DOMAINS} | {
+    o.strip().rstrip('/').lower() for o in os.environ.get('RELAY_ALLOWED_ORIGINS', '').split(',') if o.strip()
+}
 CORS_HEADERS = 'Content-Type, Accept, Authorization, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID'
 
 
@@ -290,6 +299,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     global CLOCK, CHAT
     ap = argparse.ArgumentParser()
+    ap.add_argument('--host', default='127.0.0.1')
     ap.add_argument('--port', type=int, default=8813)
     ap.add_argument('--open', action='store_true')
     a = ap.parse_args()
@@ -298,7 +308,7 @@ def main():
     # warm the default evidence study so the Evidence tab opens instantly
     threading.Thread(target=lambda: evidence.run(stands=CLOCK.params['stands']), daemon=True).start()
     url = f'http://127.0.0.1:{a.port}'
-    server = ThreadingHTTPServer(('127.0.0.1', a.port), Handler)
+    server = ThreadingHTTPServer((a.host, a.port), Handler)
     print('RELAY v13 live apron', url, flush=True)
     print(f'MCP server        {url}/mcp', flush=True)
     print(f'Agent model       {CHAT.model} via Vercel AI Gateway' + ('' if CHAT.configured else ' (no AI_GATEWAY_API_KEY found)'), flush=True)
