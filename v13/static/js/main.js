@@ -6,7 +6,9 @@ import { CargoManager } from './scene/cargo.js';
 import { DragDrop } from './scene/interaction.js';
 import { RankingPanel, LogPanel, StagingPanel } from './ui/panels.js';
 import { ICON } from './ui/icons.js';
-import { Dropdown } from './ui/dropdown.js';
+import { Dropdown, ComboBox } from './ui/dropdown.js';
+import { EvidencePanel } from './ui/evidence.js';
+import { initChat } from './ui/chat.js';
 
 const $ = s => document.querySelector(s);
 async function post(url, body) {
@@ -39,7 +41,12 @@ function toast(tone, title, detail) {
 document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.tab').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b); });
   document.querySelectorAll('.tabpane').forEach(p => p.classList.toggle('on', p.id === `tab-${b.dataset.tab}`));
+  activeTab = b.dataset.tab;
+  if (activeTab === 'evidence') evidencePanel.show();
 }));
+let activeTab = 'apron';
+const evidencePanel = new EvidencePanel($('#tab-evidence'));
+initChat();
 
 // ---- boot ------------------------------------------------------------------------------
 let state = await fetch('/api/state').then(r => r.json());
@@ -74,6 +81,7 @@ function apply(s) {
   }
   cargo.sync(s.cargo, actors);
   ranking.render(s); staging.render(s.staging); renderTop(s);
+  window.dispatchEvent(new CustomEvent('relay:state', { detail: s }));  // chat artifacts subscribe to this
 }
 
 // ---- top bar ---------------------------------------------------------------------------
@@ -96,10 +104,11 @@ async function runControl(control, request) {
   }
 }
 
-const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16];
-const speedDd = new Dropdown($('#speedDd'), {
-  label: 'Speed', options: SPEEDS, format: x => `${x}×`,
-  onChange: (v, button) => runControl(button, () => api.control({ speed: v })),
+// Target TPS: one tick = one simulated minute, so TPS is the only speed control.
+const TPS_PRESETS = [0.25, 0.5, 1, 2, 4, 8, 16, 32, 60];
+const tpsBox = new ComboBox($('#tpsDd'), {
+  label: 'Target TPS', options: TPS_PRESETS, min: 0.1, max: 60, step: 0.05,
+  onChange: (v, button) => runControl(button, () => api.control({ tps: v })),
 });
 const RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 const rateDd = new Dropdown($('#rateDd'), {
@@ -109,7 +118,6 @@ const rateDd = new Dropdown($('#rateDd'), {
 playButton.addEventListener('click', () => runControl(playButton, () => api.control({ playing: !state.control.playing })));
 $('#btnStep').innerHTML = `${ICON.step}<span>Step</span>`;
 $('#btnStep').addEventListener('click', e => runControl(e.currentTarget, () => api.step(Math.max(1, +$('#stepN').value || 1))));
-$('#tpsIn').addEventListener('change', e => runControl(e.currentTarget, () => api.control({ tps: +e.target.value || 1 })));
 $('#autoIn').addEventListener('change', e => runControl(e.currentTarget, () => api.control({ autopilot: e.target.checked })));
 $('#btnReset').addEventListener('click', e => runControl(e.currentTarget, () => api.reset({ seed: Math.floor(Math.random() * 99999) + 1 })));
 window.addEventListener('keydown', e => {
@@ -120,9 +128,8 @@ function renderTop(s) {
   const c = s.control;
   playButton.innerHTML = c.playing ? `${ICON.pause}<span>Pause</span>` : `${ICON.play}<span>${s.done ? 'Finished' : 'Start'}</span>`;
   playButton.disabled = s.done || playButton.hasAttribute('aria-busy');
-  speedDd.set(c.speed); rateDd.set(RATES.reduce((a, b) => (Math.abs(b - s.demand) < Math.abs(a - s.demand) ? b : a)));
-  if (document.activeElement !== $('#tpsIn')) $('#tpsIn').value = c.tps;
-  $('#tpsMeasured').textContent = `${c.measured_tps.toFixed(1)} tps`;
+  tpsBox.set(c.tps); rateDd.set(RATES.reduce((a, b) => (Math.abs(b - s.demand) < Math.abs(a - s.demand) ? b : a)));
+  $('#tpsMeasured').textContent = `${c.measured_tps.toFixed(1)} actual`;
   $('#autoIn').checked = c.autopilot;
   const k = s.kpis;
   $('#kpis').innerHTML = `<span title="Shipments uplifted"><b>${k.uplifted}</b>uplifted</span>
@@ -181,7 +188,7 @@ function frame(now) {
   const flow = c.playing ? 4 * Math.min(6, Math.max(0.6, c.effective_tps)) : 0;
   world.animateBelt(dt, flow);
   cargo.update(dt, simT, flow);
-  world.render();
+  if (activeTab === 'apron') world.render();  // no GPU work while another tab is showing
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

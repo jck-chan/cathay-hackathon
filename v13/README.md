@@ -26,8 +26,8 @@ python3 -m unittest discover -s v13/tests
 ## Tab 1 — Live apron
 
 - **Top bar** (shown on every tab): Start/Pause (Space) with New world beside it, Step *n* ticks,
-  a speed dropdown (0.25× to 16×), base TPS, measured TPS, a cargo-rate dropdown and Autopilot.
-  One tick is one simulated minute. The effective rate is TPS × multiplier.
+  **Target TPS** (a styled preset list you can also type into; 1 tick = 1 simulated minute) next to
+  the measured TPS, a cargo-rate dropdown and Autopilot.
 - **3D viewport (75 %)**:
   - Five stands. Aircraft land with a 3° glide slope and flare, roll out, taxi in nose-in,
     push back, taxi out, take off and climb.
@@ -49,10 +49,47 @@ python3 -m unittest discover -s v13/tests
   - **Priority ranking**: Model II score, recomputed every 5 simulated minutes. Rows move
     like a race leaderboard, with ▲/▼ markers and NEW badges.
   - **Event log**: plain-language entries with an icon per type, plus filters.
-  - **Staging capacity**: the hard cap with waiting, loading and ready segments; the
+  - **Staging capacity**: the live fill with the run average beside it, the hard cap with waiting, loading and ready segments; the
     inbound line; exceptions; free handling teams; demand pressure; and a 4-hour sparkline.
 
-Tabs 2 and 3 are placeholders.
+## Tab 2 — Evidence
+
+The paired role study from the v13 papers, run live by `relay13/evidence.py`: each synthetic world
+is replayed by a new and a senior operator, each working manually and with RELAY, with identical
+arrivals, incidents and flights. The tab shows paired-effect tiles (mean difference, 95% CI, worlds
+where RELAY was better), one bar chart per metric (mean ± 95% CI), backlog over the day, the paired
+effect table and every world/role row with a CSV download. Choose worlds, days, scenario and cargo
+rate and press **Run study**; the default study is computed in the background at start-up.
+
+## Tab 3
+
+Intentionally blank.
+
+## Tab 4 — Agent and MCP
+
+A chat agent ported from the v11 agent page (`static/js/ui/chat.js`, `relay13/chat.py`): streamed
+reasoning, tool-call cards, interactive artifacts (sandboxed panels that call simulation tools
+through `relay.call`) and a link to the live apron.
+
+- **Model**: reached through the **Vercel AI Gateway** (Anthropic Messages format, like v11).
+  The default model is `google/gemini-4-hydrogen`; override it with `RELAY_CHAT_MODEL`.
+  Set `RELAY_CHAT_MODEL=demo` for a scripted offline agent that needs no key.
+- **Credentials**: `AI_GATEWAY_API_KEY` (or `VERCEL_OIDC_TOKEN`) from the environment or the
+  nearest `.env` at or above `v13/`, so a worktree uses its main checkout's `.env`.
+- **MCP**: `http://127.0.0.1:8813/mcp` (Streamable HTTP, stateless, JSON responses). External
+  agents get the same tools the chat uses: `get_state`, `list_cargo`, `check_cargo`, `load_cargo`,
+  `offload_cargo`, `control_simulation`, `step_simulation`, `new_world` and `run_evidence`.
+
+  ```bash
+  claude mcp add --transport http relay-v13 http://127.0.0.1:8813/mcp
+  ```
+
+- **Origin safety**: the server binds `127.0.0.1` and checks every request. A `Host` header
+  that is not loopback gets 421, which blocks DNS rebinding. A browser `Origin` that is not
+  loopback gets 403, which blocks cross-site use. A `POST` without `application/json` gets 415,
+  which closes the simple-request CSRF hole. CORS headers are returned only to allowed origins.
+  To allow more, set `RELAY_ALLOWED_ORIGINS=https://app.example` or
+  `RELAY_ALLOWED_HOSTS=myhost:8813`.
 
 ## Aircraft types and fleet size
 
@@ -89,7 +126,11 @@ change applies mid-run without regenerating the world. **New world** keeps the c
 
 | Path | Contents |
 | --- | --- |
-| `server.py` | stdlib HTTP server and the background sim clock (`/api/state`, `/api/control`, `/api/step`, `/api/reset`, `/api/check`, `/api/load`, `/api/offload`) |
+| `server.py` | stdlib HTTP server, background sim clock, origin/host guard (`/api/*`, `/api/evidence`, `/api/chat`, `/mcp`) |
+| `relay13/tools.py` | the tool registry shared by MCP and the chat agent |
+| `relay13/mcp.py` | MCP JSON-RPC handler |
+| `relay13/chat.py` | agent loop over the Vercel AI Gateway, AI SDK UI message stream |
+| `relay13/evidence.py` | paired four-role study |
 | `relay13/engine.py` | world generator (stand rotations, bookings, incidents), the `Simulation` state machine, ranking, autopilot (bounded exact subset), `snake_dp` |
 | `relay13/aircraft.py` | aircraft types, per-type policy, `AirportConfig` |
 | `static/js/scene/*` | renderer and sky (`world.js`), aircraft motion (`aircraft.js`), cargo units and tags (`cargo.js`), drag and drop (`interaction.js`), procedural PBR textures (`textures.js`), coordinates and paths (`layout.js`) |

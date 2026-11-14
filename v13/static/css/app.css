@@ -266,3 +266,19 @@ body.dragging .plane-tag.drop-no { width: 130px; }
 .tps input { width: 44px; }
 @media (max-width: 1500px) { .kpis span:nth-child(n+3) { display: none; } .brand > span:last-child { display: none; } }
 @media (max-width: 1300px) { .kpis { display: none; } }
+
+/* staging: live value with run average beside it */
+.stg-nums { display: flex; align-items: baseline; gap: 10px; }
+.stg-avg { font-style: normal; font-size: 12px; color: var(--muted); }
+.stg-avg strong { font: 700 16px var(--mono); color: var(--ink); }
+.li-time em.ag { background: #ece8fb; color: #4b3bb3; }
+
+/* Target TPS combobox: typed value + styled preset list */
+.dd-field { cursor: text; padding-right: 3px; }
+.dd-input { width: 44px; border: 0; background: transparent; color: #fff; font: 700 12px var(--mono); padding: 0; outline: none; }
+.dd-field:focus-within { outline: 2px solid #17b3a8; outline-offset: 1px; }
+.dd-toggle { border: 0; background: none; color: #8fb3ae; padding: 2px 3px; border-radius: 5px; cursor: pointer; display: inline-flex; }
+.dd-toggle:hover { background: rgba(255,255,255,.12); color: #fff; }
+.dd-toggle .ico { width: 13px; height: 13px; transition: transform .15s; }
+.dd-combo.open .dd-toggle .ico { transform: rotate(180deg); }
+.tps-measured { font: 600 11px var(--mono); font-style: normal; color: #8fb3ae; min-width: 62px; white-space: nowrap; }

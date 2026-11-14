@@ -111,7 +111,7 @@ def weighted(rng, items):
 def generate(seed: int, days: int = 3, load: float = 1., scenario: str = 'mixed',
              config: AirportConfig | None = None) -> World:
     cfg = config or AirportConfig()
-    if not 1 <= days <= 30 or not .3 <= load <= 2.5 or not 1 <= cfg.stands <= 12:
+    if not 1 <= days <= 30 or not .2 <= load <= 3. or not 1 <= cfg.stands <= 12:
         raise ValueError('out of bounds')
     rng = random.Random(seed * 17041 + 1009)
     if scenario == 'random':
@@ -789,7 +789,8 @@ class Simulation:
             self.log('redzone', 'Red zone: queues saturated for 60 min', f'{ct["outside"]} on the line, {ct["exceptions"]} in exceptions')
         self.in_red = red
         if self.t % RANK_EVERY == 0:
-            self._refresh_ranking()
+            if self.trace:  # offline studies don't display the ranking
+                self._refresh_ranking()
             self.history.append({'t': self.t, 'staging': ct['staging'], 'outside': ct['outside'], 'exceptions': ct['exceptions']})
             if len(self.history) > 96:
                 self.history = self.history[-96:]
@@ -869,6 +870,8 @@ class Simulation:
                 'staging': {'capacity': self.w.staging, 'used': ct['staging'], 'waiting': ct['waiting'], 'handling': ct['handling'],
                             'ready': ct['ready'], 'outside': ct['outside'], 'outside_limit': self.w.outside_limit,
                             'exceptions': ct['exceptions'], 'pressure': round(100 * ct['backlog'] / max(1, self.w.staging)),
+                            'avg_used': round(self.stage_area / max(1, self.t - self.w.start), 1),
+                            'avg_pct': round(100 * self.stage_area / max(1, self.t - self.w.start) / self.w.staging),
                             'red_zone': self.in_red, 'workers_free': wf, 'workers': max(0, self.w.workers - self.crew_loss),
                             'specialists_free': sf, 'holds': sorted(self.seen_holds), 'history': self.history[-48:]},
                 'ranking': self.ranking[:14], 'ranked_total': len(self.ranking), 'rank_t': self.rank_t, 'rank_every': RANK_EVERY,

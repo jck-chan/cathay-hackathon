@@ -50,3 +50,48 @@ export class Dropdown {
     else if (e.key === 'Tab') this.toggle(false);
   }
 }
+
+// Editable variant: the same styled preset list, plus a text field you can type any value into.
+// Enter or leaving the field commits; the value is parsed, clamped to [min, max] and rounded.
+export class ComboBox extends Dropdown {
+  constructor(root, { label, options, min, max, step = 0.1, unit = '', onChange }) {
+    super(root, { label, options, format: v => `${v}${unit}`, onChange });
+    Object.assign(this, { min, max, step, unit });
+    root.classList.add('dd-combo');
+    const btn = this.btn;
+    const field = document.createElement('div'); field.className = 'dd-btn dd-field';
+    field.innerHTML = `<span class="dd-label">${label}</span><input class="dd-input" inputmode="decimal" autocomplete="off"
+      spellcheck="false" aria-label="${label}" aria-autocomplete="list" role="combobox" aria-expanded="false">`;
+    btn.replaceWith(field);
+    btn.className = 'dd-toggle'; btn.setAttribute('aria-label', `${label} presets`); btn.innerHTML = btn.querySelector('svg')?.outerHTML || '';
+    field.append(btn);
+    this.input = field.querySelector('.dd-input'); this.field = field;
+    this.input.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !this.open) { e.preventDefault(); this.commit(); this.input.select(); }
+      else if (e.key === 'Escape' && !this.open) { this.input.value = this.format(this.value); this.input.blur(); }
+      else if (e.key === 'ArrowDown' && !this.open) { e.preventDefault(); this.toggle(true); }
+    });
+    this.input.addEventListener('focus', () => { this.input.value = String(this.value ?? ''); this.input.select(); });
+    this.input.addEventListener('blur', () => { if (!this.open) this.commit(); });
+    field.addEventListener('click', e => { if (e.target === field) this.input.focus(); });
+  }
+
+  commit() {
+    const raw = parseFloat(String(this.input.value).replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(raw)) { this.input.value = this.format(this.value); return; }
+    const v = Math.round(Math.min(this.max, Math.max(this.min, raw)) / this.step) * this.step;
+    const clean = +v.toFixed(3);
+    if (document.activeElement !== this.input) this.input.value = this.format(clean);
+    if (clean !== this.value && !this.btn.disabled) this.onChange(clean, this.btn);
+  }
+
+  set(v) {
+    if (v === this.value) return; this.value = v;
+    if (document.activeElement !== this.input) this.input.value = this.format(v);
+    this.menu.querySelectorAll('li').forEach((li, i) => li.setAttribute('aria-selected', this.options[i] === v));
+  }
+
+  toggle(open) {
+    super.toggle(open); this.input?.setAttribute('aria-expanded', open);
+  }
+}

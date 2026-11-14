@@ -79,7 +79,7 @@ export class LogPanel {
       el.dataset.group = this.group(e.kind);
       el.hidden = this.filter !== 'all' && el.dataset.group !== this.filter;
       el.innerHTML = `<span class="li-icon">${icon}</span><span class="li-body"><span class="li-title">${esc(e.title)}</span>
-        <span class="li-detail">${esc(e.detail)}</span></span><span class="li-time">${e.clock}${e.actor === 'operator' ? '<em>you</em>' : e.actor === 'assist' ? '<em>auto</em>' : ''}</span>`;
+        <span class="li-detail">${esc(e.detail)}</span></span><span class="li-time">${e.clock}${e.actor === 'operator' ? '<em>you</em>' : e.actor === 'assist' ? '<em>auto</em>' : e.actor === 'agent' ? '<em class="ag">agent</em>' : ''}</span>`;
       this.list.prepend(el);
       setTimeout(() => el.classList.remove('new'), 900);
     }
@@ -103,7 +103,7 @@ export class StagingPanel {
     const pts = key => hist.map((h, i) => `${(i / Math.max(1, hist.length - 1)) * W},${H - (key(h) / maxY) * H}`).join(' ');
     this.root.querySelector('.stg-body').innerHTML = `
       <div class="stg-top">
-        <div class="stg-pct tone-${tone}"><b>${pct}%</b><span>${s.used} / ${cap} positions</span></div>
+        <div class="stg-pct tone-${tone}"><div class="stg-nums"><b>${pct}%</b><em class="stg-avg" title="Average staging use since the world opened">avg <strong>${s.avg_pct ?? '–'}%</strong></em></div><span>${s.used} / ${cap} positions now · ${s.avg_used ?? '–'} on average</span></div>
         <div class="stg-press ${s.pressure > 100 ? 'over' : ''}" title="Backlog (line + staging + exceptions) relative to staging capacity — can exceed 100%">
           <span>Demand pressure</span><b>${s.pressure}%</b></div>
       </div>

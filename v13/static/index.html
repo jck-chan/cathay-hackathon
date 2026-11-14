@@ -6,6 +6,8 @@
   <title>RELAY v13 · Live Apron</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/evidence.css">
+  <link rel="stylesheet" href="/css/chat.css">
   <script type="importmap">
   { "imports": { "three": "/vendor/three/three.module.min.js", "three/addons/": "/vendor/three/addons/" } }
   </script>
@@ -15,8 +17,9 @@
     <div class="brand"><span class="brand-mark">R</span><span><b>RELAY</b> v13</span></div>
     <nav class="tabs" role="tablist">
       <button class="tab on" role="tab" data-tab="apron" aria-selected="true">Live apron</button>
-      <button class="tab" role="tab" data-tab="t2" aria-selected="false">Tab 2</button>
+      <button class="tab" role="tab" data-tab="evidence" aria-selected="false">Evidence</button>
       <button class="tab" role="tab" data-tab="t3" aria-selected="false">Tab 3</button>
+      <button class="tab" role="tab" data-tab="agent" aria-selected="false">Agent</button>
     </nav>
     <div class="simctl">
       <div class="clock"><span id="clockDay">Day 1</span><b id="clockTime">06:00</b></div>
@@ -28,11 +31,8 @@
         <input id="stepN" type="number" min="1" max="1440" value="5" aria-label="Ticks to step">
         <button id="btnStep" class="btn"></button>
       </div>
-      <div id="speedDd" title="Speed multiplier"></div>
-      <label class="tps" title="Base ticks per second at 1×">
-        <span>TPS</span><input id="tpsIn" type="number" min="0.1" max="60" step="0.5" value="1">
-        <em id="tpsMeasured">0.0</em>
-      </label>
+      <div id="tpsDd" title="Target ticks per second (1 tick = 1 simulated minute). Pick a preset or type a value."></div>
+      <em class="tps-measured" id="tpsMeasured" title="Measured ticks per second">0.0</em>
       <div id="rateDd" title="Cargo rate: share of the booking pool offered from now on (1× = base rate)"></div>
       <label class="auto" title="Let RELAY's bounded exact optimiser dispatch cargo automatically">
         <input id="autoIn" type="checkbox"><span class="switch"></span><span>Autopilot</span>
@@ -70,8 +70,54 @@
         </section>
       </aside>
     </section>
-    <section class="tabpane" id="tab-t2"><div class="placeholder"><h2>Tab 2</h2><p>To be written.</p></div></section>
-    <section class="tabpane" id="tab-t3"><div class="placeholder"><h2>Tab 3</h2><p>To be written.</p></div></section>
+    <section class="tabpane" id="tab-evidence" aria-label="Evidence">
+      <div class="ev-page">
+        <header class="ev-head">
+          <div><h1>Evidence: four operator roles on identical worlds</h1>
+            <p>Each synthetic world is replayed by a new and a senior operator, each working manually and with RELAY. Arrivals, incidents and flights are identical across roles, so differences come from the decisions alone.</p></div>
+          <div class="ev-controls">
+            <div id="evSeeds"></div><div id="evDays"></div><div id="evScenario"></div><div id="evRate"></div>
+            <button id="evRun" class="ev-btn primary" type="button">Run study</button>
+          </div>
+        </header>
+        <p class="ev-status" aria-live="polite">Running the default study…</p>
+        <div class="ev-tiles"></div>
+        <div class="ev-legend" aria-label="Legend"></div>
+        <div class="ev-bars"></div>
+        <figure class="ev-card ev-line"></figure>
+        <section class="ev-card ev-table-card"><h2>Paired RELAY effect (assisted − manual, same worlds)</h2>
+          <div class="ev-scroll"><table class="ev-table ev-paired"><thead><tr><th>Operator</th><th>Metric</th><th class="num">Mean difference</th><th class="num">95% CI</th><th class="num">RELAY better in</th></tr></thead><tbody></tbody></table></div>
+        </section>
+        <details class="ev-card ev-table-card"><summary><h2>Data: every world and role</h2><button id="evCsv" class="ev-btn" type="button">Download CSV</button></summary>
+          <div class="ev-scroll"><table class="ev-table ev-seeds"><thead></thead><tbody></tbody></table></div>
+        </details>
+        <ul class="ev-notes"></ul>
+        <div class="ev-tip" hidden></div>
+      </div>
+    </section>
+    <section class="tabpane" id="tab-t3" aria-label="Tab 3"></section>
+    <section class="tabpane" id="tab-agent" aria-label="Agent">
+      <div class="chat-actions">
+        <button class="chat-action" id="chatMcp" type="button" aria-haspopup="dialog">Connect via MCP</button>
+        <span class="chat-model" id="chatModel"></span>
+        <button class="chat-action" id="chatNew" type="button">New chat</button>
+      </div>
+      <dialog class="chat-mcp" id="chatMcpDialog" aria-labelledby="chatMcpTitle">
+        <h2 id="chatMcpTitle">Connect an external agent</h2>
+        <p>This server speaks MCP (Streamable HTTP, stateless). Any MCP client on this machine can read and drive the live simulation with the same tools this chat uses.</p>
+        <h3>Server URL</h3><pre id="chatMcpUrl"></pre>
+        <h3>Claude Code</h3><pre id="chatMcpCmd"></pre>
+        <h3>JSON config (Claude Desktop, Cursor, …)</h3><pre id="chatMcpJson"></pre>
+        <ul><li>Only loopback origins and hosts are accepted (DNS-rebinding and cross-site protection).</li>
+          <li>To allow another browser origin, start the server with <code>RELAY_ALLOWED_ORIGINS=https://your.app</code>.</li></ul>
+        <form method="dialog"><button class="chat-action" autofocus>Close</button></form>
+      </dialog>
+      <div class="chat-scroll" id="chatScroll"><div class="chat-thread" id="chatThread"></div></div>
+      <form class="chat-composer" id="chatForm">
+        <textarea id="chatInput" rows="1" placeholder="Ask about the apron, or ask for a control panel" aria-label="Message"></textarea>
+        <button class="chat-stop" id="chatStop" type="button" hidden aria-label="Stop response">Stop</button><button class="chat-send" id="chatSend" type="submit" aria-label="Send">Send</button>
+      </form>
+    </section>
   </main>
   <script type="module" src="/js/main.js"></script>
 </body>
