@@ -24,6 +24,7 @@ export class Dropdown {
   }
 
   toggle(open) {
+    if (open && this.btn.disabled) return;
     this.open = open; this.root.classList.toggle('open', open); this.btn.setAttribute('aria-expanded', open);
     if (open) { this.focus(Math.max(0, this.options.indexOf(this.value))); this.menu.focus(); }
   }
@@ -33,7 +34,12 @@ export class Dropdown {
     this.menu.querySelectorAll('li').forEach((li, k) => li.classList.toggle('active', k === i));
   }
 
-  pick(i) { this.toggle(false); this.btn.focus(); if (this.options[i] !== this.value) { this.set(this.options[i]); this.onChange(this.options[i]); } }
+  pick(i) {
+    if (this.btn.disabled) return;
+    this.toggle(false);
+    this.btn.focus();
+    if (this.options[i] !== this.value) this.onChange(this.options[i], this.btn);
+  }
 
   key(e) {
     if (!this.open) { if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(e.key) && e.target === this.btn) { e.preventDefault(); this.toggle(true); } return; }

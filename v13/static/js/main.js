@@ -9,7 +9,11 @@ import { ICON } from './ui/icons.js';
 import { Dropdown } from './ui/dropdown.js';
 
 const $ = s => document.querySelector(s);
-const post = (url, body) => fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+async function post(url, body) {
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!response.ok) throw new Error(`Request failed (${response.status})`);
+  return response.json();
+}
 let lastEvent = 0;
 const api = {
   state: () => fetch(`/api/state?since=${lastEvent}`).then(r => r.json()),
@@ -73,30 +77,49 @@ function apply(s) {
 }
 
 // ---- top bar ---------------------------------------------------------------------------
+const playButton = $('#btnPlay');
+
+async function runControl(control, request) {
+  if (control.disabled) return;
+  const hadFocus = document.activeElement === control;
+  control.disabled = true;
+  control.setAttribute('aria-busy', 'true');
+  try {
+    apply(await request());
+  } catch (error) {
+    renderTop(state);
+    toast('bad', 'Simulation control request failed', error.message);
+  } finally {
+    control.removeAttribute('aria-busy');
+    control.disabled = control === playButton && state.done;
+    if (hadFocus && !control.disabled && document.activeElement === document.body) control.focus();
+  }
+}
+
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16];
 const speedDd = new Dropdown($('#speedDd'), {
   label: 'Speed', options: SPEEDS, format: x => (x === 0.25 ? '¼×' : x === 0.5 ? '½×' : `${x}×`),
-  onChange: v => api.control({ speed: v }).then(apply),
+  onChange: (v, button) => runControl(button, () => api.control({ speed: v })),
 });
 const RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
 const rateDd = new Dropdown($('#rateDd'), {
   label: 'Cargo rate', options: RATES, format: x => `${x}×`,
-  onChange: v => api.control({ demand: v }).then(apply),
+  onChange: (v, button) => runControl(button, () => api.control({ demand: v })),
 });
-$('#btnPlay').addEventListener('click', () => api.control({ playing: !state.control.playing }).then(apply));
+playButton.addEventListener('click', () => runControl(playButton, () => api.control({ playing: !state.control.playing })));
 $('#btnStep').innerHTML = `${ICON.step}<span>Step</span>`;
-$('#btnStep').addEventListener('click', () => api.step(Math.max(1, +$('#stepN').value || 1)).then(apply));
-$('#tpsIn').addEventListener('change', e => api.control({ tps: +e.target.value || 1 }).then(apply));
-$('#autoIn').addEventListener('change', e => api.control({ autopilot: e.target.checked }).then(apply));
-$('#btnReset').addEventListener('click', () => api.reset({ seed: Math.floor(Math.random() * 99999) + 1 }).then(apply));
+$('#btnStep').addEventListener('click', e => runControl(e.currentTarget, () => api.step(Math.max(1, +$('#stepN').value || 1))));
+$('#tpsIn').addEventListener('change', e => runControl(e.currentTarget, () => api.control({ tps: +e.target.value || 1 })));
+$('#autoIn').addEventListener('change', e => runControl(e.currentTarget, () => api.control({ autopilot: e.target.checked })));
+$('#btnReset').addEventListener('click', e => runControl(e.currentTarget, () => api.reset({ seed: Math.floor(Math.random() * 99999) + 1 })));
 window.addEventListener('keydown', e => {
-  if (e.code === 'Space' && !['INPUT', 'BUTTON'].includes(document.activeElement.tagName)) { e.preventDefault(); $('#btnPlay').click(); }
+  if (e.code === 'Space' && !e.defaultPrevented && !['INPUT', 'BUTTON'].includes(document.activeElement.tagName)) { e.preventDefault(); playButton.click(); }
 });
 
 function renderTop(s) {
   const c = s.control;
-  $('#btnPlay').innerHTML = c.playing ? `${ICON.pause}<span>Pause</span>` : `${ICON.play}<span>${s.done ? 'Finished' : 'Start'}</span>`;
-  $('#btnPlay').disabled = s.done;
+  playButton.innerHTML = c.playing ? `${ICON.pause}<span>Pause</span>` : `${ICON.play}<span>${s.done ? 'Finished' : 'Start'}</span>`;
+  playButton.disabled = s.done || playButton.hasAttribute('aria-busy');
   speedDd.set(c.speed); rateDd.set(RATES.reduce((a, b) => (Math.abs(b - s.demand) < Math.abs(a - s.demand) ? b : a)));
   if (document.activeElement !== $('#tpsIn')) $('#tpsIn').value = c.tps;
   $('#tpsMeasured').textContent = `${c.measured_tps.toFixed(1)} tps`;

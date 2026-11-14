@@ -25,10 +25,10 @@ button { font: inherit; color: inherit; }
 .clock span { font-size: 10px; color: #8fb3ae; text-transform: uppercase; letter-spacing: .6px; }
 .clock b { font: 700 20px/1.1 var(--mono); color: #fff; }
 .btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.07); padding: 6px 10px; border-radius: 8px; cursor: pointer; font-weight: 600; white-space: nowrap; }
-.btn:hover { background: rgba(255,255,255,.14); }
+.btn:enabled:hover { background: rgba(255,255,255,.14); }
 .btn:disabled { opacity: .5; cursor: default; }
 .btn-primary { background: #17b3a8; border-color: #17b3a8; color: #04201f; min-width: 92px; justify-content: center; }
-.btn-primary:hover { background: #2bc9bd; }
+.btn-primary:enabled:hover { background: #2bc9bd; }
 .btn-ghost { background: none; }
 .btn .ico { width: 14px; height: 14px; }
 .stepper { display: flex; }
@@ -240,7 +240,7 @@ body.dragging .plane-tag.drop-no { width: 130px; }
 .playgroup #btnReset { border-radius: 0 8px 8px 0; border-left: 0; }
 .dd { position: relative; }
 .dd-btn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,.16); background: rgba(0,0,0,.2); color: #e6f1ef; padding: 5px 8px; border-radius: 8px; cursor: pointer; }
-.dd-btn:hover, .dd.open .dd-btn { background: rgba(255,255,255,.1); }
+.dd-btn:enabled:hover, .dd.open .dd-btn { background: rgba(255,255,255,.1); }
 .dd-btn:focus-visible { outline: 2px solid #17b3a8; outline-offset: 1px; }
 .dd-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: #8fb3ae; font-weight: 700; }
 .dd-value { font: 700 12px var(--mono); min-width: 28px; text-align: left; }
@@ -253,6 +253,7 @@ body.dragging .plane-tag.drop-no { width: 130px; }
 .dd-menu li.active { background: var(--jade-soft); }
 .dd-menu li[aria-selected="true"] { color: var(--jade); }
 .dd-menu li[aria-selected="true"]::after { content: "✓"; }
+.simctl [aria-busy="true"]:disabled, .auto:has(input[aria-busy="true"]:disabled) { opacity: .5; cursor: progress; }
 .ty-B748F { --tc: #9be38a; } .ty-B744F { --tc: #f5a3ff; }
 /* keep the top bar on one line */
 .topbar { gap: 12px; }
