@@ -282,3 +282,7 @@ body.dragging .plane-tag.drop-no { width: 130px; }
 .dd-toggle .ico { width: 13px; height: 13px; transition: transform .15s; }
 .dd-combo.open .dd-toggle .ico { transform: rotate(180deg); }
 .tps-measured { font: 600 11px var(--mono); font-style: normal; color: #8fb3ae; min-width: 62px; white-space: nowrap; }
+
+#tpsDd .dd-field, #rateDd .dd-btn { gap: 3px; padding-inline: 5px; }
+#tpsDd .dd-field { padding-inline-end: 2px; }
+#tpsDd .dd-input, #rateDd .dd-value { width: 5ch; flex: none; text-align: center; }
