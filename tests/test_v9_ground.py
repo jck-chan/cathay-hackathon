@@ -32,9 +32,9 @@ def test_weather_input_validation():
 
 def test_shared_ground_assets_support_webgl_and_2d():
     root=Path(__file__).resolve().parents[1]
-    for name in ['v9_scene.js','v9.js','v9.css']:
+    for name in ['scene/ground.js','v9.js','v9.css']:
         assert (root/'static'/name).stat().st_size>1000
-    s=(root/'static/v9_scene.js').read_text()
+    s=(root/'static/scene/ground.js').read_text()
     assert 'webgl2' in s and 'getContext' in s and 'renderFallback2D' in s
     js=(root/'static/v9.js').read_text()
     assert 'v9Render' in js and 'v9View' in js

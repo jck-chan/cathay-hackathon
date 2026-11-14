@@ -2,7 +2,7 @@
 setlocal
 cd /d "%~dp0"
 echo.
-echo    RELAY FUSION v12 - FIVE WAY LIVE POLICY COMPARISON - THREE TWINS / MATHEMATICAL EVIDENCE / LOCAL SYNTHETIC SHADOW
+echo    RELAY FUSION v11 - THREE TWINS / MATHEMATICAL EVIDENCE / LOCAL SYNTHETIC SHADOW
 if not exist ".venv\Scripts\python.exe" (
   echo [1/3] Creating isolated Python environment...
   py -m venv .venv

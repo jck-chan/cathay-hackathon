@@ -51,8 +51,7 @@ and failed before reporting success. Use sandbox IDs returned by ground_list_san
 Sandbox-local writes affect every client viewing the targeted sandbox(s).
 This is a research/demo sandbox, NOT a connection to real Cathay systems:
 no actual airline booking, cargo move, customer notification, certified
-aircraft loading, or established financial ROI. The separate v12 five-policy
-arena, Evidence Lab and standalone research API are outside this MCP.
+aircraft loading, or established financial ROI. The Evidence Lab is outside this MCP.
 
 The three views
 - customer_*: admit a synthetic cargo request from HKG and track its AWB.

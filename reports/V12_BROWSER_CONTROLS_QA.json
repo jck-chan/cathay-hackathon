@@ -1,9 +1,0 @@
-{
-  "tick_after_10": "00010",
-  "speed_request": "100",
-  "settings_open": true,
-  "settings_applied": true,
-  "weather_applied": true,
-  "benchmark_tables": 6,
-  "errors": []
-}

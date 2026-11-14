@@ -1,4 +1,4 @@
-"""Frozen independent exploratory selectors used by the v12 staging-only arena.
+"""Dispatch policy selectors for the v11 sandboxes.
 
 These are NOT Graver/mutation solvers, LLM agents, or 3-paper joint control.
 Inputs are observable work-order features at the current tick only. Hard safety
@@ -7,7 +7,7 @@ and cold-resource guards match the original v11 benchmark selector.
 import math
 from typing import Literal
 from unified_lab import select_tasks
-from v11.benchmark import select_v11
+from .benchmark import select_v11
 
 LABELS = {
  'FCFS': 'FCFS',
@@ -17,7 +17,6 @@ LABELS = {
  'A_EDF': 'RELAY + EDF',
 }
 DispatchModel = Literal['FCFS', 'RELAY_V10', 'RELAY_V11', 'A_CRITICAL', 'A_EDF']
-POLICIES = tuple(LABELS)
 
 
 def select_hybrid(waiting, active, tick, handlers, stands, cold_bays, variant):

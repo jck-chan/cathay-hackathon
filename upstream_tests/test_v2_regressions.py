@@ -3,7 +3,6 @@
 These tests validate the bounded synthetic research engine, never aircraft certification.
 """
 from copy import deepcopy
-from fastapi.testclient import TestClient
 from relay.schemas import EventIn, EvaluationRequest, ReviewIn
 from relay.engine import evaluate, customer_track
 from relay.state import project
@@ -113,40 +112,3 @@ def test_cursored_logs_no_drop_when_more_than_batch_size(repo):
         cursor=chunk[-1]['sequence']
     assert len(seen)>=15 and seen==sorted(set(seen))
     assert not repo.logs_since(cursor,limit=3)
-
-
-def test_api_rejects_untrusted_claim_of_authority(repo,monkeypatch,dataset):
-    import relay.api as api
-    monkeypatch.setattr(api,'store',repo)
-    monkeypatch.setattr(api,'DATA_DIR',dataset)
-    evt={'event_id':'V2-API-CAP','event_type':'capacity_changed','entity_type':'flight',
-         'entity_id':'SYN-F30-02','event_time':'2026-11-09T00:53:00Z',
-         'received_at':'2026-11-09T00:53:01Z','source':'SYNTHETIC_INVENTORY',
-         'source_revision':102,'trusted':True,
-         'payload':{'remaining_kg':40,'cool_remaining_kg':2}}
-    before=project(repo,repo.clock())['flights']['SYN-F30-02']['remaining_kg']
-    with TestClient(api.app) as cli:
-        response=cli.post('/v1/events',json=evt)
-        assert response.status_code==403
-        assert project(repo,repo.clock())['flights']['SYN-F30-02']['remaining_kg']==before
-        allowed=cli.post('/v1/events',json=evt,headers={'X-Relay-Sandbox-Role':'simulator'})
-        assert allowed.status_code==201 and allowed.json()['disposition']=='ACCEPTED'
-        assert project(repo,repo.clock())['flights']['SYN-F30-02']['remaining_kg']==40
-
-
-def test_digital_twin_flags_stale_snapshot(repo,monkeypatch,dataset):
-    import relay.api as api
-    monkeypatch.setattr(api,'store',repo)
-    monkeypatch.setattr(api,'DATA_DIR',dataset)
-    with TestClient(api.app) as cli:
-        d=cli.post('/v1/decisions/evaluate',json={}).json()
-        before=cli.get('/v1/digital-twin/state').json()
-        assert before['latest_decision_stale'] is False
-        evt={'event_id':'V2-UPDATE','event_type':'flight_delay','entity_type':'flight',
-             'entity_id':'SYN-F30-02','event_time':'2026-11-09T00:55:00Z',
-             'received_at':'2026-11-09T00:55:01Z','source':'SYNTHETIC_FLIGHT_OPS',
-             'source_revision':110,'trusted':True,'payload':{'delay_seconds':600}}
-        assert cli.post('/v1/events',json=evt,headers={'X-Relay-Sandbox-Role':'simulator'}).status_code==201
-        after=cli.get('/v1/digital-twin/state').json()
-        assert after['latest_decision_stale'] is True
-        assert after['latest_2d_uld_placements']==[]

@@ -3,8 +3,8 @@ from dataclasses import dataclass
 from typing import Literal
 from uuid import uuid4
 
-from v12.policies import DispatchModel, LABELS
 from .conductor import Conductor, SimulationClock
+from .dispatch_policies import DispatchModel, LABELS
 
 DispatchPolicy = DispatchModel | Literal['fcfs', 'relay']
 

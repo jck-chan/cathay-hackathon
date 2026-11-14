@@ -40,4 +40,4 @@ Authenticated operator review → authorized external booking/ground confirmatio
 Only confirmed ground status may update customer-observed milestones
 ```
 
-The current v5 is intentionally a **shadow approximation** of this loop.
+RELAY v11 implements a **shadow approximation** of this loop.

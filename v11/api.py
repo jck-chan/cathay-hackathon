@@ -17,10 +17,10 @@ from relay.store import Conflict, Missing
 from unified_lab import IncidentKind
 from v5_lab import audit_lab
 from v7_product import V7Lab, experiment_grid
-from v12.policies import LABELS
 from .audit import data_audit, live_consistency
 from .benchmark import paired_suite
 from .conductor import Conductor
+from .dispatch_policies import LABELS
 from .sandboxes import DispatchPolicy, Sandbox, SandboxManager
 
 ROOT = Path(__file__).resolve().parents[1]

@@ -1,31 +1,22 @@
-# RELAY Fusion v12 — Five-World Decision Arena + Preserved v11 Three Twins
+# RELAY Fusion v11 — Three Digital Twins
 
 **Three synchronized light-theme digital twins + bounded mathematical decision engine + reproducible synthetic effectiveness benchmark.**
 
 **IMPORTANT:** This is a **LOCAL synthetic shadow-mode research prototype**, **not airline production software**. It does not connect to Cathay/OAG live credentials, confirm airline bookings, issue real cargo commands, certify ULD loading, or establish real ROI. Simulated cargo penalty units have no known HKD conversion.
 
 
-## v12 FINAL RELEASE — Shared-input 2–5 Twin Comparator
-
-The default route `/` (also `/v11`) opens the **v11 three-perspective application**, and the full
-Evidence Lab is at **`/v11/evidence`**. The **2–5 selectable 3D ground-policy arena** is at **`/v12`**.
-All five policy worlds simulate concurrently on **one server-owned tick clock**.
-Changing visible cards **does not pause, reset or alter any policy state**. The app serves two API groups:
-
-- `/v11/api/*` powers the three twins and their Evidence Lab.
-- `/v12/api/*` powers the five-policy arena.
-
-The original 30-day synthetic catalog and decision engine are shared code.
-The standalone research API in `relay.api:app` is separate from the Fusion server.
-Earlier standalone demos and release notes are available in Git history. The
-current twins still use versioned frontend assets and shared simulation modules.
+Open `/` or `/v11` for Ground, Control Tower, and Customer. Open
+`/v11/evidence` for the Evidence Lab. The three views and chat use the
+`/v11/api/*` routes, and the simulation tools are available at `/mcp`.
+Earlier releases are available in Git history.
 
 ### v11 sandboxes
 
 Ground Twin opens the first two listed sandboxes. Each pane can select any
 sandbox by name, including the same sandbox in both panes. Choose **Create
-sandbox…**, enter a name, and choose one of the five v12 dispatch models. The new sandbox
-opens in that pane and appears in both menus. Use the trash button beside a
+sandbox…**, enter a name, and choose a dispatch policy (FCFS, RELAY v10, RELAY
+v11, RELAY + Model A, or RELAY + EDF). The new sandbox opens in that pane and
+appears in both menus. Use the trash button beside a
 sandbox to delete it. Ground environment controls apply to the distinct sandboxes on display.
 Playback controls apply to every sandbox.
 
@@ -94,9 +85,8 @@ sandbox. Order fan-out assigns one synthetic AWB for cross-policy comparison.
 Check `complete`, `results`, and `failed` on batch operations. Reviews and task
 completion may fail in sandboxes with different decision or task IDs.
 
-Reset stays in the dashboard and REST API. The Evidence Lab, benchmark runs,
-the five-world arena, and the standalone research API are outside the MCP tool
-list. Orders, reviews, and ground work through MCP are synthetic.
+Reset stays in the dashboard and REST API. Open the Evidence Lab to run
+benchmarks. Orders, reviews, and ground work through MCP are synthetic.
 
 #### Agent workflow (MCP)
 
@@ -160,49 +150,13 @@ every turn re-sends the previous request unchanged and appends to it. History
 is only cut once it passes about 150k tokens, and then at fixed block
 boundaries so the cut does not move on every turn.
 
-Five policies: FCFS, v10 urgency heuristic, v11 observable triage, experimental
-`RELAY + Model A` / `RELAY + EDF`. These latter two are **staging dispatch selectors**,
-not AI foundation models or integrated three-paper controllers.
-
-The arena's shared input tape is an **independent synthetic staging experiment**;
-it is not the original v11 network-lab clock. Do NOT claim the five parallel views
-are simultaneously executing separate certified airline routing networks.
-
-### Arena controls
-- Start / Pause / Step / Reset; choose 1×, 4×, 16×, 32× or 100× requested playback.
-- Switch between any 2, 3, 4 or 5 policy cards during playback.
-- Shared arrival rate, crew, stands, cold bays, weather event rate.
-- Shared synthetic disruptions (rain, storm, fog, crew, cold, surge).
-- Inspect individual costs, queues and dispatches; event drawer and pinned benchmark.
-- Requested and **actually achieved** playback speeds are displayed separately.
-- Live costs include explicit *provisional* unresolved penalties. For final
-  cohort comparisons, use `python -m v12.benchmark` or the pinned reference.
-
-### Independent five-way benchmark
-
-```
-python -m v12.benchmark --episodes 100 --seed 9099 --output reports/v12_validation
-```
-
-This runs a full-cohort paired experiment for 5 strategies × 6 scenarios, with
-exactly the same original v11 synthetic arrival law and cost ledger. A snapshot
-of its results is embedded into the local UI as read-only evidence. The sample
-count, seed and the type of cost are displayed on each report.
-
-**Safety & limitations:** Full aircraft ULD 3D certification, continuous Bayesian
-belief-state control, complete dynamic cluster/Graver network search, authorized
-OAG/Cathay integration, real financial ROI, auth/RBAC, and true physical digital-twin
-validation remain outside the implemented scope. v12 does not assert 100% accuracy
-or production certification.
-
----
 ## Windows: install and start
 
-1. Extract the ZIP until you see `RELAY_Fusion_v12/run_windows.bat`.
+1. Open the project folder containing `run_windows.bat`.
 2. Stop any previous RELAY server using `127.0.0.1:8766` (Ctrl+C).
 3. Double-click `run_windows.bat`. It makes a standalone `.venv` and installs requirements if missing.
-4. Open **http://127.0.0.1:8766/** or **http://127.0.0.1:8766/v11** for the Ground, Control Tower, and Customer twins. The arena runs a separate synthetic simulation with its own clock.
-5. Open **http://127.0.0.1:8766/v11/evidence** for interactive cost, SLA, risk, probability, convergence and strictly hypothetical ROI visualizations. Open **http://127.0.0.1:8766/v12** for the five-policy arena.
+4. Open **http://127.0.0.1:8766/** or **http://127.0.0.1:8766/v11** for the Ground, Control Tower, and Customer twins.
+5. Open **http://127.0.0.1:8766/v11/evidence** for interactive cost, SLA, risk, probability, convergence and strictly hypothetical ROI visualizations.
 6. API docs: **http://127.0.0.1:8766/docs**.
 
 PowerShell (from the folder containing `launch.py`):

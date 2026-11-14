@@ -10,7 +10,7 @@ from fusion_app import app
 from v11 import api
 from v11.conductor import Conductor
 from v11.sandboxes import Sandbox, SandboxManager
-from v12.policies import LABELS
+from v11.dispatch_policies import LABELS
 
 
 def test_delete_sandbox_stops_playback_and_updates_default(monkeypatch):
@@ -36,7 +36,7 @@ def test_delete_sandbox_stops_playback_and_updates_default(monkeypatch):
         assert not registry.clock.running
 
 
-def test_v11_sandboxes_run_all_v12_dispatch_models(monkeypatch):
+def test_v11_sandboxes_run_all_dispatch_models(monkeypatch):
     monkeypatch.setattr(api, 'sandboxes', SandboxManager())
     monkeypatch.setenv('RELAY_V11_DISPATCH', '0')
     expected = {
@@ -99,7 +99,7 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                         for phrase in ('customer_place_order', 'ground_inject_incident',
                                        'control_review_decision', 'ground_step_simulation',
                                        'AUTO_SHADOW', 'MANUAL_REVIEW', 'ADVISORY',
-                                       'Model I', 'Model II', 'Model III', 'v12'):
+                                       'Model I', 'Model II', 'Model III', 'Evidence Lab'):
                             assert phrase in initialized.instructions
                         for name, description in descriptions.items():
                             assert len(description) >= 100, name

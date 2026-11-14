@@ -2,7 +2,7 @@
    A small physically based forward renderer for the ground twin:
    instanced meshes, a sun shadow map, a depth pre-pass with ambient occlusion,
    HDR + MSAA colour, bloom, filmic tone mapping, a time-of-day sky, local lamps and
-   wet-surface reflections. The scene code (v9_scene.js) only describes what is where. */
+   wet-surface reflections. The scene code (ground.js) only describes what is where. */
 (() => {
 'use strict';
 

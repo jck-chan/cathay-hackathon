@@ -68,4 +68,4 @@ def test_v10_math_and_original_engine_unmodified():
     # The new mathematical storyboard is frontend-only; no replacement solver.
     assert (ROOT/'relay/engine.py').exists()
     assert (ROOT/'relay/models.py').exists()
-    assert (ROOT/'static/v9_scene.js').exists()
+    assert (ROOT/'static/scene/ground.js').exists()

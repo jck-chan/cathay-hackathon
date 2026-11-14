@@ -1,22 +1,17 @@
-"""HTTP entry point for the RELAY three-twin simulation and five-policy arena."""
+"""HTTP entry point for the RELAY three-twin simulation."""
 from __future__ import annotations
 
-import json
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 
-from v11.api import router as v11_router, sandbox_conductor
+from v11.api import router as v11_router
 from v11.chat import chat_runtime, router as v11_chat_router
 from v11.mcp_server import LEGACY_MCP_PATH, MCP_PATH, MCPTransport, create_mcp_server
-from v12.arena import FiveWorldArena
-from v12.policies import LABELS as V12_LABELS
 
 ROOT = Path(__file__).resolve().parent
 
@@ -37,10 +32,9 @@ async def lifespan(app: FastAPI):
         yield {'relay_mcp_transport': transport, 'relay_chat': chat}
 
 
-app = FastAPI(title='RELAY Fusion', version='12.0', lifespan=lifespan)
+app = FastAPI(title='RELAY Fusion', version='11.0', lifespan=lifespan)
 app.include_router(v11_router)
 app.include_router(v11_chat_router)
-V12 = FiveWorldArena(sandbox_conductor(None).lab, seed=9099)
 
 app.mount('/aircraft', StaticFiles(directory=ROOT / 'static' / 'aircraft'), name='aircraft')
 app.mount('/scene', StaticFiles(directory=ROOT / 'static' / 'scene'), name='scene')
@@ -55,7 +49,7 @@ def request_button_css():
     return FileResponse(ROOT / 'static' / 'request_button.css', media_type='text/css')
 
 
-# Frontend assets loaded by the v11 twins and v12 arena.
+# Frontend assets loaded by the v11 twins.
 @app.get('/v8.css',include_in_schema=False)
 def v8_css():return FileResponse(ROOT/'static'/'v8.css',media_type='text/css')
 
@@ -66,16 +60,10 @@ def v8_scene():return FileResponse(ROOT/'static'/'v6_scene.js',media_type='text/
 def v9_css():return FileResponse(ROOT/'static'/'v9.css',media_type='text/css',headers={'Cache-Control':'no-store'})
 @app.get('/v9.js',include_in_schema=False)
 def v9_js():return FileResponse(ROOT/'static'/'v9.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
-@app.get('/v9_scene.js',include_in_schema=False)
-def v9_scene():return FileResponse(ROOT/'static'/'v9_scene.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
 
 @app.get('/v10.css',include_in_schema=False)
 def v10_css():
     return FileResponse(ROOT/'static'/'v10.css',media_type='text/css',headers={'Cache-Control':'no-store'})
-
-@app.get('/ground_ops.js',include_in_schema=False)
-def ground_ops():
-    return FileResponse(ROOT/'static'/'ground_ops.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
 
 @app.get('/v10_scene.js',include_in_schema=False)
 def v10_scene():
@@ -133,7 +121,7 @@ async def v11_request_guard(request: Request, call_next):
     # API mutations are uncached too; leave MCP streaming headers intact.
     if request.method in ('GET', 'HEAD') and request.url.path not in (MCP_PATH, LEGACY_MCP_PATH):
         response.headers['Cache-Control'] = 'no-store'
-    elif request.url.path.startswith(('/v11/api/', '/v12/api/')):
+    elif request.url.path.startswith('/v11/api/'):
         response.headers['Cache-Control'] = 'no-store'
     return response
 
@@ -165,75 +153,6 @@ _V11_PUBLIC_FIGURES = frozenset({
 def v11_export_chart(filename:str):
     if filename not in _V11_PUBLIC_FIGURES:raise HTTPException(404,'Chart not available')
     return FileResponse(ROOT/'reports'/filename,media_type='image/png',headers={'Cache-Control':'public, max-age=3600'})
-
-# -------------------------------------------------------------------------
-# v12 FIVE-WAY POLICY COMPARISON -- v11 research engine is unchanged.
-# Parallel worlds share a NEW staging-only synthetic workload and clock.
-# It is intentionally isolated from the separate /v11 airline-network lab;
-# no invented causal claim connects the two independent experiments.
-# -------------------------------------------------------------------------
-@app.get('/v12',include_in_schema=False)
-def v12_home():
-    return FileResponse(ROOT/'static'/'v12.html',media_type='text/html',headers={'Cache-Control':'no-store'})
-
-@app.get('/v12.css',include_in_schema=False)
-def v12_css():
-    return FileResponse(ROOT/'static'/'v12.css',media_type='text/css',headers={'Cache-Control':'no-store'})
-
-@app.get('/v12.js',include_in_schema=False)
-def v12_js():
-    return FileResponse(ROOT/'static'/'v12.js',media_type='text/javascript',headers={'Cache-Control':'no-store'})
-
-@app.get('/v12/api/state',tags=['v12 five-way arena'])
-def v12_state():return V12.snapshot()
-
-@app.get('/v12/api/health',tags=['v12 five-way arena'])
-def v12_health():
-    return {'ok':True,'version':'12.0','policies':V12_LABELS,
-       'parallel_policies':5,'min_visible':2,'max_visible':5,
-       'scope':'SYNTHETIC_STAGING_ONLY','real_commands_sent':False,
-       'model_i_ii_iii_unchanged':True,'shared_arrivals_resources_weather':True,
-       'production_certified':False}
-
-class V12Action(BaseModel):
-    action:Literal['start','pause','step','reset','speed','configure','incident']
-    count:int=Field(1,ge=1,le=200)
-    seed:int=Field(9099,ge=0,le=2147483647)
-    scenario:Literal['normal','peak','crew_shortage','cold_outage','high_capacity','temporary_disruption']='normal'
-    speed:int|None=None
-    arrival_rate:float|None=Field(None,ge=.1,le=8)
-    handlers:int|None=Field(None,ge=1,le=12)
-    stands:int|None=Field(None,ge=1,le=12)
-    cold_bays:int|None=Field(None,ge=0,le=6)
-    chaos:float|None=Field(None,ge=0,le=1)
-    incident:Literal['RAIN','STORM','FOG','CLEAR','CREW_SHORTAGE','COLD_OUTAGE','DEMAND_SURGE']|None=None
-
-@app.post('/v12/api/control',tags=['v12 five-way arena'])
-def v12_control(p:V12Action):
-    try:
-        if p.action=='start':return V12.start()
-        if p.action=='pause':return V12.pause()
-        if p.action=='step':return V12.step(p.count)
-        if p.action=='reset':return V12.reset(p.seed,p.scenario)
-        if p.action=='speed':
-            if p.speed is None:raise ValueError('speed required')
-            return V12.set_speed(p.speed)
-        if p.action=='configure':
-            opts={k:v for k,v in p.model_dump().items() if k in
-             ('arrival_rate','handlers','stands','cold_bays','chaos') and v is not None}
-            return V12.configure(opts)
-        if p.action=='incident':
-            if not p.incident:raise ValueError('incident required')
-            return V12.incident(p.incident)
-        raise ValueError('unknown action')
-    except ValueError as exc:raise HTTPException(status_code=422,detail=str(exc)) from exc
-
-@app.get('/v12/api/benchmark',tags=['v12 five-way arena'])
-def v12_benchmark_data():
-    p=ROOT/'reports'/'V12_FIVE_POLICY_HOLDOUT.json'
-    if not p.exists():raise HTTPException(503,'Benchmark not generated; run python -m v12.benchmark')
-    return json.loads(p.read_text(encoding='utf-8'))
-
 
 for mcp_path in (MCP_PATH, LEGACY_MCP_PATH):
     app.add_route(mcp_path, MCPTransport(), methods=['GET', 'POST', 'DELETE'], include_in_schema=False)

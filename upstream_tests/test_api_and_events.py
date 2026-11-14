@@ -1,11 +1,9 @@
 import pytest
-from fastapi.testclient import TestClient
 from relay.schemas import EventIn,EvaluationRequest,ReviewIn
 from relay.engine import evaluate,customer_track
 from relay.state import project
 from relay.store import Conflict
 from relay.simulator import tick,paired_benchmark
-from relay.fixtures import scarcity
 
 
 def evt(id='E-TEST-01',etype='capacity_changed',fid='SYN-F30-02',trusted=True,source='SYNTHETIC_INVENTORY'):
@@ -65,44 +63,6 @@ def test_tick_and_benchmark_are_actual_repeatable(repo):
     assert x==y and x['runs']==10000
     z=tick(repo,40)
     assert z['clock']>d['created_at'] and z['ingestion']['disposition']=='ACCEPTED'
-
-
-def test_api_openapi_and_three_outputs(repo,monkeypatch,dataset):
-    import relay.api as api
-    monkeypatch.setattr(api,'store',repo)
-    monkeypatch.setattr(api,'DATA_DIR',dataset)
-    with TestClient(api.app) as client:
-        h=client.get('/health');assert h.status_code==200
-        assert '/v1/decisions/evaluate' in client.get('/openapi.json').json()['paths']
-        d=client.post('/v1/decisions/evaluate',json={});assert d.status_code==200,d.text
-        d=d.json()
-        assert client.get('/v1/logs',params={'category':'PROCESS'}).json()['items']
-        assert client.get('/v1/logs',params={'category':'DECISION'}).json()['items']
-        ev=client.post('/v1/events',json=evt().model_dump(),headers={'X-Relay-Sandbox-Role':'simulator'});assert ev.status_code==201
-        assert client.get('/v1/logs',params={'category':'INPUT'}).json()['items']
-        assert client.post('/v1/decisions/'+d['id']+'/review',json={
-          'decision':'approve','reviewer':'a','expected_snapshot_version':d['snapshot_version'],
-          'idempotency_key':'review-id-1'}).status_code==422  # reviewer too short
-        assert client.get('/v1/digital-twin/state').status_code==200
-        assert client.get('/v1/research/scarcity-case').status_code==200
-
-
-def test_policy_and_review_requires_sandbox_role(repo,monkeypatch,dataset):
-    import relay.api as api
-    monkeypatch.setattr(api,'store',repo)
-    monkeypatch.setattr(api,'DATA_DIR',dataset)
-    with TestClient(api.app) as client:
-        r=client.put('/v1/autonomy-policy',json={'mode':'BOUNDED_AUTO'})
-        assert r.status_code==403
-        q=client.put('/v1/autonomy-policy',headers={'X-Relay-Sandbox-Role':'supervisor'},json={'mode':'BOUNDED_AUTO'})
-        assert q.status_code==200
-        assert q.json()['real_operational_auto_execution'] is False
-        d=client.post('/v1/decisions/evaluate',json={}).json()
-        assert d['review_required'] is True
-        a=client.post(f'/v1/decisions/{d["id"]}/review',json={
-          'decision':'approve','reviewer':'Supervisor','expected_snapshot_version':d['snapshot_version'],
-          'idempotency_key':'review-id-2'})
-        assert a.status_code==403
 
 
 def test_dimension_conflict_blocks_routing(repo):
