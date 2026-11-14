@@ -26,7 +26,7 @@ python3 -m unittest discover -s v13/tests
 ## Tab 1 — Live apron
 
 - **Top bar** (shown on every tab): Start/Pause (Space) with New world beside it, Step *n* ticks,
-  a speed dropdown (¼× to 16×), base TPS, measured TPS, a cargo-rate dropdown and Autopilot.
+  a speed dropdown (0.25× to 16×), base TPS, measured TPS, a cargo-rate dropdown and Autopilot.
   One tick is one simulated minute. The effective rate is TPS × multiplier.
 - **3D viewport (75 %)**:
   - Five stands. Aircraft land with a 3° glide slope and flare, roll out, taxi in nose-in,

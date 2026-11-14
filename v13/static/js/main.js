@@ -98,7 +98,7 @@ async function runControl(control, request) {
 
 const SPEEDS = [0.25, 0.5, 1, 2, 4, 8, 16];
 const speedDd = new Dropdown($('#speedDd'), {
-  label: 'Speed', options: SPEEDS, format: x => (x === 0.25 ? '¼×' : x === 0.5 ? '½×' : `${x}×`),
+  label: 'Speed', options: SPEEDS, format: x => `${x}×`,
   onChange: (v, button) => runControl(button, () => api.control({ speed: v })),
 });
 const RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 2.5, 3];
