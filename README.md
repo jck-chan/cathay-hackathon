@@ -232,7 +232,7 @@ Under the temporary disruption scenario, v11 is **15.1% slower** than FCFS to cl
 
 ## Papers
 
-- RELAY Final QA and Benchmark Report — [PDF](v11/RELAY_Final_QA_Benchmark_Report_v11.pdf) · [LaTeX](v11/RELAY_Final_QA_Benchmark_Report_v11.tex).
-- RELAY Research and Development Report, covering the v12 arena and its dispatch experiments — [PDF](v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.pdf) · [LaTeX](v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.tex). This paper records the earlier experiment.
+- RELAY Final QA and Benchmark Report — [PDF](docs/v11/RELAY_Final_QA_Benchmark_Report_v11.pdf) · [LaTeX](docs/v11/RELAY_Final_QA_Benchmark_Report_v11.tex).
+- RELAY Research and Development Report, covering the v12 arena and its dispatch experiments — [PDF](docs/v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.pdf) · [LaTeX](docs/v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.tex). This paper records the earlier experiment.
 
 **v11 is scientifically more auditable, not certified or proven perfect.**
