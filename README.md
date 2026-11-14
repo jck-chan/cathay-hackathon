@@ -226,6 +226,13 @@ Under the temporary disruption scenario, v11 is **15.1% slower** than FCFS to cl
 - `v11/` — reproducible benchmark, read-only QA and original-v10 percentage denominators.
 - `static/v11.html` — three synced digital-twin views; `static/v11_evidence.html` — KPI evidence/report interface.
 - `reports/` — pinned JSON, raw CSV (18 policy-scenario pairs and 9,000 episode-policy rows), charts and example browser QA images.
-- `docs/V11_ENG_QA_AND_ROI.md` — formal interpretation and remaining limitations.
+- [v11 engineering QA and ROI](docs/V11_ENG_QA_AND_ROI.md) — benchmark methodology, results, and limitations.
+- [Research paper traceability](docs/THREE_PAPERS_TRACEABILITY.md) — how the three source models map to the simulation.
+- [Engine architecture](engine_reference_docs/ARCHITECTURE.md) and [synthetic data dictionary](engine_reference_docs/DATA_DICTIONARY.md).
+
+## Papers
+
+- RELAY Final QA and Benchmark Report — [PDF](v11/RELAY_Final_QA_Benchmark_Report_v11.pdf) · [LaTeX](v11/RELAY_Final_QA_Benchmark_Report_v11.tex).
+- RELAY Research and Development Report, covering the v12 arena and its dispatch experiments — [PDF](v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.pdf) · [LaTeX](v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.tex). This paper records the earlier experiment.
 
 **v11 is scientifically more auditable, not certified or proven perfect.**

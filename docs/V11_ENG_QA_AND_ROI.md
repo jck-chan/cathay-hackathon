@@ -1,6 +1,6 @@
 # RELAY v11 — Engineering QA, mathematical scope, experimental evidence and ROI
 
-**Date:** 2026-11-11 · **Scope:** synthetic local decision-support prototype; no real aircraft or cargo operational authority.
+**Evidence date:** 2026-11-11 · **Scope:** synthetic local decision-support prototype; no real aircraft or cargo operational authority.
 
 ## Evaluation design
 
@@ -68,7 +68,7 @@ For a **purely illustrative** F=HKD20,000, N=60, normal modeled \(\Delta C\appro
 - New regression test covers nonpreemptive active cold work after a cold-bay outage: new cold jobs are prohibited, but the policy will not crash solely because work was already active. Real cold-chain temperature/safety consequences remain unmodeled.
 - Dataset audit and cross-twin trace endpoints produce honest provenance, not real-world correctness certificates.
 - `scripts/v11_offline_visual_qa.py` executed Chromium with actual TestClient snapshots and found zero JavaScript page errors across three twin tabs and report. Browser-to-HTTP server E2E is blocked by this environment (`ERR_BLOCKED_BY_ADMINISTRATOR`) and **was not** verified on Windows.
-- Historic complete suite has long-running tests which timed out in aggregate execution. A regrouped earlier run produced logs of 36 + 53 + 49 passing cases; after the new changes, the **current** specifically rerun suite includes 36 upstream tests and 20 V11 tests, both passing. Do not claim an aggregate all-tests pass.
+- The November 11 QA records cover selected test groups. The v11-only cleanup subsequently passed all 109 tests with `RELAY_CHAT_MODEL=demo`.
 
 ## What v11 still does NOT solve
 

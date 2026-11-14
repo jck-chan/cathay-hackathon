@@ -75,7 +75,7 @@ Let binary `x_ip` select an itinerary. With route incidence `a_ipf` and current 
 
 ### Cluster exchange paper
 
-The source paper's claim for a bounded complete integer master is based on conformal Graver decomposition. Computing a full Graver basis in general is expensive. Version 1 runs one **exact, independently checked integer lattice example**: `g1=(-1,1,0,-1)`, `g2=(0,-1,1,1)`, neither is individually feasible from `v=(1,0,0,0)` while `g1+g2=(-1,0,1,0)` is feasible, conserves Mv and reduces the fixture's cost by 6. It **does not claim** to run complete Graver augmentation or an original cluster-algebra speedup in operational optimization. HiGHS MILP is the real solver.
+The source paper's claim for a bounded complete integer master is based on conformal Graver decomposition. Computing a full Graver basis in general is expensive. The shared engine includes one **exact, independently checked integer lattice example**: `g1=(-1,1,0,-1)`, `g2=(0,-1,1,1)`, neither is individually feasible from `v=(1,0,0,0)` while `g1+g2=(-1,0,1,0)` is feasible, conserves Mv and reduces the fixture's cost by 6. It **does not claim** to run complete Graver augmentation or an original cluster-algebra speedup in operational optimization. HiGHS MILP is the real solver.
 
 ## 4. Model II — exactly computed one-step information value
 
@@ -85,7 +85,7 @@ The paper's theorem is
 R_0-J_q=I_q-A_q-B_q-c_q,
 \]
 
-where `I` is benefit of decision-relevant information; `A` reflects changes to the feasible post-verification option set; `B` is the difference between post-test and immediate-time cost on available options; `c` is inspection price. Version 1 explicitly enumerates two hidden states, two possible test signals and survival/expiry of the alternative. It recomputes posteriors using Bayes' rule and independently verifies the identity numerically. For integration the **HOLD** and **ASSESS_RECOVERY** cost matrix is derived from the same Model III route scenario pricing (including modelled fallback). This avoids inventing a disconnected decision penalty.
+where `I` is benefit of decision-relevant information; `A` reflects changes to the feasible post-verification option set; `B` is the difference between post-test and immediate-time cost on available options; `c` is inspection price. The current engine enumerates two hidden states, two possible test signals and survival/expiry of the alternative. It recomputes posteriors using Bayes' rule and independently verifies the identity numerically. For integration the **HOLD** and **ASSESS_RECOVERY** cost matrix is derived from the same Model III route scenario pricing (including modelled fallback). This avoids inventing a disconnected decision penalty.
 
 `VERIFY`, `HOLD` and `ASSESS_RECOVERY` are **planning policies, not permissions**. The sensory sensitivity and false positive rates are assumed synthetic values. This is **NOT** an implemented multi-period semi-Markov Bellman recursion, even though the paper derives one. That requires calibrated joint transition/observation/action-duration kernels, genuinely executable action masks, decision-dependent deadlines and sufficient historical validation.
 
@@ -110,7 +110,7 @@ EVENT_RECEIVED -> SNAPSHOT -> DECISION_CANDIDATE
                                       task4: customer explanatory draft
 ```
 
-A status of `APPROVED_SIMULATION_ONLY` **never** directly updates the shipment's booked flight, actually sends a ground crew instruction, or tells a customer an alternative is confirmed. Only separate trusted booking/milestone evidence may change observed customer tracking. `BOUNDED_AUTO` is a simulated policy setting; it never permits auto-executing irreversible operations in this release.
+A status of `APPROVED_SIMULATION_ONLY` **never** directly updates the shipment's booked flight, actually sends a ground crew instruction, or tells a customer an alternative is confirmed. Only separate trusted booking/milestone evidence may change observed customer tracking. In v11, `AUTO_SHADOW` can approve eligible synthetic proposals. `MANUAL_REVIEW` requires an explicit review, and `ADVISORY` disables automatic review.
 
 ## 6. Fast but defensible engineering choices
 
@@ -126,4 +126,4 @@ A status of `APPROVED_SIMULATION_ONLY` **never** directly updates the shipment's
 
 Use **paired operational replays**: same event stream, same available data at the same receipt time, same initial commitments, different policies. Compare FCFS, delayed-recovery heuristic, static EVSI and expiry-aware PIVOT against RELAY. The exact KPI definitions must be signed off by Cargo Operations: missed milestones, validated service-level success, human intervention count, unnecessary physical moves, kg of disrupted shipments served, solver p50/p95, false positive actionable-alert count and real handling cost.
 
-Version 1's synthetic expected losses and paired Monte Carlo confidence intervals are **conditional on the simulation model** and cannot certify real airline ROI or physical safety. A 30-day synthetic history provides reproducibility, not calibration. Before a real pilot collect anonymized historical operations including failed recoveries and delayed/incorrect data and evaluate strictly out-of-sample.
+The benchmark's synthetic expected losses and paired Monte Carlo confidence intervals are **conditional on the simulation model** and cannot certify real airline ROI or physical safety. A 30-day synthetic history provides reproducibility, not calibration. Before a real pilot collect anonymized historical operations including failed recoveries and delayed/incorrect data and evaluate strictly out-of-sample.

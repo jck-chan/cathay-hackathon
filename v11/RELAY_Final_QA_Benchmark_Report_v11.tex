@@ -9,7 +9,8 @@
 \usepackage{tikz,pgfplots,pgfplotstable}
 \usepgfplotslibrary{groupplots,statistics,fillbetween}
 \usetikzlibrary{arrows.meta,positioning,calc,shapes.geometric,decorations.pathreplacing}
-\usepackage[most]{tcolorbox}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins,breakable}
 \usepackage{fancyhdr,lastpage,enumitem,hyperref,xcolor}
 \pgfplotsset{compat=1.18}
 \definecolor{paper}{HTML}{FAFAF8}
@@ -413,12 +414,12 @@ The following scenario weights are \textbf{hypothetical}, chosen only to demonst
 \text{Saving}_{\pi}=100\Bigl(1-\frac{\mathbb E[C_\pi]}{\mathbb E[C_{\rm FCFS}]}\Bigr)\%.
 \]
 \begin{tikzpicture}
-\begin{axis}[cleanbar,width=\linewidth,height=7cm,symbolic x coords={FCFS,v10,v11,ModelA,EDF},xtick=data,ymin=0,ymax=12500,ylabel={Probability-weighted synthetic expected cost},bar width=28pt,nodes near coords,nodes near coords style={font=\scriptsize,rotate=0,anchor=south}]
-\addplot[fill=silver,draw=none] coordinates {(FCFS,11235.030)};
-\addplot[fill=slate,draw=none] coordinates {(v10,11146.321)};
-\addplot[fill=sage,draw=none] coordinates {(v11,10515.272)};
-\addplot[fill=teal,draw=none] coordinates {(ModelA,10448.577)};
-\addplot[fill=coral,draw=none] coordinates {(EDF,10222.576)};
+\begin{axis}[cleanbar,width=.93\linewidth,height=7cm,symbolic x coords={FCFS,v10,v11,ModelA,EDF},xtick={FCFS,v10,v11,ModelA,EDF},ymin=0,ymax=12500,ylabel={Probability-weighted synthetic expected cost},bar width=28pt,nodes near coords,nodes near coords style={font=\scriptsize,rotate=0,anchor=south}]
+\addplot[fill=silver,draw=none,bar shift=0pt] coordinates {(FCFS,11235.030)};
+\addplot[fill=slate,draw=none,bar shift=0pt] coordinates {(v10,11146.321)};
+\addplot[fill=sage,draw=none,bar shift=0pt] coordinates {(v11,10515.272)};
+\addplot[fill=teal,draw=none,bar shift=0pt] coordinates {(ModelA,10448.577)};
+\addplot[fill=coral,draw=none,bar shift=0pt] coordinates {(EDF,10222.576)};
 \end{axis}
 \end{tikzpicture}\par\vspace{2mm}
 \begin{tabularx}{\linewidth}{@{}Xrr@{}}
@@ -452,7 +453,7 @@ $k$ & Hypothetical HKD value of one synthetic penalty unit. \emph{Not calibrated
 $F$ & Monthly incremental total deployment/operating cost, here set to HKD 20,000 \emph{for illustration only}.\\
 \end{tabularx}
 \begin{tikzpicture}
-\begin{axis}[replot,width=\linewidth,height=8cm,xmin=0,xmax=5,ymin=-110,ymax=620,xlabel={Assumed value $k$ (HKD per synthetic cost unit)},ylabel={Illustrative monthly ROI (\%)},legend pos=north west]
+\begin{axis}[replot,width=.98\linewidth,height=8cm,xmin=0,xmax=5,ymin=-110,ymax=620,xlabel={Assumed value $k$ (HKD per synthetic cost unit)},ylabel={Illustrative monthly ROI (\%)},legend pos=north west]
 \addplot[very thick,slate,domain=0:5,samples=70] {100*((30*223.235*x-20000)/20000)};\addlegendentry{$N=30$ episodes/month}
 \addplot[very thick,teal,domain=0:5,samples=70] {100*((60*223.235*x-20000)/20000)};\addlegendentry{$N=60$ episodes/month}
 \addplot[very thick,coral,domain=0:5,samples=70] {100*((120*223.235*x-20000)/20000)};\addlegendentry{$N=120$ episodes/month}
@@ -491,7 +492,7 @@ Throughput & 100$\times$ labelled playback did not deliver 100$\times$ backend c
 \end{tabularx}
 \subsect{A narrow, credible shadow-mode pilot}
 \begin{tikzpicture}[node distance=2mm,>=Latex,every node/.style={font=\small}]
-\tikzset{p/.style={draw=line,fill=white,rounded corners=2mm,align=center,text width=30mm,minimum height=14mm}}
+\tikzset{p/.style={draw=line,fill=white,rounded corners=2mm,align=center,text width=29mm,minimum height=14mm}}
 \node[p] (one) {One disruption\\\scriptsize flight cancellation};
 \node[p,right=4mm of one] (two) {Observe\\\scriptsize trusted as-of events};
 \node[p,right=4mm of two] (three) {Verify / plan\\\scriptsize certified options};

@@ -11,7 +11,7 @@
 | **Customs/security/DGR** | DGR excluded, customs hold blocks | Official classification, screening, customs status and legal control planes. Never use probabilistic relief for hard restrictions |
 | **Irreversible state / operations** | `RECEIVED` vs locked custody gate; simulated tasks only | Real milestones for built/sealed/loaded, safe abort/compensation workflow, verified rollback rules and emergency stops |
 | **External confirmation** | Approval creates *draft* tasks only | Booking request/hold/commit handshake with signed confirmation, post-commit reconciliation, idempotency at provider, conflict/timeout resolution |
-| **Approval / RBAC** | Spoofable local role header, no tenant auth | Enterprise SSO, genuine authorization, dual control as required, signed traceability, audit retention and privacy/supplier approval |
+| **Approval / RBAC** | Synthetic review modes and a browser-origin check. The v11 server has no login or tenant authorization. | Enterprise SSO, genuine authorization, dual control as required, signed traceability, audit retention and privacy/supplier approval |
 | **Evidence authority** | Synthetic whitelisted string sources | Provider signed webhook/HMAC/mTLS/OAuth, field-level mapping, signed version, idempotency, replay protection, clock skew, retention, SLA and freshness checks |
 | **Safety/cost validation** | Synthetic partial constraints and costs | Cargo Operations, GHA, Cargo Revenue, Risk/Compliance agree every hard rule and failure mode; independent shadow pilot and holdback approval |
 
