@@ -525,9 +525,14 @@ $('chatMcpUrl').textContent = mcpUrl;
 $('chatMcpCmd').textContent = `claude mcp add --transport http relay-v13 ${mcpUrl}`;
 $('chatMcpJson').textContent = JSON.stringify({mcpServers: {'relay-v13': {type: 'http', url: mcpUrl}}}, null, 2);
 $('chatMcp').addEventListener('click', () => $('chatMcpDialog').showModal());
-fetch('/api/chat/config').then(r => r.json()).then(c => {
-  $('chatModel').textContent = c.demo ? 'Offline demo agent' : `${c.model} · ${c.provider}${c.configured ? '' : ' · no AI_GATEWAY_API_KEY'}`;
-}).catch(() => {});
+const modelInfo = $('chatModelInfo');
+fetch('/api/chat/config').then(response => {
+  if (!response.ok) throw Error('Model info unavailable');
+  return response.json();
+}).then(config => {
+  const modelName = config.model?.split('/').at(-1);
+  modelInfo.textContent = config.demo ? 'Offline demo agent' : modelName || 'Model info unavailable';
+}).catch(() => { modelInfo.textContent = 'Model info unavailable'; });
 
 restore();
 render();

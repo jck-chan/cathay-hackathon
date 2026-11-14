@@ -164,7 +164,6 @@
     <section class="tabpane" id="tab-agent" aria-label="Agent">
       <div class="chat-actions">
         <button class="chat-action" id="chatMcp" type="button" aria-haspopup="dialog">Connect via MCP</button>
-        <span class="chat-model" id="chatModel"></span>
         <button class="chat-action" id="chatNew" type="button">New chat</button>
       </div>
       <dialog class="chat-mcp" id="chatMcpDialog" aria-labelledby="chatMcpTitle">
@@ -180,8 +179,13 @@
       <div class="chat-scroll" id="chatScroll"><div class="chat-thread" id="chatThread"></div></div>
       <form class="chat-composer" id="chatForm">
         <textarea id="chatInput" rows="1" placeholder="Ask about the apron, or ask for a control panel" aria-label="Message"></textarea>
-        <button class="chat-stop" id="chatStop" type="button" hidden aria-label="Stop response">Stop</button><button class="chat-send" id="chatSend" type="submit" aria-label="Send">Send</button>
+        <button class="chat-stop" id="chatStop" type="button" hidden aria-label="Stop response" title="Stop response"></button>
+        <button class="chat-send" id="chatSend" type="submit" aria-label="Send">Send</button>
       </form>
+      <footer class="chat-footer">
+        <button class="chat-model-info" type="button" popovertarget="chatModelInfo" aria-label="Model info" title="Model info">ⓘ</button>
+        <div class="chat-model-popover" id="chatModelInfo" popover role="status">Loading model…</div>
+      </footer>
     </section>
   </main>
   <script type="module" src="/js/main.js"></script>

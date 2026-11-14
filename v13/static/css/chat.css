@@ -1,7 +1,7 @@
 /* Agent tab — ported from v11_chat.css */
 #tab-agent.on {
   display: grid;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
   background: #fff;
   color: #183b40;
   font-size: 14px;
@@ -213,7 +213,7 @@
 .chat-composer {
   --composer-shadow: 0 2px 6px #183b4010;
   width: min(100% - 40px, 780px);
-  margin: 0 auto 16px;
+  margin: 0 auto 4px;
   display: flex;
   align-items: flex-end;
   gap: 8px;
@@ -261,12 +261,57 @@
 
 
 /* Keep the initiating Send button visibly pending; cancellation is separate. */
-.chat-composer .chat-stop { flex: none; border: 1px solid #ccddde; border-radius: 9px; padding: 8px 12px; background: #fff; color: #24565b; font-size: 13px; font-weight: 700; }
-.chat-composer .chat-stop:hover { background: #edf5f3; }
+.chat-stop {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #ccddde;
+  border-radius: 9px;
+  background: #fff;
+  color: #24565b;
+  cursor: pointer;
+}
+.chat-stop::before {
+  content: "";
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: auto;
+  border-radius: 1px;
+  background: currentColor;
+}
+.chat-stop:hover { background: #edf5f3; }
 
 /* v13 additions */
 #tab-agent.on { position: relative; height: 100%; }
-.chat-model { pointer-events: auto; align-self: center; font-size: 12px; color: #637c83; background: #fffd; border: 1px solid #dce8e9; border-radius: 7px; padding: 6px 10px; }
+.chat-footer { display: flex; justify-content: flex-end; padding: 0 12px 6px; }
+.chat-model-info {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #637c83;
+  font-size: 14px;
+  cursor: pointer;
+}
+.chat-model-info:hover { background: #f2f7f7; }
+.chat-model-popover {
+  position: fixed;
+  inset: auto 12px 36px auto;
+  margin: 0;
+  max-width: min(280px, calc(100vw - 24px));
+  padding: 6px 10px;
+  border: 1px solid #dce8e9;
+  border-radius: 7px;
+  background: #fff;
+  color: #24565b;
+  box-shadow: 0 2px 8px #183b401a;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
 .chat-mcp { max-width: min(560px, calc(100% - 32px)); }
 .chat-mcp pre { margin: 6px 0; padding: 9px 11px; background: #f6f9f9; border: 1px solid #e3ecec; border-radius: 8px; font: 12px/1.5 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .chat-mcp h3 { margin: 12px 0 2px; font-size: 13px; }
