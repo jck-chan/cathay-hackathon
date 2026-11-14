@@ -4,8 +4,11 @@
 
 **IMPORTANT:** This is a **LOCAL synthetic shadow-mode research prototype**, **not airline production software**. It does not connect to Cathay/OAG live credentials, confirm airline bookings, issue real cargo commands, certify ULD loading, or establish real ROI. Simulated cargo penalty units have no known HKD conversion.
 
+On macOS or Linux, run `sh run_unix.sh` with Python 3.10+ to open v13 Live Apron
+at [http://127.0.0.1:8766/](http://127.0.0.1:8766/). See the [v13 README](v13/README.md)
+for its interface and MCP tools.
 
-Open `/` or `/v11` for Ground, Control Tower, and Customer. Open
+When running the v11 server, open `/` or `/v11` for Ground, Control Tower, and Customer. Open
 `/v11/evidence` for the Evidence Lab. The three views and chat use the
 `/v11/api/*` routes, and the simulation tools are available at `/mcp`.
 Earlier releases are available in Git history.
@@ -46,9 +49,9 @@ Put new agent code under `v11/agents/` and use the HTTP routes defined in
 
 ### Connect an MCP harness
 
-From the project folder, run `sh run_unix.sh` on macOS or Linux, or run
-`run_windows.bat` on Windows. These scripts install the required packages and
-start the same server that serves the dashboard. Leave the server running and
+From the project folder, run `run_windows.bat` on Windows. On macOS or Linux,
+install `requirements.txt` in a virtual environment and run `python launch.py`
+from that environment. Leave the server running and
 add `http://127.0.0.1:8766/mcp` to a local harness using **Streamable HTTP**.
 The local server requires no token. If you set `RELAY_PORT`, use that port in
 the URL. The older `/v11/mcp` URL still works.

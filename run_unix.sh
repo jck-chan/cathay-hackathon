@@ -1,6 +1,7 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")"
-[ -f .venv/bin/python ] || python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python launch.py
+if [ "${RELAY_NO_BROWSER:-0}" != 1 ]; then
+  set -- --open "$@"
+fi
+exec python3 v13/server.py --port "${RELAY_PORT:-8766}" "$@"
