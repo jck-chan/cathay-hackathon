@@ -97,6 +97,7 @@ body.dragging .hint { opacity: 0; }
 .int-medium .rk { color: #2a2100; }
 .ct-cat { display: inline-flex; gap: 2px; align-items: center; font-weight: 700; color: #22302f; }
 .ct-cat .ico { width: 12px; height: 12px; }
+.ct-cat-label, .ctag.mini .ct-cat { display: none; }
 .ct-tier { font-weight: 700; font-size: 9.5px; padding: 0 3px; border-radius: 3px; background: #e9eeed; color: #3d4b49; }
 .ct-tier.t-PR1 { background: #2b1b4f; color: #fff; }
 .ct-fl { color: var(--ink); font-weight: 700; }
@@ -105,7 +106,7 @@ body.dragging .hint { opacity: 0; }
 .ctag-wrap.expanded .ctag { box-shadow: 0 0 0 2px var(--c), 0 6px 16px rgba(0,0,0,.3); z-index: 2; }
 .ctag-wrap.expanded .ct-more { display: block; }
 .ctag-wrap.expanded { z-index: 99999 !important; }
-.ctag-wrap.dim { opacity: .35; }
+.ctag-wrap.dim:not(.expanded) { opacity: .35; }
 .fl { font-style: normal; font: 700 9px var(--mono); padding: 0 3px; border-radius: 3px; }
 .fl-docs { background: #fff3cd; color: #7a5a00; } .fl-hold { background: #fde2df; color: #9f1d13; } .fl-line { background: #e3edf8; color: #234e80; }
 
@@ -225,8 +226,18 @@ body.dragging .plane-tag.drop-hover { transform: scale(1.08); }
 .ctag .rk { font-size: 10px; padding: 0 3px; }
 .ctag .ct-tier { font-size: 9px; padding: 0 2px; }
 .ctag .fl { font-size: 8.5px; padding: 0 2px; }
-.ctag-wrap.expanded .ctag { width: 170px; white-space: normal; text-align: left; }
-.ctag-wrap.expanded .ctag .ct-row { justify-content: flex-start; }
+.ctag-wrap.expanded .ctag {
+  width: 250px; max-width: calc(100vw - 24px); padding: 8px 10px;
+  background: #fff; font-size: 14px; line-height: 1.4; white-space: normal; text-align: left;
+}
+.ctag-wrap.expanded .ctag .ct-row { justify-content: flex-start; gap: 7px; }
+.ctag-wrap.expanded .ct-row + .ct-row { margin-top: 3px; }
+.ctag-wrap.expanded .ct-cat { display: inline-flex; gap: 5px; }
+.ctag-wrap.expanded .ct-cat .ico { width: 16px; height: 16px; }
+.ctag-wrap.expanded .ct-cat-label { display: inline; }
+.ctag-wrap.expanded .rk, .ctag-wrap.expanded .ct-tier, .ctag-wrap.expanded .fl { font-size: 12px; padding: 0 5px; }
+.ctag-wrap.expanded .ct-when { color: var(--ink); }
+.ctag-wrap.expanded .ct-more { margin-top: 6px; padding-top: 6px; color: var(--ink); }
 .plane-tag { min-width: 0; width: 74px; padding: 4px 6px; font-size: 10.5px; text-align: center; }
 .plane-tag .pt-type { justify-content: center; margin: 0 0 2px; }
 .plane-tag .pt-head { justify-content: center; }

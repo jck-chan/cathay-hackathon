@@ -86,13 +86,14 @@ function mins(m) {
 }
 
 function tagHTML(c, t) {
-  if (c.state === 7) return `<div class="ctag st-exc mini"><div class="ct-row"><span class="rk rk-exc">EXC</span></div><div class="ct-row"><b class="ct-fl">${c.id.slice(-4)}</b></div>
-    <div class="ct-more"><div><b>${c.id}</b> · ${CAT_LABEL[c.category]} · ${c.kg} kg</div><div>Missed ${c.target_no} — waiting for an authorised later CX flight</div></div></div>`;
+  const category = CAT_LABEL[c.category] || c.category;
+  const type = `<span class="ct-cat" title="${category}">${CAT_ICON[c.category] || ''}<span class="ct-cat-label">${category}</span></span>`;
+  if (c.state === 7) return `<div class="ctag st-exc mini"><div class="ct-row"><span class="rk rk-exc">EXC</span>${type}</div><div class="ct-row"><b class="ct-fl">${c.id.slice(-4)}</b></div>
+    <div class="ct-more"><div><b>${c.id}</b> · ${c.kg} kg</div><div>Missed ${c.target_no} — waiting for an authorised later CX flight</div></div></div>`;
   const cut = c.cutoff - t;
   let badge, cls = `int-${c.intensity}`;
   if (c.state === 4) { badge = `<span class="rk rk-load">LOAD</span>`; cls = 'st-load'; }
   else if (c.state === 5) { badge = `<span class="rk rk-ready">RDY</span>`; cls = 'st-ready'; }
-  else if (c.state === 7) { badge = `<span class="rk rk-exc">EXC</span>`; cls = 'st-exc'; }
   else badge = `<span class="rk">#${c.rank ?? '–'}</span>`;
   const flags = [];
   if (c.state === 3 || c.state === 2) {
@@ -101,10 +102,10 @@ function tagHTML(c, t) {
   }
   const when = c.state === 4 ? mins(c.eta - t) : mins(cut);
   return `<div class="ctag ${cls}">
-    <div class="ct-row">${badge}<span class="ct-cat" title="${CAT_LABEL[c.category]}">${CAT_ICON[c.category] || ''}</span></div>
+    <div class="ct-row">${badge}${type}</div>
     <div class="ct-row"><span class="ct-tier t-${c.tier}">${c.tier.slice(2)}</span><b class="ct-fl">${c.target_no.replace('CX ', '')}</b></div>
     <div class="ct-row"><span class="ct-when">${when}</span>${flags.join('')}</div>
-    <div class="ct-more"><div><b>${c.id}</b></div><div>${CAT_LABEL[c.category]} · ${c.tier} · ${c.kg} kg</div>
+    <div class="ct-more"><div><b>${c.id}</b></div><div>${c.tier} · ${c.kg} kg</div>
       <div>${c.target_no} → ${c.route} · Stand ${c.stand}</div><div>Cutoff ${mins(cut)} · docs ${c.docs_ready ? 'ready' : 'pending'}${c.hold ? ' · HOLD' : ''}${c.quote ? ' · spot sale' : ''}</div></div>
   </div>`;
 }
