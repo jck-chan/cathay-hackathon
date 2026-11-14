@@ -1,0 +1,526 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[margin=0.82in,headheight=15pt,footskip=27pt]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern,microtype}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,tabularx,longtable,array,multirow}
+\usepackage{graphicx,float,caption,subcaption}
+\usepackage{xcolor,hyperref,fancyhdr,enumitem,needspace}
+\usepackage{listings}
+\definecolor{ink}{HTML}{10293B}
+\definecolor{teal}{HTML}{147F88}
+\definecolor{slate}{HTML}{536878}
+\definecolor{muted}{HTML}{EFF4F5}
+\hypersetup{colorlinks=true,linkcolor=teal,urlcolor=teal,citecolor=teal,pdftitle={RELAY: Integrated Cargo Decision Intelligence Research and Capacity Stress Test}}
+\urlstyle{same}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\small\color{slate} RELAY / Independent Research}
+\rhead{\small\color{slate} Integrated v17 Audit}
+\cfoot{\small\thepage}
+\renewcommand{\headrulewidth}{.35pt}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}\newtheorem{definition}[theorem]{Definition}
+\theoremstyle{remark}\newtheorem{remark}[theorem]{Remark}
+\setlist[itemize]{topsep=2pt,itemsep=1pt,parsep=0pt,leftmargin=1.45em}
+\setlist[enumerate]{topsep=2pt,itemsep=2pt,leftmargin=1.55em}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4.2pt}
+\captionsetup{font=small,labelfont=bf}
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,rulecolor=\color{slate!30},backgroundcolor=\color{muted},showstringspaces=false,columns=fullflexible,keywordstyle=\color{teal}}
+\newcommand{\I}{\mathcal I}
+\newcommand{\F}{\mathcal F}
+\newcommand{\A}{\mathcal A}
+\newcommand{\E}{\mathbb E}
+\newcommand{\Prb}{\mathbb P}
+\newcommand{\1}{\mathbbm 1}
+\newcommand{\src}[1]{\textit{#1}}
+\newcommand{\fig}[3]{\begin{figure}[htbp]\centering\includegraphics[width=#2\linewidth]{figures/#1}\caption{#3}\end{figure}}
+\begin{document}
+\pagenumbering{roman}
+\begin{titlepage}
+\vspace*{.55in}
+{\color{teal}\rule{\linewidth}{2.2pt}}\\[16pt]
+{\Huge\bfseries\color{ink} RELAY\\[10pt] Real-Time Cargo Decision Intelligence}\par
+\vspace{13pt}
+{\Large Mathematical Models, Operational Constraints, 3D Decision Support,\\[4pt] Synthetic Benchmarking and Capacity-Congestion Economics}\par
+\vspace{16pt}
+{\large An integrated research-and-engineering audit of the RELAY v12--v17 programme}\par
+\vspace{17pt}
+{\color{slate}\large 14 November 2026 \quad $\vert$ \quad Independent Cathay Hackathon research prototype}\par
+\vspace{25pt}
+\begin{center}\includegraphics[width=.89\linewidth]{figures/fig6_cascade_flow.png}\end{center}
+\vfill
+\noindent\fcolorbox{teal}{muted}{\parbox{.95\linewidth}{\textbf{Evidence and safety statement.} This is \emph{not} a Cathay Pacific Airways or Cathay Cargo Terminal operational validation, live cargo inventory, certified loading system, or verified assessment of human employees. All 10,240 paired worlds and the four human-persona profiles are synthetic. Newly reported capacity metrics are exact post-hoc reconstructions from the original 40,960 v17 policy outputs, \emph{not} 40,960 newly executed simulations. No production or legal authorization is claimed.}}\par
+\vspace{9pt}
+{\color{teal}\rule{\linewidth}{1.1pt}}
+\end{titlepage}
+\begin{abstract}
+Air-cargo departure decisions couple confirmed service commitments, immutable flight eligibility, specialized handling, finite ground resources, regulatory conditions, imperfect information and irreversible cutoffs. RELAY aims to augment rather than displace expert judgement. We consolidate the original recovery-oriented v12 mathematical models, the operational pivot, the v13 restricted snake-graph correspondence, and the executable v17 event-driven simulator. We distinguish implemented guarantees, mathematical results proved under narrow hypotheses, and aspirational stochastic optimization. We develop an exact, timestamp-based \emph{physical staging occupancy} KPI and a separate \emph{end-to-end local demand pressure} KPI, recover them algebraically from archived integrals, and evaluate all four simulated operator roles across 10,240 paired synthetic worlds (40,960 replays). Time-averaged staging occupancy is 56.07\% for a novice acting manually, 54.73\% for an assisted novice, 55.00\% for a manual senior and 54.62\% for an assisted senior. Corresponding capacity-normalized total demand pressure is 64.35\%, 60.96\%, 61.51\% and 60.69\%. The fraction of worlds ever experiencing instantaneous total demand above staging capacity is 51.20\%, 47.68\%, 48.37\% and 47.26\%, respectively. These are causal outputs \emph{within the stipulated simulator} but not empirical estimates for Cathay, whose decision-maker behaviour, real-time capacity and disruption frequencies have not been identified. We identify implementation gaps, statistical non-identifiability, commercial opportunities and a validation-gated pilot programme.
+\end{abstract}
+\tableofcontents
+\clearpage
+\pagenumbering{arabic}
+
+\section{Executive interpretation and the decision question}
+\subsection{What problem does RELAY actually address?}
+The original RELAY v12 research concerned recovery-aware ULD placement, Bayesian verification timing (PIVOT), and network-wide recovery allocation. Subsequent operator-discovery discussions suggested a narrower high-value workflow: a constrained cargo operations officer must decide which already booked shipment to prepare, protect, defer or escalate when time-limited flights and handling resources conflict. The proposed customer value is reduced \emph{avoidable decision regret}, lower expert-dependency and better recovery from decision-induced congestion. This is a hypothesis to validate with the operating carrier, not an assertion that Cathay lacks existing digital tools.
+
+We study four distinct simulated roles: novice/manual (NM), novice/RELAY (NA), senior/manual (SM), and senior/RELAY (SA). They face identical exogenous worlds in each paired evaluation. The software imposes shared mandatory guards and models different decisions, errors and reaction times; no real person was observed. We explicitly reject the practice of requiring a simulator to produce a desired story about novice collapse.
+
+\subsection{Main results and the new metric}
+An operational officer cannot interpret a staging utilization averaged over time as a probability of collapse. The simulated \emph{physical staging queue} is hard-capped at $K=26$ abstract slots in the one-day study. It never exceeds 100\%. When demand exceeds this staging limit, cargo waits upstream or in exception processing. The newly computed KPI distinguishes:
+\begin{align}
+U(t)&=100\frac{Q^{\rm stage}(t)}{K}\in[0,100], &&\text{physical occupancy},\\
+P(t)&=100\frac{Q^{\rm stage}(t)+Q^{\rm outside}(t)+Q^{\rm exception}(t)}{K}, &&\text{total local demand pressure}.
+\end{align}
+The averages over timestamps ($15$-minute intervals) quantify how long the system is occupied or burdened, whereas $\max_t P(t)>100$ flags at least one moment when demand exceeded physical staging capacity. These are different estimands. A high $P$ is not a legal claim that cargo was physically stored beyond capacity.
+
+\subsection{Evidence hierarchy}
+\begin{center}\small\begin{tabularx}{\linewidth}{@{}p{.18\linewidth}X X@{}}\toprule
+Evidence level & What is actually supported & Not supported\\\midrule
+Mathematical & Selected inventory and matching theorems under stated hypotheses & Universal cargo-to-cluster correspondence\\
+Implementation & Local Python state-machine invariants, bounded assignment and explicit event fields & Certified air cargo operation, true 3D load plans\\
+Synthetic experiment & Four-role comparisons conditional on defined generators and personas & Actual Cathay error rates, labour savings, ROI\\
+Operational pilot & Not yet performed & Production readiness or measured improvement\\\bottomrule
+\end{tabularx}\end{center}
+
+\section{Public-domain operational evidence and its limits}
+\subsection{What can be verified publicly}
+Cathay Cargo describes the tiers First (PR1, guaranteed uplift on a confirmed chosen flight with special conditions), Essential Plus (PR2, higher handling priority) and Essential (PR3) \cite{cathaypriority}. Special cargo can use priority products; a dangerous-goods or live-animal category does not automatically outrank every competing confirmed shipment. The Cathay Cargo Terminal advertises 2.7 million tonnes of designed annual throughput and multiple distinct storage and handling systems, including 2,445 CSS positions and 4,224 BSS positions \cite{terminalfacts}. These \emph{facility} positions cannot be equated with our $K=26$ \emph{synthetic local-workspace} slots.
+
+IATA's 2026 Cargo Handling Manual includes distinct operational steps such as ready-for-carriage acceptance, preparation and handover to flight, and clarifies Latest Acceptance Time (LAT) \cite{ichm}. The ICAO 2025--2026 Dangerous Goods Technical Instructions and IATA Live Animals Regulations impose relevant specialist requirements \cite{icao,lar}; the simulator has no authoritative encoding of these detailed rules. Compliance must therefore be independently certified before any operational use.
+
+Cathay Cargo publicly describes Cargo Connect, Cathay Expert, Cargo VR CAVE and Cargo Digital Hub \cite{cathaydigital}. This means decision support should be designed as an \emph{interoperable extension} of existing workflows, rather than a wholesale replacement for cargo handling systems. OAG documentation provides schedule/status fields, changes, aircraft types and timestamps, but such fields do not prove residual, carrier-confirmed cargo-space availability \cite{oagfields,oagjoin}. IATA ONE Record supplies a standardized shared shipment/event model and secure APIs, not a substitute for a carrier's access authority \cite{onerecord}.
+
+\subsection{Data provenance taxonomy}
+\begin{longtable}{@{}p{.19\linewidth}p{.40\linewidth}p{.31\linewidth}@{}}\caption{Required data and evidence boundary.}\label{tab:datamap}\\\toprule
+Domain & Minimal target fields & Source/authority and current availability\\\midrule\endfirsthead\toprule Domain & Minimal target fields & Source/authority\\\midrule\endhead
+Flight & Flight leg ID, carrier, route, scheduled/estimated/actual departure, revised cutoff, status, equipment & OAG-like public schema only; simulation invents instances. Actual cargo capacity not public.\\
+Cargo & AWB/piece IDs, route, mass/volume, milestones, product tier, booked flight, dangerous/special codes & IATA ONE Record guidance; actual records proprietary.\\
+Resources & Workers, certified qualifications, specialist station, staging location, ULD state, downtime & Synthetic abstract workers/slots; requires terminal data.\\
+Timing & Acceptance readiness, LAT, screening completion, planned processing duration, observed event time & Scenario assumptions; cannot infer from public OAG.\\
+Safety & DG class/segregation, AVI species/container, cold-chain thresholds, security/customs holds & Generic proxies only; no source-complete rule engine.\\
+Decision & Recommendation, alternatives, actual approval, operator identity, reversal, timestamp, causal evidence & Simulator logging only; no carrier-authorized commands.\\
+Economics & Refund, rerouting, rework, penalty, capacity contribution, training cost, commercial margin & Arbitrary synthetic units; Cathay HKD not supplied.\\\bottomrule
+\end{longtable}
+
+\section{Problem definition and version history}
+\subsection{Operational boundary}
+The narrow task is HKG outbound priority and exception decision support for previously chosen or explicitly authorized CX options. A user does not gain the right to choose an arbitrary aircraft, alternate carrier, unauthorized flight, or physical loading arrangement. The prototype's simulated routes and flight IDs are fictional. The action vocabulary is $\{\text{accept quote},\text{stage},\text{prepare},\text{reserve},\text{hold},\text{verify},\text{release},\text{escalate}\}$; it does \emph{not} contain certified physical loading instructions.
+
+The operation is an open, time-dependent network. Future cargo arrivals and disruptions are not known at decision time, and the information received by an operator can lag behind the physical occurrence. A finite-horizon decision policy must preserve causality and handle conservative fallbacks when state evidence is incomplete.
+
+\subsection{Research-to-software evolution}
+\begin{center}\small\begin{tabularx}{\linewidth}{@{}p{.10\linewidth}X X@{}}\toprule
+Phase & Central object & Status and lesson\\\midrule
+v12 & ULD risk, PIVOT information value, global recovery & 15,000 synthetic policy outcomes previously reported; the operational objective was too broad.\\
+v13 & Feasible assignment, dynamic loss, structured snake graph & Restricted mathematical correspondence; not a universal reduction.\\
+v14--15 & Event-driven heuristic simulation and user interface & Revealed that short episodes, overflow accounting and capacity proxies can mislead.\\
+v16 & Persistent queue and three-persona framework & Improved workload pressure controls; identified due-date and metric pitfalls.\\
+v17 & Four personas, hard staging cap, 3D operations UI, 30-day traces & Executable synthetic laboratory; bounded solver and non-calibrated human assumptions remain.\\
+This audit & Exact time-averaged occupancy and total-pressure reanalysis & 10,240 archived worlds, 40,960 archived role replays, added checks and quantitative visuals.\\\bottomrule
+\end{tabularx}\end{center}
+
+\section{Mathematical Model I: states, feasibility, safety}
+\subsection{Objects and index sets}
+Let $I$ be the finite set of active shipments, $F$ authorized flight legs, $R$ handling resources, and $\mathcal T=\{0,\Delta,2\Delta,\ldots\}$ decision times. Define $\Delta=15$ minutes for the reference simulator, which is a numerical time-step choice, not an asserted operational standard. A shipment $i$ has route $o_i$, confirmed flight $f_i^0$, cargo class $k_i$, size vector $a_i$, tier $p_i$, readiness milestone $r_i$, and processing requirement $d_i$. A flight $f$ has route $o_f$, externally confirmed residual capacities $C_{fr}$ and a revised, authorized cutoff $\ell_f$. Let $\hat\theta_t$ be the evidence snapshot at decision time $t$.
+
+The real implementation needs a separate provenance layer: observed, externally confirmed and provisional fields should not be interchangeable. In particular, $\hat\theta_t$ may differ from physical state $\theta_t$. We distinguish a \emph{modelled rule satisfaction predicate} $g_{if}(\hat\theta_t)$ from independent operator certification.
+
+\subsection{Assignment and resource constraints}
+For candidates $f\in F_i(t)$, let $x_{if}\in\{0,1\}$ and $h_i\in\{0,1\}$ indicate shipment assignment and authorized hold/escalation. A starting point is
+\begin{align}
+&\sum_{f\in F_i(t)}x_{if}+h_i=1 &&\forall i,\label{eq:assign}\\
+&x_{if}\le g_{if}(\hat\theta_t),\qquad x_{if}=0&&\text{if $f$ is not authorized for $i$},\\
+&\sum_i a_{ir}x_{if}\le C_{fr}(t)&&\forall f,r.\label{eq:capacity}
+\end{align}
+Actual scheduling additionally requires worker and specialist availability, precedence, non-overlapping service, readiness, latest acceptance and possibly time-dependent cumulative capacities:
+\begin{equation}\sum_i b_{ir}\,\mathbf{1}\{s_i\le t<e_i\}\le K_r(t),\quad e_i=s_i+p_i,\quad e_i\le\ell_{f_i}.\label{eq:resource}\end{equation}
+This is a \emph{target formulation}; the v17 runtime uses simplified discrete-state checks rather than a globally solved cumulative scheduling model. Dangerous-goods compatibility, hold-specific checks, ULD geometry and physical loading control are explicitly outside its certification boundary.
+
+\subsection{Implemented state machine}
+Each accepted shipment is in precisely one state: accepted/pre-arrival, outside, staged, handling, ready-for-uplift, flown, exception, or externally closed-unserved. Rejected quotes are excluded from the accepted population. An internal hold or reassignment cannot be interpreted as authorization to carry. A denied manual drag-and-drop request leaves the simulator unchanged.
+
+\begin{theorem}[Finite-workspace invariance]\label{thm:stage}
+Assume $Q^{\rm stage}(0)\le K$, and each transition either preserves, decreases, or moves at most $K-Q^{\rm stage}(t)$ units into physical staging; processing and local reservation changes do not introduce additional physical occupancy. Then $0\le Q^{\rm stage}(t)\le K$ at every discrete decision time.
+\end{theorem}
+\begin{proof}
+The lower bound follows from nonnegative counts. At the initial state the upper bound is assumed. If the bound holds at step $n$, the number of admitted moves into staging is at most the free capacity. All other transitions preserve or reduce the counted staging state. Thus the upper bound holds at $n+1$ by induction.
+\end{proof}
+
+\begin{proposition}[Accepted-shipment conservation]\label{prop:conservation}
+Provided all accepted objects occupy exactly one of the mutually exclusive active, flown, or externally closed-unserved states, and all transitions preserve this classification,
+\begin{equation}N_{\rm admitted}(t)=N_{\rm active}(t)+N_{\rm flown}(t)+N_{\rm unserved}(t).\end{equation}
+\end{proposition}
+\begin{proof}Each accepted event increases both sides by one; internal transitions transfer one object between disjoint classes; a final closure transfers an object from active to unserved or flown without changing the total.\end{proof}
+\begin{remark}The propositions prove \emph{software invariants}, not adequate cargo safety certification. A physical catastrophe can occur while all represented numerical inequalities hold if the required safety rule was omitted.\end{remark}
+
+\section{Model II: time, belief and avoidable regret}
+\subsection{Temporal feasibility and deviation}
+For handling duration $D_i$ and uncertain readiness $R_i$, define decision-time slack for flight $f$ by
+\begin{equation}\hat s_{if}(t)=\ell_f-t-\hat D_i(t)-\max\{0,\hat R_i(t)-t\}.\end{equation}
+A negative value indicates estimated inability to meet cutoff, but certified handling gates supersede estimates. Let $d_i^\star$ be an operational target time and $T_{if}$ a random predicted completion time. A general soft loss is
+\begin{equation}c_{if}(t)=\E[g_i(T_{if}-d_i^\star)\mid\I_t]+\lambda_i\Prb(T_{if}>d_i^{\max}\mid\I_t)+\eta_i\,c_{\rm resource}(i,f).\end{equation}
+Here $\I_t$ is the sigma-field generated by evidence actually received by $t$. Coefficients are business policies, not arbitrary legal priorities. Safety violations remain impossible actions, not costable trade-offs.
+
+\subsection{Belief and verification}
+The proposed extension of v12 PIVOT is a belief state $b_t$ over unobserved disruptions and a decision between inspecting, holding, and acting. For inspection $q$ with observation $Y$, a nonanticipative one-step cost is
+\begin{equation}J_q=c_q+\E_Y\!\left[\min_{a\in\A(Y)}\E[L(a,X)\mid Y]\right],\qquad J_0=\min_{a\in\A_0}\E[L(a,X)].\end{equation}
+A verification may be harmful if time elapses and alternatives expire. The v17 implementation logs incidents at separate occurrence/receipt times, but it does \emph{not} implement a calibrated belief-state controller, an estimated joint delay distribution, or a genuine value-of-information optimization.
+
+\subsection{Causal consistency}
+Let $E$ be the incident ledger and $t_e^{\rm receipt}$ the time a message becomes visible. Then
+\begin{equation}\I_t=\sigma\{e\in E:t_e^{\rm receipt}\le t\}.\end{equation}
+No recommendation should depend on information in $E$ received after $t$. Physically, an undisclosed failure may already reduce real capacity; a safety gate may therefore block an action even though the operator has stale information. The gap is a feature of the research scenario, not evidence that operators can predict hidden future failures.
+
+\section{Model III: global decisions and local cluster-algebra research}
+\subsection{Target: risk-constrained rolling horizon}
+The desired operational controller minimizes current loss plus anticipated future congestion, service failure and tail risk:
+\begin{equation}\label{eq:mpc}\min_{\pi\in\Pi_{\rm cert}}\;\E_\pi\!\left[\sum_{\tau=t}^{t+H}c(S_\tau,a_\tau)+V_{t+H}(S_{t+H})\right]+\lambda\operatorname{CVaR}_\alpha\!\left(L_{t:t+H}\right).
+\end{equation}
+All policies must obey confirmed flight options, resource constraints, irreversible actions and approvals. As new evidence arrives, the optimization is re-solved and only the immediate authorized portion is proposed. This is a \emph{research target}, not the v17 runtime solver.
+
+\subsection{What v17 implements instead}
+The runnable decision engine scores staged candidates using tier weights, cutoff urgency, waiting age, environmental pressure and role-specific noise. Assisted variants call a bounded \emph{exact subset} maximization over at most nine current candidates subject to worker and specialist counts. Because the selected subset enters a subsequent heuristic dispatch loop, this is neither globally optimal scheduling nor an exact solution of \eqref{eq:mpc}. The code defines a ladder dynamic program but does not establish that arbitrary operational plans form a surface-cluster representation. In this report, no improvement is attributed to cluster algebra without an isolated ablation.
+
+\subsection{Restricted perfect matching correspondence}
+Let $L_d$ denote a ladder of $d$ quadrilateral tiles. Consider binary local exchange decisions $v=(v_1,\ldots,v_d)$ with $v_j+v_{j+1}\le1$. If local exchange directions $g_j$ lie in the integer kernel of the same constraint matrix $M$ and nonadjacent choices have disjoint supports, then
+\begin{equation}z(v)=z^0+\sum_{j=1}^d v_j g_j\end{equation}
+preserves $Mz=b$ and variable bounds whenever each $z^0+g_j$ respects them. Additional nonlinear operational guards must still be rechecked.
+\begin{theorem}[Exact restricted ladder enumeration]\label{thm:ladder}
+Perfect matchings of the straight ladder $L_d$ are in bijection with binary vectors satisfying $v_j+v_{j+1}\le1$. Their number is $F_{d+2}$, where $F_1=F_2=1$.
+\end{theorem}
+\begin{proof}
+In the leftmost currently uncovered column, either use its vertical edge or use both horizontal edges to the next column. The latter occupies the next column and cannot be immediately repeated. Each matching hence yields a unique nonadjacent binary selection; conversely each such vector constructs exactly one matching using pairs of horizontal edges and remaining vertical edges. The numbers obey $m_d=m_{d-1}+m_{d-2}$ with $m_0=1,m_1=2$, giving $m_d=F_{d+2}$.
+\end{proof}
+
+For additive local increments $\Delta_j(t)$ define
+\begin{equation}\label{eq:snake}\begin{aligned}
+Z_0&=1,& Z_1&=1+e^{-\beta\Delta_1},&Z_j&=Z_{j-1}+e^{-\beta\Delta_j}Z_{j-2},\\
+V_0&=0,&V_1&=\min\{0,\Delta_1\},&V_j&=\min\{V_{j-1},\Delta_j+V_{j-2}\}.
+\end{aligned}\end{equation}
+Condition on the final selected edge to prove both recurrences. They evaluate the restricted matching partition function and minimum additive increment in $O(d)$ arithmetic operations. This is a valid combinatorial result but not an advantage over every standard dynamic program on the same ladder.
+
+\subsection{Actual surface-cluster Laurent expansions}
+For unpunctured marked surfaces, Musiker and Schiffler prove the expansion \cite{musiker}:
+\begin{equation}\label{eq:laurent}x_\gamma=\frac{\sum_{P\in\operatorname{PM}(G_{T,\gamma})}w_x(P)y(P)}{\prod_{k=1}^d x_{\tau_{i_k}}}.
+\end{equation}
+Here $\gamma$ is an arc crossing a triangulation, the snake graph is glued from tiles, and its perfect matchings correspond to complete $(T,\gamma)$-paths. \emph{Crossings are topological crossings between arcs}, not arbitrary intersections of scheduling deadlines. It is mathematically invalid to label each cargo deadline as an arc crossing and claim \eqref{eq:laurent} computes optimal cargo priority.
+
+\begin{theorem}[Cost-specialization criterion]\label{thm:column}
+Fix an actual surface snake graph with matching feature rows $B_P=(1,(n_\tau(P))_\tau,(h_j(P))_j)$. Let $C_P$ be the cost assigned to each perfect matching. For fixed $\beta>0$, there is a positive exponential substitution $x_\tau=e^{-\beta a_\tau}$ and $y_j=e^{-\beta b_j}$ such that Laurent \emph{numerator} monomials equal $e^{-\beta(C_P-K)}$ for a common $K$ if and only if $C\in\operatorname{col}(B)$.
+\end{theorem}
+\begin{proof}
+If $C=B(K,a,b)^\top$, each numerator monomial equals $e^{-\beta(\sum_\tau a_\tau n_\tau(P)+\sum_jb_jh_j(P))}=e^{-\beta(C_P-K)}$. Conversely take $-\beta^{-1}\log$ of the proposed positive monomial identity for each $P$, recovering the linear system $B(K,a,b)^\top=C$. Thus the condition is necessary and sufficient.
+\end{proof}
+\begin{remark}The criterion is \emph{conditional}: it does not establish a correspondence between all feasible cargo plans and perfect matchings. When only some matchings satisfy operational feasibility, restricting the sum generally destroys its identity as the full cluster Laurent expansion. In particular a bounded local exchange routine is not a universal global optimizer.\end{remark}
+
+\section{Queueing networks, operational congestion and sales admission}
+\subsection{Flow balance and domino effects}
+Define station queues $Q_r(t)$ with external arrivals $A_r$, transfers $T_r$, completed service $D_r$ and documented external releases $X_r$:
+\begin{equation}\label{eq:queue}Q_r(t+\Delta)=Q_r(t)+A_r(t)+T_r(t)-D_r(t)-X_r(t).\end{equation}
+Transfers between modeled stations cancel from the system-wide total. Hence failures can increase upstream and exception WIP without disappearing from the digital ledger. Decision-induced extra handling time can lower effective service capacity and raise downstream congestion. However, overload is also possible when nominal arrival demand exceeds attainable service rates even under perfect decisions. No prioritization policy creates aircraft, warehouse or personnel capacity ex nihilo.
+
+For long-run stationary and suitably stable systems, Little's law $L=\lambda W$ relates mean system WIP $L$, throughput $\lambda$ and mean sojourn time $W$ \cite{little}. It must not be used to infer extra sales revenue directly from a lower occupancy ratio when admission, departure capacity or served populations change.
+
+\subsection{A rigorously separate sustainable-sales metric}
+A realized-quote-uplift metric $R_{\rm quote}=N_{\rm flown,quote}/H$ measures short-run completion. It is not maximum sustainable offered demand. The latter is an unknown optimization frontier
+\begin{equation}\lambda^*_{\rm sales}=\sup\{\lambda:\text{stable queues, verified safety, service targets and financial risk limits under policy }\pi\}.
+\end{equation}
+The v17 generator does not identify $\lambda^*_{\rm sales}$ because it lacks calibrated arrival processes, carrier confirmation, opportunity costs and long-run stationary evidence. A high novice acceptance fraction can produce short-term uplift despite poorer confirmed SLA and much larger risk.
+
+\section{Four experimental roles and cognition limitations}
+\begin{table}[htbp]\centering\small
+\caption{Declared scenario parameters; not observations of real employees.}\begin{tabular}{@{}lrrrrr@{}}\toprule
+Role & Error base & Delay (min) & Noise & Foresight* & Quote buffer\\\midrule
+Novice/manual & .115 & 12.0 & .550 & .20 & $-2.0$\\
+Novice/RELAY & .026 & 3.2 & .055 & .86 & $1.0$\\
+Senior/manual & .022 & 4.3 & .100 & .72 & $0.6$\\
+Senior/RELAY & .012 & 2.1 & .025 & .95 & $1.4$\\\bottomrule
+\end{tabular}\par\footnotesize *The v17 \texttt{foresight} field is present in the configuration but is not used in the main dispatch scoring shown in the engine. It should not be credited for any observed effect.\end{table}
+
+The simulator injects a seeded operator error with probability based on the declared base propensity and an endogenous environmental pressure proxy. Errors cause rework and additional delay; a guard is meant to prevent modeled prohibited execution. Thus better role parameters are \emph{part of the experiment design}. Synthetic performance gaps cannot be interpreted as independent evidence that humans really exhibit these error rates. Role-specific quote acceptance also creates policy differences beyond assistance. Valid human-comparison studies require randomized case order, same information views where appropriate, case difficulty matching, blind expert adjudication, independent workload instruments and calibration using real decision logs.
+
+\section{Synthetic world generator and experimental protocol}
+\subsection{Generator granularity, demand and shock space}
+The v17 simulation uses one $15$-minute update per tick, five fictional outbound CX flight legs per day with HKG--LHR or HKG--NRT labels, a reference staging capacity $K=26$ abstract slots, three general workers and one specialist worker. Flight-slot capacity is drawn from 9--12 abstract slots; a kg proxy is included but cannot certify carrier payload or loadability. Offered demand is a base of roughly 36 shipments/day times load, weekday factor and random perturbation. Cargo types include general, fresh, pharma, AVI, DG and valuable; no true IATA dangerous-goods or live-animal decision library is installed.
+
+There are six load multipliers $\{0.65,0.80,1.00,1.15,1.35,1.55\}$ and 12 shock regimes: normal; peak burst; thunderstorm; flight cancellation; crew shortage; equipment breakdown; documentation hold; cold-chain alarm; DG hold; animal welfare hold; system outage; and compound cascade. These are \emph{fictional} events assigned with fixed delays and synthetic receipt lags.
+
+\subsection{A consequential correction to the sampling interpretation}
+The main v17 benchmark \emph{cycles} through six loads and twelve named scenarios, creating an approximately balanced design. It does \emph{not} sample the main 10,240 worlds according to the scenario weights in the generator's \texttt{SCENARIOS} dictionary. Consequently, pooled estimates are design-grid averages, \emph{not} frequency-weighted estimates for a typical Cathay operational day. Any alternative weighting is merely a sensitivity calculation without actual historical incident frequencies. All three conclusions---human parity, congestion reduction and monetary value---must be revisited once real base rates are available.
+
+\subsection{Paired-world study}
+Each seed $s\in\{5000,\ldots,15239\}$ defines one shared exogenous world. All four policies are replayed against that same world. The archived v17 main study comprises 10,240 distinct one-day worlds times four policy executions, giving 40,960 rows. Separate illustrative 30-day paths investigate carry-over effects but are \emph{not} 10,240 independent month-long worlds.
+
+\section{New capacity metrics: definitions, reconstruction and proofs}
+\subsection{Physical occupancy, demand pressure and distinction from saturation}
+At time $t$, let $S(t),O(t),E(t)$ denote physical staging, physically external waiting, and unresolved exception WIP. Let $B(t)=S(t)+O(t)+E(t)$. The exact per-world time averages over horizon $H$ are
+\begin{align}
+\bar U&=\frac{100\Delta}{KH}\sum_{t<H}S(t),
+&\bar P&=\frac{100\Delta}{KH}\sum_{t<H}B(t),\\
+\bar P_{\rm ext}&=\frac{100\Delta}{KH}\sum_{t<H}\big(O(t)+E(t)\big),
+&\bar P&=\bar U+\bar P_{\rm ext}.\label{eq:identity}
+\end{align}
+Note: accepted-but-not-yet-arrived quotes are not physical $O(t)$. This time average does \emph{not} measure kg, cubic meters, ULD positions, temperature-compartment occupancy, or service-station utilizations; these would need multidimensional unit-specific measures in a production model.
+
+\begin{theorem}[Exact archived-metric recovery]\label{thm:recovery}
+If the original archived quantities are $A_B=\Delta\sum_tB(t)$, $A_O=\Delta\sum_tO(t)$ and $A_E=\Delta\sum_tE(t)$, then the cumulative staging-area occupancy and its mean are uniquely determined by
+\begin{equation}\label{eq:recon}A_S=A_B-A_O-A_E,\qquad\bar U=\frac{100(A_B-A_O-A_E)}{KH}.
+\end{equation}
+\end{theorem}
+\begin{proof}The state-counter identity $B(t)=S(t)+O(t)+E(t)$ holds at every archived integration tick by construction. Multiply by $\Delta$, sum over $t<H$, and rearrange. Uniqueness is immediate.\end{proof}
+
+The calculation is \emph{exact post-processing of recorded integrals}, not an interpolation from a screenshot and not a new 10,240-world simulation. It was checked for every one of 40,960 archived rows, with maximum floating-point reconciliation error below $3\times10^{-14}$ percentage points. The largest single-world \emph{mean} physical occupancy was 85.74\%, consistent with the hard-cap invariant.
+
+\subsection{Capacity-exceedance metrics}
+We report two distinct breach indicators:
+\begin{equation}I_{\rm ever}=\mathbf1\{\max_{t<H}P(t)>100\},\qquad I_{\rm avg}=\mathbf1\{\bar P>100\}.\end{equation}
+$\E[I_{\rm ever}]$ is the fraction of simulated \emph{worlds} in which total demand exceeded local staging capacity at least once. It is \emph{not} the fraction of time congested. The archived summaries include peak backlog so $I_{\rm ever}$ is exactly recoverable per world. The time-above-100\% statistic $H^{-1}\int\mathbf1\{P(t)>100\}\,dt$ \emph{cannot} be uniquely reconstructed from only a peak and three areas. We therefore do not fabricate its 10,240-world value. Time-series figures from stored 30-minute traces are explicitly labelled as illustrative sampled paths.
+
+\begin{remark}[Why ``100\% capacity'' is not universal collapse]\label{rem:threshold}
+A sustained full staging area may require outside queuing, rerouting or temporarily throttled acceptance, but it is not by itself an aircraft accident, business insolvency, or system-wide shutdown. A valid ``collapse'' criterion must specify duration, throughput failure, containment capability, resource bottlenecks, and outcomes. v17's \texttt{red\_zone} is a specific persistent outside/exception-queue threshold, separate from $I_{\rm ever}$.
+\end{remark}
+
+\section{Empirical results on the synthetic design grid}
+\subsection{Four-role headline comparison}
+\begin{table}[htbp]\centering\small
+\caption{Results from 10,240 paired synthetic one-day worlds, 40,960 archived role replays. Percentages are not operational Cathay estimates.}\label{tab:main}
+\resizebox{\linewidth}{!}{\begin{tabular}{@{}lrrrrrrr@{}}\toprule
+Role & Due-flight SLA (\%) & Synthetic loss & Backlog (cargo-min) & Red-zone worlds (\%) & Error events & Decision delay (min) & Quotes flown/day\\\midrule
+Novice / manual & 80.25 & 1098.07 & 24091.86 & 5.35 & 15.41 & 15.02 & 7.16\\
+Novice / RELAY & 84.45 & 536.71 & 22825.03 & 4.71 & 3.71 & 3.80 & 7.31\\
+Senior / manual & 84.23 & 518.92 & 23029.14 & 4.82 & 3.18 & 5.10 & \textbf{7.40}\\
+Senior / RELAY & \textbf{84.66} & \textbf{451.03} & \textbf{22721.71} & \textbf{4.61} & \textbf{1.71} & \textbf{2.46} & 7.29\\\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[htbp]\centering\small
+\caption{New capacity dashboard: exact mean-of-10,240-world time-integrated statistics. Lower is preferable only if service and business commitments are not sacrificed.}\label{tab:capacity}
+\begin{tabular}{@{}lrrrr@{}}\toprule
+Role & $\bar U$ physical (\%) & $\bar P$ total (\%) & $\bar P_{\rm ext}$ (\%) & Ever $P>100$ (\% worlds)\\\midrule
+Novice / manual & 56.07 & 64.35 & 8.28 & 51.20\\
+Novice / RELAY & 54.73 & 60.96 & 6.24 & 47.68\\
+Senior / manual & 55.00 & 61.51 & 6.50 & 48.37\\
+Senior / RELAY & \textbf{54.62} & \textbf{60.69} & \textbf{6.07} & \textbf{47.26}\\\bottomrule
+\end{tabular}
+\end{table}
+
+\fig{fig1_capacity_means.png}{.96}{Physical staging occupancy and total demand pressure, with a visible 100\% capacity-normalized reference. The latter can exceed 100\%; the former cannot by construction.}
+
+A novice/RELAY role comes close to a senior/manual role on the synthetic service measure, but this is not an externally validated human-substitution result. A senior/RELAY role has the smallest modeled synthetic loss and average burden; it does \emph{not} dominate senior/manual on realized quote uplift. The differences in average physical occupancy are small, approximately 0.38 percentage points between senior/RELAY and senior/manual. Reducing WIP can be useful but does not automatically establish an equivalent throughput or margin increase.
+
+\subsection{Paired uncertainty and what it means}
+With $N=10{,}240$ paired worlds and per-world role difference $D_s$, our descriptive 95\% interval for a \emph{synthetic design-grid mean difference} is $\bar D\pm1.96 s_D/\sqrt N$. The use of paired worlds reduces random world-composition noise but does not address simulation misspecification, persona tuning, model selection or nonrepresentative scenario mix.
+\begin{table}[htbp]\centering\small\caption{Selected paired differences against senior/manual. Signs follow role minus senior/manual; all are synthetic.}\label{tab:ci}
+\begin{tabular}{@{}lrrr@{}}\toprule
+Metric and role & Mean difference & Lower 95\% & Upper 95\%\\\midrule
+$\bar U$: novice/manual (pp) & +1.062 & +1.037 & +1.087\\
+$\bar U$: novice/RELAY (pp) & $-0.277$ & $-0.294$ & $-0.259$\\
+$\bar U$: senior/RELAY (pp) & $-0.384$ & $-0.403$ & $-0.365$\\
+$\bar P$: novice/manual (pp) & +2.838 & +2.778 & +2.899\\
+$\bar P$: novice/RELAY (pp) & $-0.545$ & $-0.573$ & $-0.517$\\
+$\bar P$: senior/RELAY (pp) & $-0.821$ & $-0.853$ & $-0.789$\\
+Ever $P>100$: novice/manual (pp) & +2.832 & +2.508 & +3.156\\
+Ever $P>100$: senior/RELAY (pp) & $-1.113$ & $-1.320$ & $-0.907$\\\bottomrule
+\end{tabular}
+\end{table}
+
+\fig{fig3_pressure_composition.png}{.91}{The average system burden decomposed into bounded physical staging occupancy plus outside and unresolved-exception burden.}
+
+\subsection{Demand stratification matters more than a single pooled number}
+\fig{fig2_load_frontier.png}{.98}{Six declared demand multipliers. Left: time-averaged total local demand pressure; right: percentage of worlds that ever crossed instantaneous local demand pressure above 100\%. The right-hand statistic is an event-incidence measure, not an excess-time fraction.}
+
+At nominal $1.0\times$ load, time-averaged total demand pressure ranges from about 54.8\% (senior/RELAY) to 57.6\% (novice/manual). At $1.55\times$, it increases to about 90.2\% and 97.2\%, respectively. The share of worlds with \emph{any} instantaneous exceedance climbs above 99\% for most roles at the highest load. A staffing policy cannot eliminate overload created by fundamentally insufficient effective capacity. Pooled scenario comparisons must always be stratified by load and cost assumptions.
+
+\subsection{Commitment, congestion and sales are different objectives}
+\fig{fig5_service_sales.png}{.98}{Confirmed due-flight service attainment and fulfilled new sales quotes by demand multiplier. More accepted or fulfilled quotes is not necessarily stable additional commercial capacity.}
+
+One-day $\texttt{unserved}=0$ in the main summary because the externally closed-unserved state is delayed beyond the one-day horizon. This is \emph{not} proof of no missed service. Due-flight misses and exceptions are separate outcomes. In the 30-day regime the longer window exposes nonzero unserved closures.
+
+\section{Long-horizon stress tests and causal interpretation}
+\subsection{Three 30-day reference worlds}
+\begin{table}[htbp]\centering\small\caption{Selected carried-forward 30-day synthetic workloads. These are three example worlds, not a distribution of 10,240 months.}\label{tab:month}
+\resizebox{\linewidth}{!}{\begin{tabular}{@{}llrrrr@{}}\toprule
+Regime & Role & Confirmed SLA (\%) & End backlog & Red-zone minutes & Unserved closures\\\midrule
+Ordinary (0.90$\times$) & Novice/manual & 95.4 & 5 & 0 & 18\\
+& Novice/RELAY & 96.5 & 4 & 0 & 11\\
+& Senior/manual & 96.5 & 4 & 0 & 11\\
+& Senior/RELAY & 96.7 & 4 & 0 & 11\\\midrule
+Busy (1.18$\times$, mixed) & Novice/manual & 53.8 & 67 & 16635 & 236\\
+& Novice/RELAY & 76.9 & 16 & 735 & 77\\
+& Senior/manual & 73.4 & 25 & 2775 & 97\\
+& Senior/RELAY & 77.6 & 16 & 900 & 71\\\midrule
+Critical (1.42$\times$, repeated compound) & Novice/manual & 2.7 & 136 & 41970 & 1173\\
+& Novice/RELAY & 6.2 & 100 & 40905 & 764\\
+& Senior/manual & 5.3 & 132 & 41970 & 1069\\
+& Senior/RELAY & 6.5 & 101 & 40905 & 757\\\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[htbp]\centering\small
+\caption{Exact 30-day time-averaged physical staging occupancy and total local demand pressure, each from one carried-forward synthetic world. Not representative 30-day population estimates.}\label{tab:monthlycapacity}
+\begin{tabular}{@{}llrr@{}}\toprule
+Regime & Role & Physical staging (\%) & Total demand pressure (\%)\\\midrule
+Ordinary & Novice / manual & 56.51 & 57.59\\
+& Novice / RELAY & 54.35 & 55.06\\
+& Senior / manual & 54.35 & 55.06\\
+& Senior / RELAY & 54.29 & 54.98\\\midrule
+Busy & Novice / manual & 90.54 & 173.06\\
+& Novice / RELAY & 83.26 & 99.42\\
+& Senior / manual & 84.79 & 111.02\\
+& Senior / RELAY & 82.40 & 98.05\\\midrule
+Critical & Novice / manual & 99.10 & 492.26\\
+& Novice / RELAY & 99.10 & 356.61\\
+& Senior / manual & 99.10 & 461.91\\
+& Senior / RELAY & 99.10 & 355.35\\\bottomrule
+\end{tabular}
+\end{table}
+\fig{fig7_30day_occupancy.png}{.98}{Long-run illustrative occupancy and total pressure. The critical workload drives every simulated role near the staging ceiling, while outside and exception demand causes total pressure to increase far beyond 100\%.}
+\fig{fig4_30day_pressure.png}{.98}{30-day local demand-pressure traces for busy and critical synthetic reference worlds. Samples were archived every 30 minutes, not at every 15-minute decision epoch. One seed per regime; curves are illustrative, not confidence intervals.}
+
+The busy case suggests a strong conditional advantage from assistance when a novice would otherwise accumulate delays and rework. The critical case is a counterexample to any universal claim that decision support eliminates capacity shortfall: all roles have extremely poor due-flight attainment. These scenarios are deliberately stressed and have no verified correspondence to incident frequencies at Cathay.
+
+\section{Implementation architecture, user interface and auditability}
+\subsection{Shared deterministic backend}
+The v17 app uses a Python standard-library web server and a single \texttt{Simulation} class. One simulated world drives every role and frontend endpoint. Its features include seeded exogenous incidents, received-vs-occurrence timestamps, selected same-route CX options, staging and flight capacity proxies, worker counts, action guards, original-flight uplift measurements, per-incident logs, and graphical snapshots. A separate archived benchmark records per-world summaries. Instrumentation in the present package reads the original 40,960 CSV rows; it does \emph{not} modify historical outcomes.
+
+\begin{lstlisting}[language=Python,caption={The verified capacity KPI reconstruction.}]
+# Existing counts() uses backlog = staging + outside + exception.
+stage_area = backlog_area - outside_area - exception_area
+mean_physical_pct = 100 * stage_area / (staging_capacity * horizon_minutes)
+mean_total_pressure_pct = 100 * backlog_area / (staging_capacity * horizon_minutes)
+mean_external_pct = 100 * (outside_area + exception_area) / (
+    staging_capacity * horizon_minutes)
+ever_pressure_gt100 = int(peak_backlog > staging_capacity)
+assert abs(mean_physical_pct + mean_external_pct
+           - mean_total_pressure_pct) < 1e-8
+\end{lstlisting}
+
+\subsection{Five-page 3D software experience}
+\begin{enumerate}
+\item \textbf{Live Operations:} left three-quarters is a symbolic 3D apron showing flight/cargo lifecycle; cargo appears in a lower staging lane, while aircraft, departures and incidents come from the backend. The right quarter is divided into dynamic priority ranking, explainable logs and a $0$--$100\%$ \emph{physical staging} gauge. A \emph{second, separately labeled} demand-pressure gauge may exceed $100\%$ without implying physical overfill.
+\item \textbf{Evidence \& KPIs:} four-role comparisons, stress conditions, paired intervals, realized quotes, staging burden, exception WIP and pressure frontiers. Users must be able to choose demand and workers, with explicit synthetic/proxy labels.
+\item \textbf{Math Engine:} visible rule predicates, timing slack, candidate values, bounded solver decisions, matchings and clearly marked unproved general correspondences.
+\item \textbf{Scenario Studio:} identical-seed four-role comparisons, multiple incident types, 1/2/7/30-day horizons and counterfactual snapshots.
+\item \textbf{Operations Coach:} offline rule explanations and training cases; no unapproved autonomous DG/AVI or loading instruction.
+\end{enumerate}
+Manual drag/drop proposals are validated by the same \texttt{request()} backend as automatic actions. Denial reason codes should be visible. The 3D planes and crates are expressive status objects, not faithful ULD geometry or aircraft weight-and-balance calculations. On a real system every command would require typed permissions, fresh evidence, approval gates and acknowledged execution receipts.
+\fig{fig8_v17_3d_ui.png}{.61}{Actual screenshot of the offline v17 symbolic 3D simulator (user-provided research build). Interface appearance does not imply certified real-world data integration or physical loading validity.}
+
+\section{Quality assurance and reproducibility}
+\subsection{Tests executed}
+The archived v17 package includes 18 automated tests, which were rerun successfully during this research integration. A separate instrumented spot check reconstructed one compound-cascade world across all four roles and verified $0\le\bar U\le100$, numerical conservation of the capacity-area identity and sampled 3D/live-state capacity limits. All 40,960 archived policy rows passed the integral-reconstruction nonnegativity, equality of staging-plus-external to total burden, and unique four-role pairing checks. Absolute numerical reconciliation error was less than $3\times10^{-14}$ percentage points.
+
+\begin{table}[htbp]\centering\small\caption{Audit evidence and limits.}\begin{tabularx}{\linewidth}{@{}p{.36\linewidth}p{.20\linewidth}X@{}}\toprule
+Check & Outcome & Important limitation\\\midrule
+Original Python test suite & 18/18 pass & Test coverage does not establish unseen regulations.\\
+Paired seed integrity & 10,240 worlds, four roles each & Same exogenous worlds, different endogenous behaviours.\\
+Accounting identity & 40,960/40,960 pass & Internal state definitions may omit real resources.\\
+Mean physical cap & $\max\bar U=85.74\%$ & Per-tick cap is by hard transition rule.\\
+System-wide safety certification & Not performed & No carrier's approved handling rules installed.\\
+Universal cluster-to-cargo proof & Not established & Restricted combinatorial theorem only.\\
+Real human cognitive calibration & Not performed & Persona settings constructed, not observed.\\
+Production financial ROI & Not measured & Synthetic costs have no HKD unit equivalence.\\\bottomrule
+\end{tabularx}\end{table}
+
+\subsection{Reproduction protocol and checksums}
+Place the original v17 bundle beside this report package, or adjust the \texttt{ORIGINAL} input path. The accompanying \texttt{code/reanalyze\_capacity.py} uses the untouched archived \texttt{policy\_rows.csv} to generate new tables, six figures and a machine-readable QA record. It does not need OAG credentials or Cathay internal access. Run:
+\begin{lstlisting}
+python RELAY_v17_integrated_paper/code/reanalyze_capacity.py
+cd RELAY_v17
+python -m unittest discover -s tests -v
+\end{lstlisting}
+The available output package also contains \texttt{code/engine\_instrumented.py} for prospective per-tick occupancy tracking. The researcher should not conflate a derived-on-archived-output analysis with a fresh Monte Carlo draw.
+
+\section{Economics, training value and investment case}
+\subsection{Potential economic mechanism}
+Real value may accrue from fewer missed commitments, less rework, better priority handling, faster decisions, shorter exception resolution, more sustainable staff onboarding and reduced scarcity of expert judgement. Yet the likely buyer's existing capabilities matter: Cathay already operates digital cargo systems \cite{cathaydigital}. A decision-support overlay and training facility is more defensible than a parallel booking or aircraft-loading platform. The 2025 Cathay annual report lists company cargo revenue of HK\$24,279 million and cargo tonnage of about 1.677 million tonnes \cite{annualreport}; neither number is the addressable value of this narrow workflow.
+
+\subsection{Avoid double-counting and imaginary dollars}
+Let $N_{\rm avoid}$ be verified avoidable failures, and $m$ their incremental net value. Let $C_{\rm licence}$, $C_{\rm integration}$ and $C_{\rm governance}$ denote annual expenditure. A conservative assessment is
+\begin{multline}
+V_{\rm annual}=N_{\rm avoid}\,m+V_{\rm training}+V_{\rm resilience}\\
+{}-C_{\rm licence}-C_{\rm integration}-C_{\rm governance}.
+\end{multline}
+All financial quantities require real calibration; the benchmark's \texttt{loss\_units} are fictional. Illustratively, a HK\$1 million annual fully burdened spend breaks even on 500 externally verified avoided cases if each produces HK\$2,000 net benefit. Neither 500 nor HK\$2,000 is claimed as an actual Cathay rate. Processing-capacity gains and missed-service savings must be reconciled so that the same avoided event is not counted twice.
+
+\subsection{What a real investment decision would require}
+\begin{enumerate}
+\item Identify an operational process owner and a small set of measurable decisions where current SOP-based support remains insufficient.
+\item Obtain authorized historical events, original and revised capacity, confirmed service commitments, action records, approvals and actual financial consequences.
+\item Run shadow-mode with both senior and novice operators. Randomize case order and protect against training contamination; use independent adjudication for legal and operational validity.
+\item Evaluate regret, time-to-safe-decision, training time and pressure metrics under held-out incidents, with proper confidence intervals and strata.
+\item Permit controlled rollout only when safety, role-based access, auditability, human authority, data governance, benefit and ongoing cost have all been independently approved.
+\end{enumerate}
+A paid, narrowly scoped pilot is more defensible than a full deployment purchase. Current simulation does not prove that even a small annual ROI is realized.
+
+\section{Future work and precise open problems}
+\begin{enumerate}
+\item \textbf{True resource units:} convert abstract slot constraints into authorized weight/volume/ULD position, specialist and storage-zone resources with correct dimensional analysis.
+\item \textbf{Causal data:} ensure all predictions, estimates and reoptimization use only as-of evidence; measure stale information and authorization latency.
+\item \textbf{Receding horizon:} implement coupled flight/ground MILP or CP-SAT with uncertainty scenarios, execution freeze windows, emergency fallback and audit logs.
+\item \textbf{Long-run economics:} estimate actual sales admission frontier under recurrent demand, cancellations, recovery and payment/refund obligations.
+\item \textbf{Human factors:} collect measured time, mistakes, expert disagreement, decision burden, fatigue and training curves; perform blinded prospective studies.
+\item \textbf{Ablation:} separate the gains of hard guards, time forecasting, global solver, advice interface and snake-graph module. Report solver runtime and counterexamples.
+\item \textbf{Mathematical rigor:} establish a nontrivial, cost-preserving cargo-to-surface mapping for a specified restricted operational class, or formally show where the mapping fails. Do not promote a heuristic graphical analogy to a universal theorem.
+\item \textbf{QA expansion:} use property-based testing, attack missing rules, evaluate time-zone changes, code-sharing, route restrictions, illness, simultaneous incidents, stale inventory, and adverse data-quality states.
+\end{enumerate}
+
+\section{Conclusion}
+RELAY has a credible vertical research question: helping approved operators make timely, explainable choices under constrained flights and handling resources. The archived v17 simulator demonstrates a conditional four-role difference in a designed synthetic world; it does \emph{not} establish superiority over actual Cathay employees. This integration adds an exact and independently auditable metric central to the proposed business case: average \emph{physical} staging occupancy versus total local cargo-demand pressure. An apparently favorable mean can coexist with frequent instantaneous exceedance and severe monthly stress. On the balanced synthetic design grid, senior/RELAY has the lowest mean physical occupancy (54.62\%) and total pressure (60.69\%), while novice/manual is highest (56.07\%, 64.35\%). The differences, and the 51.20\%-versus-47.26\% worlds-ever-exceeded comparison, are precise observations \emph{about this simulator} only. The appropriate next investment is a safety-gated, limited pilot that tests whether better real-time judgement produces measured benefit under actual operational constraints.
+
+\appendix
+\section{Selected derivations and counterexamples}
+\subsection{Proof of area reconstruction with unequal capacities}
+For a single world with constant $K$, \eqref{eq:recon} is exact. If $K(t)$ changes over time, the nominal-capacity quantity $100\sum_t S(t)\Delta/(K_0H)$ differs in general from
+\[
+\frac{100}{H}\sum_t\frac{S(t)\Delta}{K(t)}.
+\]
+Deployment therefore requires per-timestamp capacity history; the one-day v17 study keeps $K=26$ fixed.
+
+\subsection{Why average pressure does not determine exceedance duration}
+Consider two two-tick trajectories with the same $K=10$: $(B_1,B_2)=(10,10)$ and $(B_1,B_2)=(0,20)$. Both have equal time-averaged pressure $100\%$, but the first never has $P>100$ and the second does so half the time. Consequently the area alone cannot determine the amount of time above the threshold; the peak merely establishes whether at least one exceedance occurred.
+
+\subsection{Why local optimality need not imply global optimality}
+Suppose two shipments compete for a shared specialist resource. Selecting the apparently best single shipment can block a second time-critical shipment and an additional downstream flight. The locally highest score is not necessarily the global minimum of combined service penalties. Exact optimality over a bounded nine-candidate additive subset is only exact for that subset/objective, not for the real coupled multi-epoch objective.
+
+\subsection{Why no algorithm can guarantee service at arbitrary offered loads}
+If in a stationary, lossless single-resource queue the mean admitted work per unit time exceeds maximal service work per unit time, the workload satisfies $W(t)\ge W(0)+A(0,t)-\mu t$, so under positive average drift the backlog cannot remain bounded without rejecting or externally releasing demand. This is a capacity inequality, not a statement that software can predict physical aircraft handling failures.
+
+\section{Reproducible output inventory}
+\begin{itemize}
+\item \texttt{source/original\_policy\_rows.csv}: unchanged v17 archived benchmark input, included for standalone reproduction.
+\item \texttt{results/capacity\_rows\_40960.csv}: archived v17 policy rows enriched with three exact area-based capacity ratios and peak-event indicators.
+\item \texttt{results/capacity\_summary.csv}: means, standard deviations and medians across 10,240 worlds by role.
+\item \texttt{results/capacity\_paired\_ci.csv}: paired synthetic sampling-uncertainty contrasts versus senior/manual.
+\item \texttt{results/capacity\_by\_load.csv}, \texttt{capacity\_by\_scenario.csv}: stratified output by stress design.
+\item \texttt{results/scenario\_weight\_sensitivity.csv}: \emph{hypothetical} scenario-weighting exercise.
+\item \texttt{results/capacity\_QA.json}: reconciliation, pairing and source provenance claims.
+\item \texttt{figures/fig1}--\texttt{fig8}: data visualizations, illustrative 30-day examples, conceptual flow and original v17 interface screenshot.
+\item \texttt{code/reanalyze\_capacity.py}: exact reproducibility pipeline. Original v17 engine remains separate and unchanged.
+\end{itemize}
+
+\begin{thebibliography}{20}\small
+\bibitem{cathaypriority} Cathay Cargo. \emph{Cathay Priority: First, Essential Plus, Essential}. \url{https://www.cathaycargo.com/en-us/solutions/cathay-priority.html}. Accessed 14 Nov 2026.
+\bibitem{terminalfacts} Cathay Cargo Terminal. \emph{Facts and figures}. \url{https://www.cpsl.com.hk/en-us/About-Us/Facts-and-figures}. Accessed 14 Nov 2026.
+\bibitem{cathaydigital} Cathay Cargo. \emph{Digitalisation and AI}. \url{https://www.cathaycargo.com/en-us/about-us/digital-innovations.html}. Accessed 14 Nov 2026.
+\bibitem{ichm} International Air Transport Association. \emph{IATA Cargo Handling Manual, 10th ed. (2026): summary and changes}. \url{https://www-preprod.iata.org/en/publications/manuals/iata-cargo-handling-manual/}. Accessed 14 Nov 2026.
+\bibitem{icao} International Civil Aviation Organization. \emph{Technical Instructions for the Safe Transport of Dangerous Goods by Air (2025--2026 edition)}. \url{https://www.icao.int/Dangerous-Goods/Technical-Instructions}.
+\bibitem{lar} International Air Transport Association. \emph{Live Animals: IATA Live Animals Regulations}. \url{https://www.iata.org/en/programs/cargo/live-animals}. Accessed 14 Nov 2026.
+\bibitem{oagfields} OAG. \emph{Schedules API Response Layout and Descriptions}. \url{https://knowledge.oag.com/docs/schedules-api-response-layout-descriptions}. Accessed 14 Nov 2026.
+\bibitem{oagjoin} OAG. \emph{Linking Schedules and Status Data in Flight Info Direct}, 13 Mar 2026. \url{https://knowledge.oag.com/docs/linking-schedules-and-status-data}.
+\bibitem{onerecord} International Air Transport Association. \emph{ONE Record: Data Model, API and Security Specifications}. \url{https://www.iata.org/one-record}. Accessed 14 Nov 2026.
+\bibitem{annualreport} Cathay Pacific Airways Limited. \emph{Annual Report 2025}, Financial and Operational Highlights. \url{https://www.cathaypacific.com/content/dam/cx/about-us/investor-relations/interim-annual-reports/en/2025_cx_annual_report_en.pdf}.
+\bibitem{musiker} G. Musiker and R. Schiffler. ``Cluster expansion formulas and perfect matchings,'' \emph{Journal of Algebraic Combinatorics} 32 (2010), 187--209. DOI: \href{https://doi.org/10.1007/s10801-009-0210-3}{10.1007/s10801-009-0210-3}.
+\bibitem{little} J. D. C. Little. ``A proof for the queuing formula: $L=\lambda W$,'' \emph{Operations Research} 9(3) (1961), 383--387. DOI: \href{https://doi.org/10.1287/opre.9.3.383}{10.1287/opre.9.3.383}.
+\bibitem{v12} RELAY Research Team. \emph{RELAY: Buying Future Optionality in Air-Cargo Recovery}, internal integrated research and engineering report, 11 Nov 2026; user-supplied source.
+\bibitem{v13} RELAY Research Team. \emph{Mathematical Research Paper}, v13; user-supplied source.
+\bibitem{v17} RELAY Research Team. \emph{v17 executable source and 10,240-world evaluation}, user-supplied source; research Python simulator, reports and archived CSVs.
+\end{thebibliography}
+\end{document}
