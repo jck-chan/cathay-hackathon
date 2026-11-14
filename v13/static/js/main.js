@@ -8,6 +8,7 @@ import { RankingPanel, LogPanel, StagingPanel } from './ui/panels.js';
 import { ICON } from './ui/icons.js';
 import { Dropdown, ComboBox } from './ui/dropdown.js';
 import { EvidencePanel } from './ui/evidence.js';
+import { initModel } from './ui/model.js';
 import { initChat } from './ui/chat.js';
 
 const $ = s => document.querySelector(s);
@@ -46,6 +47,7 @@ document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () =>
 }));
 let activeTab = 'apron';
 const evidencePanel = new EvidencePanel($('#tab-evidence'));
+initModel($('#tab-model'));
 initChat();
 
 // ---- boot ------------------------------------------------------------------------------
@@ -121,7 +123,7 @@ $('#btnStep').addEventListener('click', e => runControl(e.currentTarget, () => a
 $('#autoIn').addEventListener('change', e => runControl(e.currentTarget, () => api.control({ autopilot: e.target.checked })));
 $('#btnReset').addEventListener('click', e => runControl(e.currentTarget, () => api.reset({ seed: Math.floor(Math.random() * 99999) + 1 })));
 window.addEventListener('keydown', e => {
-  if (e.code === 'Space' && !e.defaultPrevented && !['INPUT', 'BUTTON'].includes(document.activeElement.tagName)) { e.preventDefault(); playButton.click(); }
+  if (e.code === 'Space' && !e.defaultPrevented && !['INPUT', 'BUTTON', 'SUMMARY'].includes(document.activeElement.tagName)) { e.preventDefault(); playButton.click(); }
 });
 
 function renderTop(s) {

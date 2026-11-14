@@ -61,9 +61,11 @@ where RELAY was better), one bar chart per metric (mean ± 95% CI), backlog over
 effect table and every world/role row with a CSV download. Choose worlds, days, scenario and cargo
 rate and press **Run study**; the default study is computed in the background at start-up.
 
-## Tab 3
+## Tab 3 — How it works
 
-Intentionally blank.
+A plain-language walkthrough of RELAY’s checks, priorities and crew assignment. A three-box
+puzzle lets you see how missing paperwork changes what can be loaded. The tab also explains
+where the snake-graph research fits and shows results from one synthetic 30-day study.
 
 ## Tab 4 — Agent and MCP
 

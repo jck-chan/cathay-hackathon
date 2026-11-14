@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/css/app.css">
   <link rel="stylesheet" href="/css/evidence.css">
+  <link rel="stylesheet" href="/css/model.css">
   <link rel="stylesheet" href="/css/chat.css">
   <script type="importmap">
   { "imports": { "three": "/vendor/three/three.module.min.js", "three/addons/": "/vendor/three/addons/" } }
@@ -18,7 +19,7 @@
     <nav class="tabs" role="tablist">
       <button class="tab on" role="tab" data-tab="apron" aria-selected="true">Live apron</button>
       <button class="tab" role="tab" data-tab="evidence" aria-selected="false">Evidence</button>
-      <button class="tab" role="tab" data-tab="t3" aria-selected="false">Tab 3</button>
+      <button class="tab" role="tab" id="model-tab" data-tab="model" aria-selected="false" aria-controls="tab-model">How it works</button>
       <button class="tab" role="tab" data-tab="agent" aria-selected="false">Agent</button>
     </nav>
     <div class="simctl">
@@ -95,7 +96,71 @@
         <div class="ev-tip" hidden></div>
       </div>
     </section>
-    <section class="tabpane" id="tab-t3" aria-label="Tab 3"></section>
+    <section class="tabpane" id="tab-model" role="tabpanel" aria-labelledby="model-tab" tabindex="0">
+      <div class="model-page">
+        <header class="model-intro">
+          <h1>Which box goes first?</h1>
+          <p>Imagine you’re helping at an airport. Planes leave on a schedule, boxes keep arriving, and only a few crews are free. RELAY helps you decide which boxes to load next.</p>
+        </header>
+
+        <ol class="model-steps">
+          <li>
+            <h2>Can it go?</h2>
+            <p>Check the box’s booking, papers, and special handling rules. The plane needs room and the crew needs enough time before loading closes.</p>
+          </li>
+          <li>
+            <h2>Which box needs help first?</h2>
+            <p>A box might move up the list because its plane is about to close, it needs to stay cold, or it has a promise to fly first.</p>
+          </li>
+          <li>
+            <h2>Which jobs fit together?</h2>
+            <p>Look at a short list and pick a group of jobs that uses the crews well. If there’s only one specialist, only one specialist job can start now.</p>
+          </li>
+        </ol>
+
+        <section class="model-puzzle" aria-labelledby="model-puzzle-title">
+          <div>
+            <h2 id="model-puzzle-title">Try it with three boxes</h2>
+            <p>Two crews are free. Only one can handle the cold medicine or the pet carrier. Try changing when the medicine’s papers are ready.</p>
+            <fieldset class="model-options">
+              <legend>Are the medicine’s papers ready?</legend>
+              <label><input type="radio" name="medicine-papers" value="ready" checked> Ready</label>
+              <label><input type="radio" name="medicine-papers" value="waiting"> Still waiting</label>
+            </fieldset>
+          </div>
+          <div>
+            <ul class="model-jobs">
+              <li><div><strong>Cold medicine</strong><span data-medicine-job>Specialist crew · 8 points</span></div><span class="model-job-status" data-medicine-status>Load now</span></li>
+              <li><div><strong>Pet carrier</strong><span>Specialist crew · 7 points</span></div><span class="model-job-status" data-pet-status data-waiting>Wait for crew</span></li>
+              <li><div><strong>Toy box</strong><span>Regular crew · 5 points</span></div><span class="model-job-status">Load now</span></li>
+            </ul>
+            <div class="model-result" aria-live="polite" aria-atomic="true">
+              <strong data-model-plan>Cold medicine + toy box · 13 points</strong>
+              <p data-model-why>The medicine gets the only specialist because it has more points. The other crew takes the toys.</p>
+            </div>
+            <p class="model-note">The points are made up for this puzzle. The live simulator updates priorities as conditions change.</p>
+          </div>
+        </section>
+
+        <section class="model-outcomes" aria-labelledby="model-outcomes-title">
+          <h2 id="model-outcomes-title">What happened in a pretend busy month?</h2>
+          <p>Researchers replayed the same flights, cargo and disruptions for 30 simulated days. Here’s what changed for the new operator with RELAY’s help.</p>
+          <dl class="model-metrics">
+            <div><dt>New orders that flew</dt><dd>259 → 275</dd></div>
+            <div><dt>Time the waiting area was full</dt><dd>64.1% → 40.7%</dd></div>
+            <div><dt>Missed booked flights for top-priority cargo</dt><dd>40 → 14</dd></div>
+          </dl>
+          <p class="model-note">These numbers come from one simulated scenario in the RELAY v17 business brief. The operator’s habits and delays were model assumptions.</p>
+          <button class="model-link" type="button" data-model-evidence>Compare all four roles in Evidence <span aria-hidden="true">→</span></button>
+        </section>
+
+        <details class="model-research">
+          <summary>How does the math paper fit in?</summary>
+          <p>Picture a row of squares. A move uses two neighboring squares, so moves that share a square can’t both happen. You can work along the row and keep track of the best set of moves so far.</p>
+          <p>The v13 research uses this idea to study some cargo swaps that clash with their neighbors. It connects those swaps to the tile-pairing puzzles in Musiker and Schiffler’s <cite>Cluster expansion formulas and perfect matchings</cite>. The live assisted dispatcher uses a different method. It compares groups drawn from up to nine jobs for the crews available now.</p>
+        </details>
+      </div>
+    </section>
     <section class="tabpane" id="tab-agent" aria-label="Agent">
       <div class="chat-actions">
         <button class="chat-action" id="chatMcp" type="button" aria-haspopup="dialog">Connect via MCP</button>
