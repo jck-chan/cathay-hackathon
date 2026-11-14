@@ -41,7 +41,8 @@ function html(id, markup) {
   const el = $(id);
   if (!el || painted.get(id) === markup) return;
   painted.set(id, markup);
-  el.innerHTML = markup;
+  if (id === 'taskCards') window.RelayRequestButton.replaceContents(el, markup, button => button.dataset.task);
+  else el.innerHTML = markup;
 }
 function text(id, value, tone) {
   const el = $(id);
@@ -149,7 +150,7 @@ function render(s, baseline, relay, delta, statusLabel) {
   text('actionText', d.stale ? 'This decision is out of date and cannot be approved.' : MODE_NOTE[mode] || MODE_NOTE.MANUAL_REVIEW);
 
   const reviewable = Boolean(d.id && d.status === 'PENDING_REVIEW' && !d.stale && !d.approval_blocked_external_evidence && count) && mode !== 'ADVISORY';
-  for (const id of ['approveBtn', 'rejectBtn']) { const b = $(id); if (b) b.disabled = !reviewable; }
+  for (const id of ['approveBtn', 'rejectBtn']) { const b = $(id); if (b) window.RelayRequestButton.setDisabled(b, !reviewable); }
 
   const costA = baseline.cost_units || 0, costB = relay.cost_units || 0;
   text('towerBefore', num(costA, 1)); text('towerAfter', num(costB, 1));
@@ -176,13 +177,6 @@ function render(s, baseline, relay, delta, statusLabel) {
   html('taskCards', tasks(list));
 }
 
-/* The segmented control drives the hidden <select id="autonomy"> that v9.js listens to. */
-$('ctModeSeg')?.addEventListener('click', e => {
-  const b = e.target.closest('[data-mode]'), select = $('autonomy');
-  if (!b || !select || select.value === b.dataset.mode) return;
-  select.value = b.dataset.mode;
-  select.dispatchEvent(new Event('change', {bubbles: true}));
-});
 $('ctProposals')?.addEventListener('click', e => {
   if (!e.target.closest('[data-ct-toggle-proposals]')) return;
   showAllProposals = !showAllProposals;

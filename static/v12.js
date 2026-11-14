@@ -2,6 +2,7 @@
    experiment. Viewport selection never mutates a policy or its input tape. */
 (()=>{'use strict';
 const $=x=>document.getElementById(x), safe=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const {run:withRequestButton}=window.RelayRequestButton;
 const names={FCFS:'FCFS',RELAY_V10:'RELAY v10',RELAY_V11:'RELAY v11',A_CRITICAL:'RELAY + Model A',A_EDF:'RELAY + EDF'};
 const colors={FCFS:'#b98b40',RELAY_V10:'#517c9d',RELAY_V11:'#128d78',A_CRITICAL:'#a06dc3',A_EDF:'#d97061'};
 const keys=Object.keys(names);let visible=['FCFS','RELAY_V11','A_CRITICAL'],last=null,worlds={},viewMode='3D',pending=false,latestSeq=-1,lastTick=-1,history={},toastTimer;
@@ -64,19 +65,32 @@ function detailPolicy(key){if(!last)return;const p=last.worlds[key],events=last.
 function eventDrawer(){if(!last)return;let ev=last.events.slice().reverse();reveal('Common input & policy event feed','<h3>Latest shared events</h3><p>One shared server clock. Some dispatch decisions are policy-specific, while arrivals/disruptions are shared.</p>'+ev.map(e=>metric(`T${e.tick} · ${e.kind}`,e.message)).join(''))}
 function settingsDrawer(){if(!last)return;const c=last.config;
  reveal('Shared scenario settings',`<p>Every change applies to all five policy worlds simultaneously, not just the currently visible ones.</p><form id="settingsForm"><div class="row">Orders/tick <input id="configRate" type="number" step="any" min="0.1" max="8" value="${c.arrival_rate}"></div><div class="row">Handlers <input id="configHandlers" type="number" min="1" max="12" value="${c.handlers}"></div><div class="row">Aircraft stands <input id="configStands" type="number" min="1" max="12" value="${c.stands}"></div><div class="row">Cold bays <input id="configCold" type="number" min="0" max="6" value="${c.cold_bays}"></div><div class="row">Weather-event probability <input id="configChaos" type="number" min="0" max="1" step="any" value="${last.chaos}"></div><button class="btn primary" type="submit" style="margin-top:18px">Apply to ALL worlds</button></form>`);
- $('settingsForm').onsubmit=async e=>{e.preventDefault();try{await act('configure',{arrival_rate:+$('configRate').value,handlers:+$('configHandlers').value,stands:+$('configStands').value,cold_bays:+$('configCold').value,chaos:+$('configChaos').value});hide();notify('Shared resource settings updated')}catch{}};
+ $('settingsForm').onsubmit=e=>{e.preventDefault();return withRequestButton(e.submitter||e.target.querySelector('button'),async()=>{try{await act('configure',{arrival_rate:+$('configRate').value,handlers:+$('configHandlers').value,stands:+$('configStands').value,cold_bays:+$('configCold').value,chaos:+$('configChaos').value});hide();notify('Shared resource settings updated')}catch{}})};
 }
 function incidentDrawer(){let h='<p>Inject a synthetic disruption into the shared event tape. It affects every policy world on the next dispatch cycle.</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
  for(let k of ['RAIN','STORM','FOG','CLEAR','CREW_SHORTAGE','COLD_OUTAGE','DEMAND_SURGE'])h+=`<button class="btn" data-incident="${k}" style="padding:16px">${k.replaceAll('_',' ')}</button>`;h+='</div>';
- reveal('Inject a common disruption',h);$('drawerBody').querySelectorAll('[data-incident]').forEach(el=>el.onclick=async()=>{try{await act('incident',{incident:el.dataset.incident});hide();notify('Event injected: '+el.dataset.incident)}catch{}})}
+ reveal('Inject a common disruption',h);$('drawerBody').querySelectorAll('[data-incident]').forEach(el=>el.onclick=()=>withRequestButton(el,async()=>{try{await act('incident',{incident:el.dataset.incident});hide();notify('Event injected: '+el.dataset.incident)}catch{}}))}
 async function benchmarkDrawer(){reveal('Independent five-strategy holdout','<p>Loading benchmark results…</p>');try{const d=await api('/v12/api/benchmark');let h=`<p>Five strategies, six synthetic scenarios, ${d.episodes_per_scenario} matched cohorts/scenario. All strategies replay identical arrivals. This is staging-policy evidence, not airline ROI or proof of all three models.</p>`;
  for(let scenario of d.scenarios){let rows=d.results.filter(x=>x.scenario===scenario);h+=`<h3>${safe(scenario.replaceAll('_',' '))}</h3><table><thead><tr><th>Strategy</th><th>Cost Δ</th><th>On time</th><th>Worse episodes</th></tr></thead><tbody>`+rows.map(x=>`<tr><td>${safe(x.label)}</td><td>${x.cost_reduction_pct>0?'+':''}${x.cost_reduction_pct}%</td><td>${x.on_time_pct}%</td><td>${x.worse_than_fcfs_pct}%</td></tr>`).join('')+'</tbody></table>'}
  $('drawerBody').innerHTML=h}catch(e){$('drawerBody').textContent='Benchmark unavailable: '+e.message}}
-$('start').onclick=()=>act('start').catch(()=>{});$('pause').onclick=()=>act('pause').catch(()=>{});$('step').onclick=()=>act('step',{count:1}).catch(()=>{});$('stepTen').onclick=()=>act('step',{count:10}).catch(()=>{});
-$('reset').onclick=()=>{let was=last?.running;act('reset',{scenario:$('scenario').value}).then(()=>{if(was)act('start')}).catch(()=>{})};
+function requestClick(id,request){
+ const button=$(id);
+ button.onclick=()=>withRequestButton(button,request);
+}
+requestClick('start',()=>act('start').catch(()=>{}));
+requestClick('pause',()=>act('pause').catch(()=>{}));
+requestClick('step',()=>act('step',{count:1}).catch(()=>{}));
+requestClick('stepTen',()=>act('step',{count:10}).catch(()=>{}));
+requestClick('reset',async()=>{
+ const was=last?.running;
+ try{
+  await act('reset',{scenario:$('scenario').value});
+  if(was)await act('start');
+ }catch{}
+});
 $('speed').onchange=e=>act('speed',{speed:+e.target.value}).catch(()=>{});
 $('scenario').onchange=async e=>{let was=last?.running;try{await act('pause');await act('reset',{scenario:e.target.value});if(was)await act('start');notify('Experiment reset to '+e.target.value)}catch{}};
-$('settingsBtn').onclick=settingsDrawer;$('incidentBtn').onclick=incidentDrawer;$('eventsBtn').onclick=eventDrawer;$('benchmarkBtn').onclick=benchmarkDrawer;
+$('settingsBtn').onclick=settingsDrawer;$('incidentBtn').onclick=incidentDrawer;$('eventsBtn').onclick=eventDrawer;requestClick('benchmarkBtn',benchmarkDrawer);
 $('viewSwitch').onclick=()=>{viewMode=viewMode==='3D'?'2D':'3D';for(let w of Object.values(worlds))w.scene?.setMode(viewMode);$('viewSwitch').textContent=viewMode==='3D'?'2D ↑':'3D ◈'};
 $('closeDrawer').onclick=hide;$('dim').onclick=hide;document.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
 window.addEventListener('resize',()=>{needsPaint=true});

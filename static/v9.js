@@ -13,34 +13,14 @@ const embeddedSandbox=embed&&(query.get('sandbox_id')||(embed==='ground'&&query.
 const singleGround=embed==='ground'&&embeddedSandbox;
 const sandboxIds=singleGround?[embeddedSandbox]:[null,null];
 const groundStates=new Map(), groundErrors=new Map();
-let sandboxList=[], createSlot=0, creatingSandbox=false, refreshPending=false, sandboxRevision=0, dashboardSandboxId=embeddedSandbox;
+let sandboxList=[], createSlot=0, creatingSandbox=false, queuedRefresh=null, sandboxRevision=0, dashboardSandboxId=embeddedSandbox;
 const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs')];
 if(!singleGround)worlds.push(new RelayV6.GroundScene($('relayWorld'),'relay'));
 const globe=new RelayV6.CustomerGlobe($('customerGlobe'));
 function toast(message,bad=false){let t=$('toast');t.textContent=message;t.classList.toggle('error',bad);t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3700)}
-// Capture network-initiating buttons, including dynamically inserted controls.
-let requestOrigin=null;
-const requestsPerButton=new WeakMap(),buttonWasDisabled=new WeakMap();
-function setRequestOrigin(button){
- if(!button||button.disabled)return;
- requestOrigin=button;
- queueMicrotask(()=>{if(requestOrigin===button)requestOrigin=null});
-}
-document.addEventListener('click',event=>setRequestOrigin(event.target.closest('button')),true);
-document.addEventListener('submit',event=>setRequestOrigin(event.submitter),true);
-function pendingButton(button,start){
- if(!button)return;
- const count=requestsPerButton.get(button)||0;
- if(start){
-  if(!count){buttonWasDisabled.set(button,button.disabled);button.disabled=true;button.dataset.requestPending='true';button.setAttribute('aria-busy','true')}
-  requestsPerButton.set(button,count+1);
- }else if(count<=1){
-  requestsPerButton.delete(button);delete button.dataset.requestPending;button.removeAttribute('aria-busy');
-  button.disabled=buttonWasDisabled.get(button)??false;buttonWasDisabled.delete(button);
- }else requestsPerButton.set(button,count-1);
-}
-async function api(path,method='GET',payload){const button=requestOrigin;pendingButton(button,true);let c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);try{let r=await fetch(path,{method,signal:c.signal,cache:'no-store',headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});let t=await r.text();let o;try{o=JSON.parse(t)}catch{o={detail:t.slice(0,250)}}if(!r.ok)throw Error(typeof o.detail==='string'?o.detail:JSON.stringify(o.detail||o).slice(0,270));return o}finally{clearTimeout(tm);pendingButton(button,false)}}
-function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);if(sandboxDialog)refreshState();}
+const {run:withRequestButton,setPending,setDisabled,replaceContents}=window.RelayRequestButton;
+async function api(path,method='GET',payload){let c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);try{let r=await fetch(path,{method,signal:c.signal,cache:'no-store',headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});let t=await r.text();let o;try{o=JSON.parse(t)}catch{o={detail:t.slice(0,250)}}if(!r.ok)throw Error(typeof o.detail==='string'?o.detail:JSON.stringify(o.detail||o).slice(0,270));return o}finally{clearTimeout(tm)}}
+function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);if(sandboxDialog)return refreshState();}
 let returnFocus=null;
 function drawer(title,html,{popup=false}={}){
  returnFocus=document.activeElement;const panel=$('drawer');panel.classList.toggle('order-popup',popup);
@@ -97,16 +77,16 @@ function renderTower(s,a,b,delta){const d=s.decision||{},v=s.v8||{};
  txt('impactedCount',d.proposed_actions?.length||0);txt('scopeCount',`${s.decision_scope?.evaluated??0} / ${s.decision_scope?.eligible??0}`);
  txt('reviewState',(d.stale?'STALE':d.status||'NONE').replaceAll('_',' '));
  const can=Boolean(d.id&&d.status==='PENDING_REVIEW'&&!d.stale&&!d.approval_blocked_external_evidence&&(d.proposed_actions||[]).length);
- $('approveBtn').disabled=!can||v.mode==='ADVISORY';$('rejectBtn').disabled=!can||v.mode==='ADVISORY';
+ for(const id of ['approveBtn','rejectBtn'])setDisabled($(id),!can||v.mode==='ADVISORY');
  txt('taskCounter',s.tasks?.length||0);
- $('taskCards').innerHTML=(s.tasks||[]).length?(s.tasks||[]).slice(0,7).map(t=>`<div class="task-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||t.type||'Team handoff')}</b><small>${esc(t.status||'PENDING')} · synthetic task</small>${['PENDING','ACKNOWLEDGED','READY','OPEN','QUEUED_SIMULATED'].includes(t.status)?`<button data-task="${esc(t.id)}">Mark done</button>`:''}</div>`).join(''):'<div class="empty-card">Auto-approved synthetic work orders appear here after the decision gate.</div>';
+ replaceContents($('taskCards'),(s.tasks||[]).length?(s.tasks||[]).slice(0,7).map(t=>`<div class="task-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||t.type||'Team handoff')}</b><small>${esc(t.status||'PENDING')} · synthetic task</small>${['PENDING','ACKNOWLEDGED','READY','OPEN','QUEUED_SIMULATED'].includes(t.status)?`<button data-task="${esc(t.id)}">Mark done</button>`:''}</div>`).join(''):'<div class="empty-card">Auto-approved synthetic work orders appear here after the decision gate.</div>',button=>button.dataset.task);
 }
 function renderCustomer(s){let list=s.shipment_objects||[];if(!selectedAwb||!list.some(x=>x.awb===selectedAwb))selectedAwb=list[0]?.awb||null;
  if(window.RELAY_CUSTOMER){window.RELAY_CUSTOMER.render(s,selectedAwb,globe);return;}
  txt('portfolioCount',list.length);let q=$('filterShipments').value.toLowerCase().trim();let shown=list.filter(x=>(x.awb+' '+x.destination).toLowerCase().includes(q));
- $('portfolioItems').innerHTML=shown.length?shown.map(x=>{let risk=x.blocked_reason||x.dimension_conflict||x.customs_hold;return `<div class="shipment-card ${x.awb===selectedAwb?'active':''}" data-awb="${esc(x.awb)}" role="button" tabindex="0"><div class="ship-top"><b>${esc(x.awb)}</b><span class="ship-marker ${risk?'risk':''}"></span></div><p>HKG → ${esc(x.destination)} · ${esc(x.handling)} · ${num(x.weight_kg)} kg</p><small>${esc(x.stage_relay||'RECEIVED')} ${risk?'· Needs attention':''}</small></div>`}).join(''):'<div class="empty-card">No matching shipments.</div>';
+ replaceContents($('portfolioItems'),shown.length?shown.map(x=>{let risk=x.blocked_reason||x.dimension_conflict||x.customs_hold;return `<button type="button" class="shipment-card ${x.awb===selectedAwb?'active':''}" data-awb="${esc(x.awb)}"><span class="ship-top"><b>${esc(x.awb)}</b><span class="ship-marker ${risk?'risk':''}"></span></span><p>HKG → ${esc(x.destination)} · ${esc(x.handling)} · ${num(x.weight_kg)} kg</p><small>${esc(x.stage_relay||'RECEIVED')} ${risk?'· Needs attention':''}</small></button>`}).join(''):'<div class="empty-card">No matching shipments.</div>',button=>button.dataset.awb);
  let customer=s.customer_projection;
- if(!customer||customer.awb!==selectedAwb){if(selectedAwb&&!pollBusy)fetchState();return;}
+ if(!customer||customer.awb!==selectedAwb){return;}
  txt('shipAwb',customer.awb);txt('shipRoute',`${customer.origin} → ${customer.destination}`);txt('globeRoute',`${customer.origin} → ${customer.destination}`);txt('shipStatus',customer.status||'SIMULATED');
  let eta=customer.estimated_arrival_utc;txt('shipEta',customer.eta_past_due_without_arrival_confirmation?'Original ETA overdue · verification required':'Recorded ETA: '+when(eta));
  if(globe.route[0]!==customer.origin||globe.route[1]!==customer.destination)globe.setRoute(customer.origin,customer.destination);globe.setRoutes?.(list,selectedAwb);
@@ -127,8 +107,22 @@ function scopedPath(path,id=embeddedSandbox,params={}){
 function visibleSandboxIds(){return [...new Set(sandboxIds.filter(Boolean))]}
 function groundReference(){return currentTab==='ground'?groundStates.get(sandboxIds[0]):null}
 function refreshState(){
- if(pollBusy||actionBusy)refreshPending=true;
- else fetchState();
+ if(queuedRefresh){
+  const {promise}=queuedRefresh;
+  flushRefresh();
+  return promise;
+ }
+ if(!pollBusy&&!actionBusy)return fetchState();
+ let resolve;
+ const promise=new Promise(done=>{resolve=done});
+ queuedRefresh={promise,resolve};
+ return promise;
+}
+function flushRefresh(){
+ if(!queuedRefresh||pollBusy||actionBusy)return;
+ const {resolve}=queuedRefresh;
+ queuedRefresh=null;
+ resolve(fetchState());
 }
 function updateSandboxOptions(){
  sandboxPickers.slice(0,sandboxIds.length).forEach((picker,slot)=>{
@@ -138,20 +132,13 @@ function updateSandboxOptions(){
   const focused=document.activeElement;
   const focusedId=options.contains(focused)?focused.dataset.sandboxId:null;
   const rows=sandboxList.map(s=>{
-   const row=document.createElement('div');
-   row.className='sandbox-row';
-   row.innerHTML='<button type="button" class="sandbox-option"><span></span><small></small></button>'+
-    '<button type="button" class="sandbox-delete"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6 4V2h4v2M4 4l1 10h6l1-10M7 7v4m2-4v4"/></svg></button>';
-   const [option,remove]=row.children;
-   option.dataset.sandboxId=remove.dataset.sandboxId=s.id;
-   option.setAttribute('aria-current',String(s.id===selectedId));
-   option.querySelector('span').textContent=s.name;
-   option.querySelector('small').textContent=s.model_name;
-   remove.setAttribute('aria-label','Delete '+s.name);
-   remove.title='Delete '+s.name;
-   return row;
+   const id=esc(s.id), name=esc(s.name);
+   return `<div class="sandbox-row">
+    <button type="button" class="sandbox-option" data-sandbox-id="${id}" aria-current="${s.id===selectedId}"><span>${name}</span><small>${esc(s.model_name)}</small></button>
+    <button type="button" class="sandbox-delete" data-sandbox-id="${id}" aria-label="Delete ${name}" title="Delete ${name}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6 4V2h4v2M4 4l1 10h6l1-10M7 7v4m2-4v4"/></svg></button>
+   </div>`;
   });
-  options.replaceChildren(...rows);
+  replaceContents(options,rows.join(''),button=>button.className+button.dataset.sandboxId);
   const selected=sandboxList.find(s=>s.id===selectedId);
   trigger.querySelector('[data-sandbox-name]').textContent=selected?.name||'Choose sandbox';
   const model=trigger.querySelector('[data-sandbox-model]');
@@ -176,7 +163,7 @@ function selectSandbox(slot,id){
  sandboxIds[slot]=id;
  updateSandboxOptions();
  renderGround();
- refreshState();
+ return refreshState();
 }
 async function pollGround(){
  const revision=sandboxRevision;
@@ -208,7 +195,7 @@ async function fetchState(){
  }catch(e){txt('liveState','OFFLINE');$('statusPulse').classList.remove('on');console.error(e)}
  finally{
   pollBusy=false;
-  if(refreshPending){refreshPending=false;refreshState()}
+  flushRefresh();
  }
 }
 async function action(path,body,success,ids=[dashboardSandboxId]){
@@ -225,7 +212,8 @@ async function action(path,body,success,ids=[dashboardSandboxId]){
   else if(success)toast(success);
  }finally{
   actionBusy=false;
-  if(sandboxDialog)refreshState();
+  if(sandboxDialog)await refreshState();
+  else flushRefresh();
  }
 }
 function groundTargets(){return sandboxDialog&&currentTab==='ground'?visibleSandboxIds():[embeddedSandbox]}
@@ -248,9 +236,7 @@ function advanceConfig(){
  return config;
 }
 function applyDisruptionSettings(settings,message){
- closePops();
- $('injectBtn').focus();
- action('/v11/api/control',{action:'tune',...settings},message,groundTargets());
+ return action('/v11/api/control',{action:'tune',...settings},message,groundTargets());
 }
 function setPop(id, open) {
  const panel = $(id);
@@ -335,15 +321,32 @@ async function showEvidence(kind){if(kind==='events'){
 }
  if(kind==='journey'){let c=state?.customer_projection;details('Customer journey · '+(c?.awb||'—'),`<p>Observed synthetic milestones stay separate from simulated ground actions and tentative routing.</p>${journeyEventRows(c?.journey_events)}`);return}
  if(kind==='math'||['model_i','model_ii','model_iii'].includes(kind)){let d=state?.decision||{},k=kind==='math'?'model_iii':kind;details(kind==='math'?'Mathematical decision trace':'Inspect '+k.toUpperCase(),`<p>Model I = bounded 2D arrangement; Model II = one-step Bayesian verification; Model III = finite-column capacity MILP.</p><pre>${esc(JSON.stringify(kind==='math'?d:d[k]||{},null,2))}</pre><button class="btn soft" id="fullEvidence">Load source provenance ↗</button>`);return}
- if(kind==='audit'||kind==='source'){details(kind==='audit'?'Runtime integrity audit':'OAG / dataset provenance','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(scopedPath(kind==='audit'?'/v11/api/audit':'/v11/api/evidence',groundReference()?sandboxIds[0]:embeddedSandbox));$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
+ if(kind==='audit'||kind==='source'){if(kind==='audit')details('Runtime integrity audit','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(scopedPath(kind==='audit'?'/v11/api/audit':'/v11/api/evidence',groundReference()?sandboxIds[0]:embeddedSandbox));if(kind==='source'){txt('drawerTitle','OAG / dataset provenance');if(!$('drawer').hidden)$('closeDrawer').focus()}$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
  if(kind==='tasks'){details('Simulated team handoffs',(state?.tasks||[]).map(t=>`<div class="ledger-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||'Ground handoff')}</b>${esc(t.status)}</div>`).join('')||'No simulated tasks.');return}
 }
 function newOrderForm(){const currentId=dashboardSandboxId||state?.sandbox_id||embeddedSandbox||sandboxIds[0]||'relay';const currentName=sandboxList.find(s=>s.id===currentId)?.name||'current sandbox';drawer('New synthetic cargo request',`<p>This creates a synthetic cargo request, not a real airline booking. Choose one sandbox or all existing sandboxes.</p><form id="orderForm"><label>Destination<select name="destination"><option value="NRT">Tokyo · NRT</option><option value="LHR">London · LHR</option><option value="SIN">Singapore · SIN</option><option value="SYD">Sydney · SYD</option><option value="FRA">Frankfurt · FRA</option><option value="BKK">Bangkok · BKK</option><option value="LAX">Los Angeles · LAX</option><option value="DXB">Dubai · DXB</option></select></label><label>Weight (kg)<input name="weight_kg" type="number" required min="10" max="450" value="125"></label><label>Service<select name="service"><option value="PRIORITY">Priority</option><option value="STANDARD">Standard</option><option value="CRITICAL">Critical</option></select></label><label>Handling<select name="handling"><option value="GENERAL">General</option><option value="COL">Cold chain</option></select></label><div class="fieldgrid"><label>Length cm<input name="length_cm" type="number" value="70" min="15" max="180"></label><label>Width cm<input name="width_cm" type="number" value="55" min="15" max="180"></label><label>Height cm<input name="height_cm" type="number" value="45" min="15" max="180"></label></div><p id="orderError" class="order-error" role="alert" hidden></p><div class="order-actions"><button type="submit" class="btn soft" name="scope" value="current">Create order in ${esc(currentName)}</button><button type="submit" class="btn primary" name="scope" value="all">Create order in all sandboxes</button></div></form>`,{popup:true});$('orderForm').dataset.sandboxId=currentId;}
-$$('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-$('globalPlay').addEventListener('click',()=>ctrl($('globalPlay').dataset.running==='true'||!sandboxDialog&&state?.v8.running?'pause':'start'));
+function requestClick(button,request){
+ button.addEventListener('click',()=>withRequestButton(button,request));
+}
+function popoverRequest(button,request){
+ requestClick(button,async()=>{
+  const panel=button.closest('.control-popover, .settings-pop, .incident-pop');
+  await request();
+  if(panel&&!panel.hidden){
+   setPop(panel.id,false);
+   document.querySelector(`[aria-controls="${panel.id}"]`)?.focus();
+  }
+ });
+}
+$$('.tab').forEach(b=>requestClick(b,()=>showTab(b.dataset.tab)));
+requestClick($('globalPlay'),()=>ctrl($('globalPlay').dataset.running==='true'||!sandboxDialog&&state?.v8.running?'pause':'start'));
 $('speed').addEventListener('change',()=>ctrl('speed',{speed:+$('speed').value}));
-$('stepOnce').addEventListener('click',()=>ctrl('step',{count:1}));
-$('resetBtn').addEventListener('click',()=>{if(confirm(sandboxDialog&&currentTab==='ground'?'Reset the displayed sandboxes?':'Reset synthetic orders, decisions and ground states for all three Twins?'))ctrl('reset')});
+requestClick($('stepOnce'),()=>ctrl('step',{count:1}));
+$('resetBtn').addEventListener('click',()=>{
+ if(confirm(sandboxDialog&&currentTab==='ground'?'Reset the displayed sandboxes?':'Reset synthetic orders, decisions and ground states for all three Twins?')){
+  withRequestButton($('resetBtn'),()=>ctrl('reset'));
+ }
+});
 $('settingsBtn').addEventListener('click',()=>showPop('settingsPop'));
 $('injectBtn').addEventListener('click',()=>showPop('incidentPop'));
 $('viewSettingsBtn')?.addEventListener('click',()=>showPop('viewSettingsPop'));
@@ -358,31 +361,45 @@ if($('simulationControls')){
  document.querySelector('#ground-screen .worlds').addEventListener('pointerdown',closePops);
 }
 for(let id of ['rate','crew','cold','stands','chaos']){$(id).addEventListener('input',()=>txt(({rate:'rateN',crew:'crewN',cold:'coldN',stands:'standsN',chaos:'chaosN'})[id],id==='chaos'?Math.round(+$('chaos').value*100)+'%':$(''+id).value))}
-$('applySettings').addEventListener('click',()=>{closePops();ctrl('tune',advanceConfig())});
-$('applyWeather')?.addEventListener('click',()=>applyDisruptionSettings({weather:$('weather').value},'Weather scenario updated'));
-$$('[data-scenario]').forEach(b=>b.addEventListener('click',()=>{
- applyDisruptionSettings(disruptionScenarios[b.dataset.scenario],b.textContent+' applied');
-}));
-$$('[data-incident]').forEach(b=>b.addEventListener('click',()=>{
- closePops();
- $('injectBtn').focus();
- action('/v11/api/incident',{kind:b.dataset.incident},b.textContent.trim()+' recorded',groundTargets());
-}));
-$('seeDecision')?.addEventListener('click',()=>showTab('tower'));
+popoverRequest($('applySettings'),()=>ctrl('tune',advanceConfig()));
+if($('applyWeather'))popoverRequest($('applyWeather'),()=>applyDisruptionSettings({weather:$('weather').value},'Weather scenario updated'));
+$$('[data-scenario]').forEach(b=>popoverRequest(b,()=>applyDisruptionSettings(disruptionScenarios[b.dataset.scenario],b.textContent+' applied')));
+$$('[data-incident]').forEach(b=>popoverRequest(b,()=>action('/v11/api/incident',{kind:b.dataset.incident},b.textContent.trim()+' recorded',groundTargets())));
+if($('seeDecision'))requestClick($('seeDecision'),()=>showTab('tower'));
 $('whyGround')?.addEventListener('click',()=>showEvidence('math'));
 $('logsBtn').addEventListener('click',()=>showEvidence('events'));
 $('allEvents').addEventListener('click',()=>showEvidence('events'));
 $('viewMath').addEventListener('click',()=>showEvidence('math'));
-$('auditBtn').addEventListener('click',()=>showEvidence('audit'));
-$('recalculate').addEventListener('click',()=>ctrl('recalculate'));
+requestClick($('auditBtn'),()=>showEvidence('audit'));
+requestClick($('recalculate'),()=>ctrl('recalculate'));
 $('autonomy').addEventListener('change',()=>ctrl('mode',{mode:$('autonomy').value}));
+$('ctModeSeg')?.addEventListener('click',event=>{
+ const button=event.target.closest('[data-mode]');
+ if(button&&$('autonomy').value!==button.dataset.mode){
+  withRequestButton(button,()=>ctrl('mode',{mode:button.dataset.mode}));
+ }
+});
 $$('[data-inspect]').forEach(b=>b.addEventListener('click',()=>showEvidence(b.dataset.inspect)));
-$('taskCards').addEventListener('click',e=>{const b=e.target.closest('[data-task]');if(b)action('/v11/api/tasks/'+encodeURIComponent(b.dataset.task)+'/done',{},'Synthetic team task acknowledged')});
-async function review(choice){let d=state?.decision;if(!d)return;let n=d.proposed_actions?.length||0;if(!confirm(`${choice==='approve'?'Approve':'Reject'} ${n} tentative simulated route change(s)?\n\nNo actual airline booking or cargo movement will occur.`))return;await action('/v11/api/review',{decision_id:d.id,choice,expected_snapshot_version:d.snapshot_version},'Simulation-only review recorded')}
-$('approveBtn').addEventListener('click',()=>review('approve'));
-$('rejectBtn').addEventListener('click',()=>review('reject'));
-$('portfolioItems').addEventListener('click',e=>{const p=e.target.closest('[data-awb]');if(!p)return;selectedAwb=p.dataset.awb;if(state)renderCustomer(state);fetchState()});
-$('portfolioItems').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName!=='BUTTON'){let p=e.target.closest('[data-awb]');if(p){selectedAwb=p.dataset.awb;if(state)renderCustomer(state);fetchState()}}});
+$('taskCards').addEventListener('click',event=>{
+ const button=event.target.closest('[data-task]');
+ if(button)withRequestButton(button,()=>action('/v11/api/tasks/'+encodeURIComponent(button.dataset.task)+'/done',{},'Synthetic team task acknowledged'));
+});
+function review(button,choice){
+ const d=state?.decision;
+ if(!d||!confirm(`${choice==='approve'?'Approve':'Reject'} ${d.proposed_actions?.length||0} tentative simulated route change(s)?\n\nNo actual airline booking or cargo movement will occur.`))return;
+ withRequestButton(button,()=>action('/v11/api/review',{decision_id:d.id,choice,expected_snapshot_version:d.snapshot_version},'Simulation-only review recorded'));
+}
+$('approveBtn').addEventListener('click',event=>review(event.currentTarget,'approve'));
+$('rejectBtn').addEventListener('click',event=>review(event.currentTarget,'reject'));
+function selectShipment(card){
+ selectedAwb=card.dataset.awb;
+ if(state)renderCustomer(state);
+ return refreshState();
+}
+$('portfolioItems').addEventListener('click',event=>{
+ const card=event.target.closest('[data-awb]');
+ if(card)withRequestButton(card,()=>selectShipment(card));
+});
 $('filterShipments').addEventListener('input',()=>{if(state)renderCustomer(state)});
 $('newOrderBtn').addEventListener('click',newOrderForm);
 $('fullJourney').addEventListener('click',()=>showEvidence('journey'));
@@ -394,14 +411,17 @@ document.addEventListener('keydown',e=>{
  closePops();
  if(open)document.querySelector(`[aria-controls="${open.id}"]`)?.focus();
 });
-$('drawerContent').addEventListener('click',async e=>{if(e.target.id==='fullEvidence')showEvidence('source')});
+$('drawerContent').addEventListener('click',event=>{
+ const button=event.target.closest('#fullEvidence');
+ if(button)withRequestButton(button,()=>showEvidence('source'));
+});
 $('drawerContent').addEventListener('submit',async event=>{
  const form=event.target;if(form.id!=='orderForm')return;event.preventDefault();
  const buttons=[...form.querySelectorAll('button[type="submit"]')];if(buttons.some(button=>button.disabled))return;
  const scope=event.submitter?.value==='all'?'all':'current',currentId=form.dataset.sandboxId;
  const data=Object.fromEntries(new FormData(form).entries());
  for(const key of ['weight_kg','length_cm','width_cm','height_cm'])data[key]=Number(data[key]);
- buttons.forEach(button=>{button.disabled=true;button.dataset.requestPending='true';button.setAttribute('aria-busy','true')});
+ buttons.forEach(button=>setPending(button,true));
  const error=$('orderError');error.hidden=true;
  try{
   const out=await api(scope==='all'?'/v11/api/order/all':scopedPath('/v11/api/order',currentId),'POST',data);
@@ -412,12 +432,17 @@ $('drawerContent').addEventListener('submit',async event=>{
   selectedAwb=out.awb;dashboardSandboxId=currentId;closeDrawer();await fetchState();
   toast(scope==='all'?`Order ${out.awb} created in all ${out.created_count} sandboxes`:`Order ${out.awb} created in ${sandboxList.find(item=>item.id===currentId)?.name||'current sandbox'}`);
  }catch(err){error.textContent=err.message;error.hidden=false;toast(err.message,true)}
- finally{buttons.forEach(button=>{button.disabled=false;delete button.dataset.requestPending;button.removeAttribute('aria-busy')})}
+ finally{buttons.forEach(button=>setPending(button,false))}
 });
 if(sandboxDialog){
  window.addEventListener('relay:show-ground-sandbox',event=>{
-  selectSandbox(0,event.detail);
-  showTab('ground');
+  const {sandboxId,button}=event.detail;
+  withRequestButton(button,()=>{
+   sandboxIds[0]=sandboxId;
+   updateSandboxOptions();
+   renderGround();
+   return showTab('ground');
+  });
  });
  const form=sandboxDialog.querySelector('form');
  const input=$('sandboxName'), error=$('sandboxError'), cancel=$('cancelSandbox'), models=$('sandboxModels');
@@ -444,7 +469,7 @@ if(sandboxDialog){
   }catch(e){error.textContent=e.message;error.hidden=false}
  }
  $$('[data-create-empty-sandbox]').forEach((button,slot)=>{
-  button.addEventListener('click',()=>openCreate(slot));
+  requestClick(button,()=>openCreate(slot));
  });
  function setMenu(picker,open){
   picker.querySelector('.sandbox-trigger').setAttribute('aria-expanded',String(open));
@@ -481,23 +506,27 @@ if(sandboxDialog){
    if(button.matches('.sandbox-delete')){
     const sandbox=sandboxList.find(s=>s.id===id);
     if(!sandbox||!confirm(`Delete “${sandbox.name}” and its simulation state?`))return;
-    button.disabled=true;
-    try{
-     await api('/v11/api/sandboxes/'+encodeURIComponent(id),'DELETE');
-     sandboxRevision++;
-     if(!menu.hidden)picker.querySelector('[data-create-sandbox]').focus();
-     syncSandboxList(sandboxList.filter(s=>s.id!==id));
-     renderGround();
-     if(!sandboxIds[slot])picker.parentElement.querySelector('[data-create-empty-sandbox]').focus();
-     refreshState();
-    }catch(e){toast(e.message,true)}
-    finally{button.disabled=false}
+    await withRequestButton(button,async()=>{
+     try{
+      await api('/v11/api/sandboxes/'+encodeURIComponent(id),'DELETE');
+      sandboxRevision++;
+      if(!menu.hidden)picker.querySelector('[data-create-sandbox]').focus();
+      syncSandboxList(sandboxList.filter(s=>s.id!==id));
+      renderGround();
+      if(!sandboxIds[slot])picker.parentElement.querySelector('[data-create-empty-sandbox]').focus();
+      refreshState();
+     }catch(e){toast(e.message,true)}
+    });
     return;
    }
-   setMenu(picker,false);
-   trigger.focus();
-   if(id){selectSandbox(slot,id);return}
-   openCreate(slot);
+   if(id){
+    await withRequestButton(button,()=>selectSandbox(slot,id));
+    if(!menu.hidden){setMenu(picker,false);trigger.focus();}
+   }else{
+    setMenu(picker,false);
+    trigger.focus();
+    await withRequestButton(button,()=>openCreate(slot));
+   }
   });
  });
  cancel.addEventListener('click',()=>sandboxDialog.close());
@@ -508,7 +537,8 @@ if(sandboxDialog){
   creatingSandbox=true;
   const fields=[...form.elements];
   const payload=Object.fromEntries(new FormData(form));
-  fields.forEach(field=>{field.disabled=true});
+  setPending(submit,true);
+  fields.filter(field=>field!==submit).forEach(field=>{field.disabled=true});
   error.hidden=true;
   try{
    const sandbox=await api('/v11/api/sandboxes','POST',payload);
@@ -518,7 +548,7 @@ if(sandboxDialog){
    sandboxDialog.close();
    sandboxPickers[createSlot].querySelector('.sandbox-trigger').focus();
   }catch(e){error.textContent=e.message;error.hidden=false}
-  finally{creatingSandbox=false;fields.forEach(field=>{field.disabled=false});if(sandboxDialog.open)input.focus()}
+  finally{creatingSandbox=false;fields.filter(field=>field!==submit).forEach(field=>{field.disabled=false});setPending(submit,false);if(sandboxDialog.open)input.focus()}
  });
 }
 function animate(t){const dt=Math.min(Math.max(t-drawStart,0),250);drawStart=t;recordV9Fps(dt);if(state?.v8.running)lightHour=(lightHour+dt/1000*Math.max(0,state.v8.actual_ticks_per_second||0)/6)%24;

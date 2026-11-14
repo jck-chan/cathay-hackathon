@@ -3,7 +3,7 @@
 
 .gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:14px}.gallery figure{margin:0;min-width:0;border:1px solid #e1ece8;border-radius:12px;background:#fff;overflow:hidden}.gallery img{display:block;width:100%;height:auto}.gallery figcaption{padding:12px 15px;font-size:12px;color:#53716b}.gallery figure:last-child{grid-column:span 2}@media(max-width:830px){.gallery{grid-template-columns:1fr}.gallery figure:last-child{grid-column:auto}}
  .evidence-vector{display:block;width:16px;height:16px;flex:none}.nav,.control button.primary{display:inline-flex;align-items:center;gap:7px}
-</style></head><body>
+</style><link rel="stylesheet" href="/request_button.css"></head><body>
 <header><div class="brand">R<span>RELAY / VERSION 11 — EVIDENCE STUDIO</span></div><div class="top-right"><span class="tag">SYNTHETIC · SHADOW MODE</span><a class="nav" href="/"><svg class="evidence-vector" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m7 7-7-7 7-7"/></svg> Return to Twins</a></div></header>
 <main><h1>Does better decision-making actually help?</h1><p class="sub">Measured on paired synthetic cargo staging episodes — not a claim of airline ROI. Costs are unitless. We disclose denominator, SLA, lead time, tail risk and cases where RELAY is worse.</p>
 <div class="grid" id="hero"><div class="metric"><small>Report</small><strong>Loading…</strong><footer>Verified synthetic sample</footer></div></div>
@@ -25,6 +25,7 @@
 <figure><img loading="lazy" src="/v11/chart/V11_FINITE_MILP_RUNTIME.png" alt="MILP solve time against candidate column count"><figcaption>10. Real finite-column MILP solve latency; separate from statistical convergence and 100× cinema speed.</figcaption></figure>
 </div><div class="notice"><b>Truth contract:</b> The model's penalty unit has no real HKD exchange rate. Recovery lead time means ground staging, NOT airline network recovery or solver speed. No real Cathay data or observed business savings have been supplied.</div></div>
 <footer class="foot">RELAY 11 • Buy the Future Optionality • One synthetic evidence store • The strongest claims here are repeatable comparisons within explicitly modeled constraints.</footer></main>
+<script src="/request_button.js"></script>
 <script>
 'use strict';let report=null,policy='RELAY_V11';
 const $=id=>document.getElementById(id);
@@ -40,8 +41,24 @@ const kpis=[['Normal cost ↓',signed(normal.cost_reduction_pct),'Same synthetic
 $('hero').replaceChildren();for(const [label,value,description] of kpis){const box=document.createElement('div');box.className='metric';const a=document.createElement('small'),b=document.createElement('strong'),c=document.createElement('footer');a.textContent=label;b.textContent=value;c.textContent=description;box.append(a,b,c);$('hero').append(box)}}
 async function loadPinned(){const r=await fetch('/v11/api/kpis');if(!r.ok)throw new Error('Benchmark HTTP '+r.status);report=await r.json();$('runStatus').textContent='Pinned run: seed 2026; 500 × 6 scenarios. Original source and calculations included in the downloadable ZIP.';show()}
 $('policyButtons').addEventListener('click',e=>{const b=e.target.closest('[data-policy]');if(!b)return;policy=b.dataset.policy;for(const x of $('policyButtons').querySelectorAll('button'))x.classList.toggle('active',x===b);show()});
-$('rerun').addEventListener('click',async()=>{const n=Number($('episodes').value),seed=Number($('seed').value);if(!Number.isInteger(n)||n<40||n>500||!Number.isInteger(seed)){$('runStatus').textContent='Episodes: 40–500; seed must be integer';return}const btn=$('rerun');btn.disabled=true;$('runStatus').textContent='Computing new paired synthetic episodes in an isolated lab…';try{const r=await fetch(`/v11/api/recompute?episodes=${n}&seed=${seed}`);if(!r.ok)throw new Error('HTTP '+r.status);report=await r.json();show();$('runStatus').textContent=`Recomputed ${n}×6 cases, seed ${seed}. Live simulation was not changed.`}catch(e){$('runStatus').textContent='Unable to recompute: '+e.message}finally{btn.disabled=false}});
-$('restore').addEventListener('click',()=>loadPinned().catch(e=>$('runStatus').textContent=e.message));
+$('rerun').addEventListener('click',()=>{
+ const n=Number($('episodes').value),seed=Number($('seed').value);
+ if(!Number.isInteger(n)||n<40||n>500||!Number.isInteger(seed)){
+  $('runStatus').textContent='Episodes: 40–500; seed must be integer';
+  return;
+ }
+ window.RelayRequestButton.run($('rerun'),async()=>{
+  $('runStatus').textContent='Computing new paired synthetic episodes in an isolated lab…';
+  try{
+   const r=await fetch(`/v11/api/recompute?episodes=${n}&seed=${seed}`);
+   if(!r.ok)throw new Error('HTTP '+r.status);
+   report=await r.json();
+   show();
+   $('runStatus').textContent=`Recomputed ${n}×6 cases, seed ${seed}. Live simulation was not changed.`;
+  }catch(e){$('runStatus').textContent='Unable to recompute: '+e.message}
+ });
+});
+$('restore').addEventListener('click',()=>window.RelayRequestButton.run($('restore'),()=>loadPinned().catch(e=>$('runStatus').textContent=e.message)));
 Promise.all([fetch('/v11/api/data-audit').then(r=>r.json()),fetch('/v11/api/trace').then(r=>r.json())]).then(([a,t])=>{$('datasetResult').textContent=`${a.status} · ${a.error_count} structural errors · ${a.counts.shipments} shipments · ${a.counts.flights} flights · ${a.counts.historical_events} events. No empirical calibration.`;$('traceResult').textContent=`${t.status} · Tick ${t.tick} · ${t.portfolio_count} visible work orders · ${t.proposed_actions} proposals · decision stale: ${t.decision_stale}. Carrier confirmation not established.`}).catch(e=>{$('datasetResult').textContent='Unavailable: '+e.message});
 loadPinned().catch(e=>$('runStatus').textContent='Benchmark could not load: '+e.message);
 </script></body></html>

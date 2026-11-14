@@ -354,7 +354,7 @@ function render() {
     thread.replaceChildren(el('div', 'chat-empty', '<h2>Chat with the Simulation</h2><p>The assistant can read and operate the three twins, build small control panels, and show live 3D views inline.</p>' +
       `<div class="chat-suggestions">${SUGGESTIONS.map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div>`));
   }
-  if (messages.length) thread.querySelector('.chat-empty')?.remove();
+  if (messages.length && !thread.querySelector('.chat-suggestions [data-request-pending]')) thread.querySelector('.chat-empty')?.remove();
   messages.forEach(renderMessage);
   if (pinned) scroller.scrollTop = scroller.scrollHeight;
 }
@@ -374,9 +374,7 @@ function restore() {
 }
 function setBusy(value) {
   busy = value;
-  sendBtn.disabled = value;
-  sendBtn.toggleAttribute('aria-busy', value);
-  sendBtn.classList.toggle('request-pending', value);
+  window.RelayRequestButton.setPending(sendBtn, value);
   if (stopBtn) stopBtn.hidden = !value;
 }
 
@@ -538,11 +536,13 @@ $('chatNew').addEventListener('click', () => {
 thread.addEventListener('click', event => {
   const target = event.target.closest('button');
   if (!target) return;
-  if (target.dataset.suggest) send(target.dataset.suggest);
+  if (target.dataset.suggest && !busy) {
+    window.RelayRequestButton.run(target, () => send(target.dataset.suggest));
+  }
   else if (target.dataset.openTab) {
     const twin = target.closest('.embed');
     if (twin._sandboxId && target.dataset.openTab === 'ground') {
-      window.dispatchEvent(new CustomEvent('relay:show-ground-sandbox', {detail: twin._sandboxId}));
+      window.dispatchEvent(new CustomEvent('relay:show-ground-sandbox', {detail: {sandboxId: twin._sandboxId, button: target}}));
     } else if (twin._sandboxId) window.open(twin._src, '_blank', 'noopener');
     else document.querySelector(`.tab[data-tab="${target.dataset.openTab}"]`)?.click();
   }

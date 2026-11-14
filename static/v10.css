@@ -328,7 +328,6 @@ html,body{background:#eaf1f1}
 .twin-workspace .order-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
 .twin-workspace .order-actions .btn { min-width: 0; padding: 11px 8px; }
 .twin-workspace .order-error { margin: 10px 0 0; color: #b33d36; font-size: 12px; }
-.twin-workspace button[data-request-pending="true"] { opacity: .46 !important; cursor: progress !important; pointer-events: none; }
 .twin-workspace button:disabled { opacity: .48; cursor: not-allowed; }
 @media (max-width: 560px) {
   .twin-workspace .drawer.order-popup .drawer-head { padding: 14px 16px; }

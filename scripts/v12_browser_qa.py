@@ -32,7 +32,7 @@ async def main():
       const result=await window.backend_request(opt.method||'GET',String(url),opt.body||null);
       return {ok:result.ok,status:result.status,json:async()=>result.body};
   }}''')
-  for file in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v12.js'):
+  for file in ('v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','request_button.js','v12.js'):
    await page.add_script_tag(content=(ROOT/'static'/file).read_text())
   facts['http_status']=200 # HTML extracted from actual v12 served source; endpoint separately tested
   await page.wait_for_function("document.querySelectorAll('.world').length===3",timeout=20000)

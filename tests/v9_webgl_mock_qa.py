@@ -24,7 +24,7 @@ with sync_playwright() as p:
   };
  }""")
  page.evaluate("v=>{window.fixture=v;window.fetch=async()=>({ok:true,status:200,text:async()=>JSON.stringify(window.fixture)})}",data)
- for f in ['v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v9.js']:page.add_script_tag(content=(root/'static'/f).read_text())
+ for f in ['v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','request_button.js','v9.js']:page.add_script_tag(content=(root/'static'/f).read_text())
  page.wait_for_timeout(550)
  print('draw calls',page.evaluate('window.__v9Draws'),'errors',errors)
  assert page.evaluate('window.__v9Draws')>250

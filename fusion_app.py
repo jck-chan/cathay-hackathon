@@ -45,6 +45,16 @@ V12 = FiveWorldArena(sandbox_conductor(None).lab, seed=9099)
 app.mount('/aircraft', StaticFiles(directory=ROOT / 'static' / 'aircraft'), name='aircraft')
 app.mount('/scene', StaticFiles(directory=ROOT / 'static' / 'scene'), name='scene')
 
+@app.get('/request_button.js', include_in_schema=False)
+def request_button_js():
+    return FileResponse(ROOT / 'static' / 'request_button.js', media_type='text/javascript')
+
+
+@app.get('/request_button.css', include_in_schema=False)
+def request_button_css():
+    return FileResponse(ROOT / 'static' / 'request_button.css', media_type='text/css')
+
+
 # Frontend assets shared by the three-twin views.
 @app.get('/v8', include_in_schema=False)
 def v8_home():return FileResponse(ROOT/'static'/'v8.html', media_type='text/html',headers={'Cache-Control':'no-store'})

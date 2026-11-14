@@ -38,7 +38,7 @@ async def main():
       const value=window.__states[window.__pos];return {ok:true,status:200,text:async()=>JSON.stringify(value)};
     };
   }''',[initial,advanced])
-  for file in ['v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v10_scene.js','v10_ui.js','v9.js']:
+  for file in ['v6_scene.js','aircraft/model.js','aircraft/flight.js','ground_ops.js','v9_scene.js','v10_scene.js','v10_ui.js','request_button.js','v9.js']:
    await page.add_script_tag(content=(ROOT/'static'/file).read_text())
   await page.wait_for_timeout(2100)
   print('V10 loaded',await page.evaluate('window.RELAY_V10?.version'),'Actual GL',await page.evaluate('!!document.querySelector("#baselineWorld").getContext("webgl2")'),'errors',errors)

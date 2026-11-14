@@ -6,6 +6,7 @@
   const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'}[c]));
   const label = value => String(value || 'Pending').toLowerCase().replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
   const time = value => { const d = new Date(value); return value && !isNaN(d) ? d.toLocaleString('en-GB', {timeZone:'UTC', day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) + ' UTC' : 'Unavailable'; };
+  let lastPortfolioMarkup;
   function render(s, selected, globe) {
     const list = s.shipment_objects || [];
     const q = $('filterShipments').value.trim().toLowerCase();
@@ -13,9 +14,10 @@
     text('portfolioCount', list.length);
     const html = shown.map(x => `<button type="button" class="shipment-card ${x.awb === selected ? 'active' : ''}" data-awb="${escape(x.awb)}" aria-pressed="${x.awb === selected}"><b>${escape(x.awb)}</b><p>${escape(x.origin || 'HKG')} → ${escape(x.destination)} · ${escape(label(x.handling))}</p><small>${x.blocked_reason || x.dimension_conflict || x.customs_hold ? 'Needs attention' : escape(label(x.ground_stage || x.stage_relay || 'Received'))}</small></button>`).join('') || `<div class="empty-card">${list.length ? 'No shipments match your search.' : 'No shipments yet. Create a shipment to begin.'}</div>`;
     // Avoid replacing focused buttons on every polling tick.
-    if ($('portfolioItems').innerHTML !== html) {
+    if (lastPortfolioMarkup !== html) {
+      lastPortfolioMarkup = html;
       const focused = document.activeElement?.dataset.awb;
-      $('portfolioItems').innerHTML = html;
+      window.RelayRequestButton.replaceContents($('portfolioItems'), html, button => button.dataset.awb);
       if (focused) [...$('portfolioItems').children].find(el => el.dataset.awb === focused)?.focus({preventScroll:true});
     }
     const item = list.find(x => x.awb === selected);

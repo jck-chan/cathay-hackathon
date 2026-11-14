@@ -9,8 +9,12 @@ const $=id=>document.getElementById(id), $$=s=>[...document.querySelectorAll(s)]
 let state=null,selectedAwb=null,currentTab='ground',pollBusy=false,actionBusy=false,lastSeq=-1,toastTimer=0,drawStart=performance.now(),lightHour=11;
 const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs'),new RelayV6.GroundScene($('relayWorld'),'relay')],globe=new RelayV6.CustomerGlobe($('customerGlobe'));
 function toast(message,bad=false){let t=$('toast');t.textContent=message;t.classList.toggle('error',bad);t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3700)}
+const {run:withRequestButton,setDisabled,replaceContents}=window.RelayRequestButton;
 async function api(path,method='GET',payload){let c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);try{let r=await fetch(path,{method,signal:c.signal,cache:'no-store',headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});let t=await r.text();let o;try{o=JSON.parse(t)}catch{o={detail:t.slice(0,250)}}if(!r.ok)throw Error(typeof o.detail==='string'?o.detail:JSON.stringify(o.detail||o).slice(0,270));return o}finally{clearTimeout(tm)}}
-function showTab(name){if(!['ground','tower','customer'].includes(name))return;currentTab=name;$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);}
+function showTab(name){if(!['ground','tower','customer'].includes(name))return;currentTab=name;$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));function requestClick(button,request){
+ button.addEventListener('click',()=>withRequestButton(button,request));
+}
+$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);}
 function drawer(title,html){txt('drawerTitle',title);$('drawerContent').innerHTML=html;$('drawer').hidden=false;$('backdrop').hidden=false;$('closeDrawer').focus()}
 function closeDrawer(){$('drawer').hidden=true;$('backdrop').hidden=true}
 function statusLabel(d){if(!d)return 'Preparing model';if(d.stale)return 'Recalculation required';if(d.approval_blocked_external_evidence)return 'Verify flight observation';if(d.model_ii?.cases?.some(x=>x.action==='HOLD'))return 'Hold & verify dimensions';let n=d.proposed_actions?.length||0;if(n)return 'Review '+n+' recovery option'+(n!==1?'s':'');return 'Continue current plan'}
@@ -41,13 +45,13 @@ function renderTower(s,a,b,delta){const d=s.decision||{},v=s.v8||{};
  txt('impactedCount',d.proposed_actions?.length||0);txt('scopeCount',`${s.decision_scope?.evaluated??0} / ${s.decision_scope?.eligible??0}`);
  txt('reviewState',(d.stale?'STALE':d.status||'NONE').replaceAll('_',' '));
  const can=Boolean(d.id&&d.status==='PENDING_REVIEW'&&!d.stale&&!d.approval_blocked_external_evidence&&(d.proposed_actions||[]).length);
- $('approveBtn').disabled=!can||v.mode==='ADVISORY';$('rejectBtn').disabled=!can||v.mode==='ADVISORY';
+ for(const id of ['approveBtn','rejectBtn'])setDisabled($(id),!can||v.mode==='ADVISORY');
  txt('taskCounter',s.tasks?.length||0);
- $('taskCards').innerHTML=(s.tasks||[]).length?(s.tasks||[]).slice(0,7).map(t=>`<div class="task-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||t.type||'Team handoff')}</b><small>${esc(t.status||'PENDING')} · synthetic task</small>${['PENDING','ACKNOWLEDGED','READY','OPEN','QUEUED_SIMULATED'].includes(t.status)?`<button data-task="${esc(t.id)}">Mark done</button>`:''}</div>`).join(''):'<div class="empty-card">Auto-approved synthetic work orders appear here after the decision gate.</div>';
+ replaceContents($('taskCards'),(s.tasks||[]).length?(s.tasks||[]).slice(0,7).map(t=>`<div class="task-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||t.type||'Team handoff')}</b><small>${esc(t.status||'PENDING')} · synthetic task</small>${['PENDING','ACKNOWLEDGED','READY','OPEN','QUEUED_SIMULATED'].includes(t.status)?`<button data-task="${esc(t.id)}">Mark done</button>`:''}</div>`).join(''):'<div class="empty-card">Auto-approved synthetic work orders appear here after the decision gate.</div>',button=>button.dataset.task);
 }
 function renderCustomer(s){let list=s.shipment_objects||[];if(!selectedAwb||!list.some(x=>x.awb===selectedAwb))selectedAwb=list[0]?.awb||null;
  txt('portfolioCount',list.length);let q=$('filterShipments').value.toLowerCase().trim();let shown=list.filter(x=>(x.awb+' '+x.destination).toLowerCase().includes(q));
- $('portfolioItems').innerHTML=shown.length?shown.map(x=>{let risk=x.blocked_reason||x.dimension_conflict||x.customs_hold;return `<div class="shipment-card ${x.awb===selectedAwb?'active':''}" data-awb="${esc(x.awb)}" role="button" tabindex="0"><div class="ship-top"><b>${esc(x.awb)}</b><span class="ship-marker ${risk?'risk':''}"></span></div><p>HKG → ${esc(x.destination)} · ${esc(x.handling)} · ${num(x.weight_kg)} kg</p><small>${esc(x.stage_relay||'RECEIVED')} ${risk?'· Needs attention':''}</small></div>`}).join(''):'<div class="empty-card">No matching shipments.</div>';
+ replaceContents($('portfolioItems'),shown.length?shown.map(x=>{let risk=x.blocked_reason||x.dimension_conflict||x.customs_hold;return `<button type="button" class="shipment-card ${x.awb===selectedAwb?'active':''}" data-awb="${esc(x.awb)}"><span class="ship-top"><b>${esc(x.awb)}</b><span class="ship-marker ${risk?'risk':''}"></span></span><p>HKG → ${esc(x.destination)} · ${esc(x.handling)} · ${num(x.weight_kg)} kg</p><small>${esc(x.stage_relay||'RECEIVED')} ${risk?'· Needs attention':''}</small></button>`}).join(''):'<div class="empty-card">No matching shipments.</div>',button=>button.dataset.awb);
  let customer=s.customer_projection;
  if(!customer||customer.awb!==selectedAwb){if(selectedAwb&&!pollBusy)fetchState();return;}
  txt('shipAwb',customer.awb);txt('shipRoute',`${customer.origin} → ${customer.destination}`);txt('globeRoute',`${customer.origin} → ${customer.destination}`);txt('shipStatus',customer.status||'SIMULATED');
@@ -62,7 +66,14 @@ function renderCustomer(s){let list=s.shipment_objects||[];if(!selectedAwb||!lis
  txt('shipUpdate',last?.message||customer.customer_service_message||'No new synthetic milestones recorded yet.');
  txt('shipWarning',rd.tentative_alternative_flights?.length?`Candidate: ${rd.tentative_alternative_flights.join(' → ')} · ${rd.review_status.replaceAll('_',' ')}. This is NOT a confirmed carrier route.`:'No carrier confirmation or real customer notification is performed by RELAY.');
 }
-async function fetchState(){if(pollBusy)return;pollBusy=true;try{const d=await api('/v11/api/state'+(selectedAwb?'?awb='+encodeURIComponent(selectedAwb):''));if(d.v8.sequence!==lastSeq){lastSeq=d.v8.sequence;render(d)}else{render(d)}}catch(e){txt('liveState','OFFLINE');$('statusPulse').classList.remove('on');console.error(e)}finally{pollBusy=false}}
+let poll;
+async function fetchState(){
+ if(pollBusy)return poll;
+ pollBusy=true;
+ poll=loadState();
+ return poll;
+}
+async function loadState(){try{const d=await api('/v11/api/state'+(selectedAwb?'?awb='+encodeURIComponent(selectedAwb):''));if(d.v8.sequence!==lastSeq){lastSeq=d.v8.sequence;render(d)}else{render(d)}}catch(e){txt('liveState','OFFLINE');$('statusPulse').classList.remove('on');console.error(e)}finally{pollBusy=false}}
 async function action(path,body,success){if(actionBusy)return;actionBusy=true;try{const d=await api(path,'POST',body);render(d.state||d);if(success)toast(success)}catch(e){toast(e.message,true)}finally{actionBusy=false}}
 async function ctrl(actionName,more={}){await action('/v11/api/control',{action:actionName,...more},actionName==='start'?'All three Twins are now running on one clock':actionName==='pause'?'Shared simulation paused':null)}
 function advanceConfig(){return {rate:+$('rate').value,chaos:+$('chaos').value,handlers:+$('crew').value,cold_bays:+$('cold').value,stands:+$('stands').value}}
@@ -73,43 +84,49 @@ function details(title,body){drawer(title,explainIntro()+body)}
 async function showEvidence(kind){if(kind==='events'){details('Live input → process → output',`<h3>Unified conductor</h3>${(state?.unified_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind)} · Tick ${e.tick}</b>${esc(e.message)}<br><small>${esc(e.at)} · sequence ${e.seq}</small></div>`).join('')}`);return}
  if(kind==='journey'){let c=state?.customer_projection;details('Customer journey · '+(c?.awb||'—'),`<p>Observed synthetic milestones stay separate from simulated ground actions and tentative routing.</p>${(c?.journey_events||[]).slice().reverse().map(e=>`<div class="ledger-row"><b>${esc(e.kind||e.code)} · ${e.observed?'Recorded synthetic source':'Simulated overlay'}</b>${esc(e.message)}<br><small>${esc(when(e.at))} · ${esc(e.authority)}</small></div>`).join('')}`);return}
  if(kind==='math'||['model_i','model_ii','model_iii'].includes(kind)){let d=state?.decision||{},k=kind==='math'?'model_iii':kind;details(kind==='math'?'Mathematical decision trace':'Inspect '+k.toUpperCase(),`<p>Model I = bounded 2D arrangement; Model II = one-step Bayesian verification; Model III = finite-column capacity MILP.</p><pre>${esc(JSON.stringify(kind==='math'?d:d[k]||{},null,2))}</pre><button class="btn soft" id="fullEvidence">Load source provenance ↗</button>`);return}
- if(kind==='audit'||kind==='source'){details(kind==='audit'?'Runtime integrity audit':'OAG / dataset provenance','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(kind==='audit'?'/v11/api/audit':'/v11/api/evidence');$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
+ if(kind==='audit'||kind==='source'){if(kind==='audit')details('Runtime integrity audit','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(kind==='audit'?'/v11/api/audit':'/v11/api/evidence');if(kind==='source')txt('drawerTitle','OAG / dataset provenance');$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
  if(kind==='tasks'){details('Simulated team handoffs',(state?.tasks||[]).map(t=>`<div class="ledger-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||'Ground handoff')}</b>${esc(t.status)}</div>`).join('')||'No simulated tasks.');return}
 }
 function newOrderForm(){drawer('New synthetic cargo request',`<p>This form adds a request to the SAME event-sourced catalog used by Ground and Control. It does not create an airline booking.</p><form id="orderForm"><label>Destination<select name="destination"><option value="NRT">Tokyo · NRT</option><option value="LHR">London · LHR</option><option value="SIN">Singapore · SIN</option><option value="SYD">Sydney · SYD</option><option value="FRA">Frankfurt · FRA</option><option value="BKK">Bangkok · BKK</option><option value="LAX">Los Angeles · LAX</option><option value="DXB">Dubai · DXB</option></select></label><label>Weight (kg)<input name="weight_kg" type="number" required min="10" max="450" value="125"></label><label>Service<select name="service"><option value="PRIORITY">Priority</option><option value="STANDARD">Standard</option><option value="CRITICAL">Critical</option></select></label><label>Handling<select name="handling"><option value="GENERAL">General</option><option value="COL">Cold chain</option></select></label><div class="fieldgrid"><label>Length cm<input name="length_cm" type="number" value="70" min="15" max="180"></label><label>Width cm<input name="width_cm" type="number" value="55" min="15" max="180"></label><label>Height cm<input name="height_cm" type="number" value="45" min="15" max="180"></label></div><button type="submit" class="btn primary full">Create & send to all Twins</button></form>`)}
 $$('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-$('globalPlay').addEventListener('click',()=>ctrl(state?.v8.running?'pause':'start'));
+requestClick($('globalPlay'),()=>ctrl(state?.v8.running?'pause':'start'));
 $('speed').addEventListener('change',()=>ctrl('speed',{speed:+$('speed').value}));
-$('stepOnce').addEventListener('click',()=>ctrl('step',{count:1}));
-$('resetBtn').addEventListener('click',()=>{if(confirm('Reset synthetic orders, decisions and ground states for all three Twins?'))ctrl('reset',{seed:2048})});
+requestClick($('stepOnce'),()=>ctrl('step',{count:1}));
+$('resetBtn').addEventListener('click',()=>{if(confirm('Reset synthetic orders, decisions and ground states for all three Twins?'))withRequestButton($('resetBtn'),()=>ctrl('reset',{seed:2048}))});
 $('settingsBtn').addEventListener('click',()=>showPop('settingsPop'));
 $('injectBtn').addEventListener('click',()=>showPop('incidentPop'));
 $$('[data-close]').forEach(x=>x.addEventListener('click',()=>$(x.dataset.close).hidden=true));
 for(let id of ['rate','crew','cold','stands','chaos']){$(id).addEventListener('input',()=>txt(({rate:'rateN',crew:'crewN',cold:'coldN',stands:'standsN',chaos:'chaosN'})[id],id==='chaos'?Math.round(+$('chaos').value*100)+'%':$(''+id).value))}
-$('applySettings').addEventListener('click',()=>{closePops();ctrl('tune',advanceConfig())});
-$$('[data-incident]').forEach(b=>b.addEventListener('click',()=>{closePops();action('/v11/api/incident',{kind:b.dataset.incident},'Disruption propagated to all three views')}));
+$('applySettings').addEventListener('click',()=>withRequestButton($('applySettings'),async()=>{await ctrl('tune',advanceConfig());closePops()}));
+$$('[data-incident]').forEach(b=>requestClick(b,async()=>{await action('/v11/api/incident',{kind:b.dataset.incident},'Disruption propagated to all three views');closePops()}));
 $('seeDecision').addEventListener('click',()=>showTab('tower'));
 $('whyGround').addEventListener('click',()=>showEvidence('math'));
 $('logsBtn').addEventListener('click',()=>showEvidence('events'));
 $('allEvents').addEventListener('click',()=>showEvidence('events'));
 $('viewMath').addEventListener('click',()=>showEvidence('math'));
-$('auditBtn').addEventListener('click',()=>showEvidence('audit'));
-$('recalculate').addEventListener('click',()=>ctrl('recalculate'));
+requestClick($('auditBtn'),()=>showEvidence('audit'));
+requestClick($('recalculate'),()=>ctrl('recalculate'));
 $('autonomy').addEventListener('change',()=>ctrl('mode',{mode:$('autonomy').value}));
 $$('[data-inspect]').forEach(b=>b.addEventListener('click',()=>showEvidence(b.dataset.inspect)));
-$('taskCards').addEventListener('click',e=>{const b=e.target.closest('[data-task]');if(b)action('/v11/api/tasks/'+encodeURIComponent(b.dataset.task)+'/done',{},'Synthetic team task acknowledged')});
-async function review(choice){let d=state?.decision;if(!d)return;let n=d.proposed_actions?.length||0;if(!confirm(`${choice==='approve'?'Approve':'Reject'} ${n} tentative simulated route change(s)?\n\nNo actual airline booking or cargo movement will occur.`))return;await action('/v11/api/review',{decision_id:d.id,choice,expected_snapshot_version:d.snapshot_version},'Simulation-only review recorded')}
-$('approveBtn').addEventListener('click',()=>review('approve'));
-$('rejectBtn').addEventListener('click',()=>review('reject'));
-$('portfolioItems').addEventListener('click',e=>{const p=e.target.closest('[data-awb]');if(!p)return;selectedAwb=p.dataset.awb;fetchState()});
-$('portfolioItems').addEventListener('keydown',e=>{if(e.key==='Enter'){let p=e.target.closest('[data-awb]');if(p){selectedAwb=p.dataset.awb;fetchState()}}});
+$('taskCards').addEventListener('click',e=>{const b=e.target.closest('[data-task]');if(b)withRequestButton(b,()=>action('/v11/api/tasks/'+encodeURIComponent(b.dataset.task)+'/done',{},'Synthetic team task acknowledged'))});
+function review(button,choice){let d=state?.decision;if(!d)return;let n=d.proposed_actions?.length||0;if(!confirm(`${choice==='approve'?'Approve':'Reject'} ${n} tentative simulated route change(s)?\n\nNo actual airline booking or cargo movement will occur.`))return;withRequestButton(button,()=>action('/v11/api/review',{decision_id:d.id,choice,expected_snapshot_version:d.snapshot_version},'Simulation-only review recorded'))}
+$('approveBtn').addEventListener('click',e=>review(e.currentTarget,'approve'));
+$('rejectBtn').addEventListener('click',e=>review(e.currentTarget,'reject'));
+$('portfolioItems').addEventListener('click',event=>{
+ const card=event.target.closest('button[data-awb]');
+ if(card)withRequestButton(card,async()=>{
+  selectedAwb=card.dataset.awb;
+  if(pollBusy)await poll;
+  await fetchState();
+ });
+});
 $('filterShipments').addEventListener('input',()=>{if(state)renderCustomer(state)});
 $('newOrderBtn').addEventListener('click',newOrderForm);
 $('fullJourney').addEventListener('click',()=>showEvidence('journey'));
 $('backdrop').addEventListener('click',closeDrawer);$('closeDrawer').addEventListener('click',closeDrawer);
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();closePops()}});
-$('drawerContent').addEventListener('click',async e=>{if(e.target.id==='fullEvidence')showEvidence('source')});
-$('drawerContent').addEventListener('submit',async e=>{if(e.target.id!=='orderForm')return;e.preventDefault();const raw=Object.fromEntries(new FormData(e.target).entries());for(let k of ['weight_kg','length_cm','width_cm','height_cm'])raw[k]=+raw[k];try{let out=await api('/v11/api/order','POST',raw);selectedAwb=out.awb;render(out.state);closeDrawer();toast('New synthetic order '+out.awb+' linked to all three Twins')}catch(x){toast(x.message,true)}});
+$('drawerContent').addEventListener('click',async e=>{if(e.target.id==='fullEvidence')withRequestButton(e.target,()=>showEvidence('source'))});
+$('drawerContent').addEventListener('submit',async e=>{if(e.target.id!=='orderForm')return;e.preventDefault();return withRequestButton(e.submitter||e.target.querySelector('button'),async()=>{const raw=Object.fromEntries(new FormData(e.target).entries());for(let k of ['weight_kg','length_cm','width_cm','height_cm'])raw[k]=+raw[k];try{let out=await api('/v11/api/order','POST',raw);selectedAwb=out.awb;render(out.state);closeDrawer();toast('New synthetic order '+out.awb+' linked to all three Twins')}catch(x){toast(x.message,true)}})});
 function animate(t){const dt=Math.min(t-drawStart,250);drawStart=t;if(state?.v8.running)lightHour=(lightHour+dt*.0020*Math.min(state.v8.actual_ticks_per_second||1,12))%24;
  worlds.forEach(w=>{w.hour=lightHour;if(currentTab==='ground')w.render(t)});if(currentTab==='customer')globe.render(t);requestAnimationFrame(animate)}
 requestAnimationFrame(animate);
