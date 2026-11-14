@@ -22,6 +22,17 @@ function flat(w, d, mat, x, z, y = 0.02, rot = 0) {
   return m;
 }
 
+// Split a rectangle around an occupied footprint, keeping only positive-area pieces.
+function subtractPavement(rect, cover) {
+  const [x0, z0, x1, z1] = rect;
+  const left = Math.max(x0, cover[0]), top = Math.max(z0, cover[1]);
+  const right = Math.min(x1, cover[2]), bottom = Math.min(z1, cover[3]);
+  if (left >= right || top >= bottom) return [rect];
+  return [[x0, z0, x1, top], [x0, bottom, x1, z1],
+    [x0, top, left, bottom], [right, top, x1, bottom]]
+    .filter(([a, b, c, d]) => a < c && b < d);
+}
+
 // Flat ribbon that follows a curve (painted taxi lines).
 function ribbon(curve, width, mat, y = 0.05, samples = 80) {
   const pos = [], idx = [];
@@ -126,18 +137,37 @@ export function createWorld(container, layout) {
 
   const asph = T.asphalt();
   const asphaltMat = (rx, ry) => { const t = asph.clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return new THREE.MeshStandardMaterial({ map: t, roughness: 0.82 }); };
-  scene.add(flat(RUNWAY_HALF * 2, 60, asphaltMat(140, 4), 0, RUNWAY_Z, 0.0));
-  scene.add(flat(RUNWAY_HALF * 2 - 260, 66, asphaltMat(120, 5), -10, (TAXI_Z + TAXI_IN_Z) / 2, 0.01));
-  scene.add(flat(150, 112, asphaltMat(10, 8), THRESHOLD_E + 24, (RUNWAY_Z + TAXI_Z) / 2, 0.012));
-  for (const sx of layout.standX) { // rapid exits near each stand
-    const ex = exitFor(sx) - 45;
-    scene.add(flat(80, 60, asphaltMat(6, 5), ex, (RUNWAY_Z + TAXI_IN_Z) / 2, 0.011));
+  // Place the main surfaces first, then fill the exposed parts of each connector.
+  const paved = [];
+  function addPavement(w, d, mat, x, z) {
+    const x0 = x - w / 2, z0 = z - d / 2;
+    const footprint = [x0, z0, x + w / 2, z + d / 2];
+    let pieces = [footprint];
+    for (const cover of paved) pieces = pieces.flatMap(rect => subtractPavement(rect, cover));
+    for (const [left, top, right, bottom] of pieces) {
+      const mesh = flat(right - left, bottom - top, mat, (left + right) / 2, (top + bottom) / 2, 0);
+      // Sample the original rectangle so trimming leaves the texture scale intact.
+      const uv = mesh.geometry.attributes.uv;
+      for (let i = 0; i < uv.count; i++) {
+        uv.setXY(i, (left - x0 + uv.getX(i) * (right - left)) / w,
+          (z0 + d - bottom + uv.getY(i) * (bottom - top)) / d);
+      }
+      scene.add(mesh);
+    }
+    paved.push(footprint);
   }
   const conc = T.concrete();
   const apronW = Math.max(760, layout.spacing * layout.stands + 520);
   const cMap = conc.color.clone(); cMap.needsUpdate = true; cMap.repeat.set(apronW / 40, 270 / 40);
   const cRough = conc.rough.clone(); cRough.needsUpdate = true; cRough.repeat.set(apronW / 20, 270 / 20);
-  scene.add(flat(apronW, 270, new THREE.MeshStandardMaterial({ map: cMap, roughnessMap: cRough, roughness: 1 }), 20, 0, 0.015));
+  addPavement(apronW, 270, new THREE.MeshStandardMaterial({ map: cMap, roughnessMap: cRough, roughness: 1 }), 20, 0);
+  addPavement(RUNWAY_HALF * 2, 60, asphaltMat(140, 4), 0, RUNWAY_Z);
+  addPavement(RUNWAY_HALF * 2 - 260, 66, asphaltMat(120, 5), -10, (TAXI_Z + TAXI_IN_Z) / 2);
+  addPavement(150, 112, asphaltMat(10, 8), THRESHOLD_E + 24, (RUNWAY_Z + TAXI_Z) / 2);
+  const exitMat = asphaltMat(6, 5);
+  for (const sx of layout.standX) { // rapid exits near each stand
+    addPavement(80, 60, exitMat, exitFor(sx) - 45, (RUNWAY_Z + TAXI_IN_Z) / 2);
+  }
 
   // ---- paint ----------------------------------------------------------------------
   const white = new THREE.MeshStandardMaterial({ color: 0xf4f4f0, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
