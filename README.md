@@ -24,7 +24,8 @@ Ground Twin opens the first two listed sandboxes. Each pane can select any
 sandbox by name, including the same sandbox in both panes. Choose **Create
 sandbox…**, enter a name, and choose one of the five v12 dispatch models. The new sandbox
 opens in that pane and appears in both menus. Use the trash button beside a
-sandbox to delete it. Ground controls apply to the distinct sandboxes on display.
+sandbox to delete it. Ground environment controls apply to the distinct sandboxes on display.
+Playback controls apply to every sandbox.
 
 `GET /v11/api/sandboxes` lists IDs, names and dispatch policies in display
 order. `GET /v11/api/sandbox-models` lists the dispatch model IDs and names.
@@ -33,8 +34,8 @@ and returns the created sandbox's ID.
 `DELETE /v11/api/sandboxes/{sandbox_id}` stops and removes a sandbox.
 Pass `sandbox_id` as a query parameter to REST simulation routes. REST calls
 without an ID use the initial RELAY sandbox when available, or the first
-remaining sandbox. **MCP uses different default scoping:** every read and write
-targets **all currently existing sandboxes**, unless `scope="sandboxes"` and
+remaining sandbox. **MCP reads and sandbox-local writes** target all current
+sandboxes by default, unless `scope="sandboxes"` and
 `sandbox_ids=["id1", "id2"]` select a subset. Results identify each sandbox
 and report partial failures; single-sandbox reads are returned in the same
 batch envelope. Created sandboxes are available until deletion or restart.
@@ -68,14 +69,13 @@ guide to the harness in the `instructions` field of its MCP `initialize` reply.
 | Control centre | `control_` | `control_get_state`, `control_set_review_mode`, `control_recalculate_decision`, `control_review_decision`, `control_mark_task_done` |
 | Customer | `customer_` | `customer_place_order`, `customer_place_order_all_sandboxes`, `customer_track_shipment` |
 
-**MCP target scope example** (the same pattern works for step, start, pause,
-state, orders, incidents and review operations):
+**MCP step example**
 
 ```json
 {"count": 5}
 ```
 
-Advances **all** sandboxes five ticks each. To target only two:
+Advances every sandbox by five ticks. To return snapshots for only two:
 
 ```json
 {"count": 5, "scope": "sandboxes", "sandbox_ids": ["relay", "fcfs"]}
@@ -138,7 +138,9 @@ One extra local tool, `create_artifact`, renders an interactive HTML panel in
 the chat; the panel runs in a sandboxed frame and reaches the simulation only
 through `POST /v11/api/chat/tool`, which accepts MCP tool names. The agent can
 also write `<relay-twin view="ground|tower|customer" />` in a reply to embed a
-live twin. Add `sandbox_id="…"` to show a specific sandbox.
+live twin. Add `sandbox_id="…"` to show a specific sandbox and `awb="…"`
+on a Customer Twin to focus a shipment. **Open tab** carries that selection
+into the workspace.
 
 `POST /v11/api/chat` speaks the Vercel AI SDK UI message stream protocol, so an
 AI SDK `useChat` client can use it as well as the bundled tab.

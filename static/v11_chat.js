@@ -112,6 +112,7 @@ function twinEmbed(attrs) {
     `<div class="embed-body twin-${view}"></div>`);
   node._src = '/v11?' + query;
   node._sandboxId = sandboxId;
+  node._awb = view === 'customer' ? attrs.awb : null;
   startTwin(node);
   return node;
 }
@@ -541,10 +542,9 @@ thread.addEventListener('click', event => {
   }
   else if (target.dataset.openTab) {
     const twin = target.closest('.embed');
-    if (twin._sandboxId && target.dataset.openTab === 'ground') {
-      window.dispatchEvent(new CustomEvent('relay:show-ground-sandbox', {detail: {sandboxId: twin._sandboxId, button: target}}));
-    } else if (twin._sandboxId) window.open(twin._src, '_blank', 'noopener');
-    else document.querySelector(`.tab[data-tab="${target.dataset.openTab}"]`)?.click();
+    window.dispatchEvent(new CustomEvent('relay:open-twin', {
+      detail: {view: target.dataset.openTab, sandboxId: twin._sandboxId, awb: twin._awb, button: target}
+    }));
   }
   else if (target.classList.contains('embed-resume')) startTwin(target.closest('.embed'));
   else if ('toggleCode' in target.dataset) {

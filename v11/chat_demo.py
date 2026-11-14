@@ -27,8 +27,8 @@ PANEL = """<style>
   <div class="kpi"><span id="relayCost">–</span><small>RELAY cost</small></div>
 </div>
 <div class="row">
-  <button class="primary" id="play">Start</button>
-  <button data-call="ground_step_simulation" data-args='{"count":6}'>Step 1 hour</button>
+  <button class="primary" id="play">Start all</button>
+  <button data-call="ground_step_simulation" data-args='{"count":6}'>Step all 1 hour</button>
   <button data-call="ground_inject_incident" data-args='{"incident":{"kind":"flight_cancelled"}}'>Cancel a flight</button>
   <button data-call="ground_inject_incident" data-args='{"incident":{"kind":"capacity_changed"}}'>Cut capacity</button>
   <button data-call="customer_place_order" data-args='{"order":{"destination":"NRT","handling":"COL"}}'>Cold order to NRT</button>
@@ -39,7 +39,12 @@ PANEL = """<style>
   let running = false;
   async function run(button, name, args) {
     button.disabled = true;
-    try { await relay.call(name, args); status.textContent = name.split('_').slice(1).join(' ') + ' done'; }
+    try {
+      const result = await relay.call(name, args);
+      status.textContent = result.complete === false
+        ? result.failed.map(item => item.sandbox_id + ': ' + item.error).join(' · ')
+        : name.split('_').slice(1).join(' ') + ' done';
+    }
     catch (error) { status.textContent = error.message; }
     finally { button.disabled = false; }
   }
@@ -48,7 +53,7 @@ PANEL = """<style>
     b.onclick = () => run(b, b.dataset.call, JSON.parse(b.dataset.args)));
   relay.onState(s => {
     running = s.v8.running;
-    $('play').textContent = running ? 'Pause' : 'Start';
+    $('play').textContent = running ? 'Pause all' : 'Start all';
     $('tick').textContent = s.tick;
     $('orders').textContent = s.work_orders_total;
     $('fcfs').textContent = s.policies.fcfs?.cost_units.toFixed(1) ?? '—';
@@ -81,7 +86,7 @@ class ScriptedChatModel(BaseChatModel):
         if last.name == 'control_get_state':
             return [('thinking', 'State received. A small panel with playback and disruption controls fits.'),
                     ('tool', ('create_artifact', {'title': 'Simulation control panel', 'html': PANEL}))]
-        return [('text', 'The panel above drives the shared clock, so the three twins follow every click. '
+        return [('text', 'The panel above controls playback for every sandbox. '
                          'Here is the ground twin:\n\n<relay-twin view="ground" />\n\n'
                          '**Note:** this reply came from the scripted demo model. Set `AI_GATEWAY_API_KEY` '
                          'and unset `RELAY_CHAT_MODEL` to use a real model.')]

@@ -513,13 +513,21 @@ $('drawerContent').addEventListener('submit',async event=>{
  finally{buttons.forEach(button=>setPending(button,false))}
 });
 if(sandboxDialog){
- window.addEventListener('relay:show-ground-sandbox',event=>{
-  const {sandboxId,button}=event.detail;
+ window.addEventListener('relay:open-twin',event=>{
+  const {view,sandboxId,awb,button}=event.detail;
+  if(!['ground','tower','customer'].includes(view))return;
   withRequestButton(button,()=>{
-   sandboxIds[0]=sandboxId;
-   updateSandboxOptions();
-   renderGround();
-   return showTab('ground');
+   if(sandboxId&&view==='ground'){
+    sandboxIds[0]=sandboxId;
+    updateSandboxOptions();
+    renderGround();
+   }else if(dashboardPickers[view]){
+    const id=sandboxId||defaultSandbox();
+    if(view==='customer'&&(awb||dashboardIds.customer!==id))selectedAwb=awb||null;
+    dashboardIds[view]=id;
+    updateDashboardOptions();
+   }
+   return showTab(view);
   });
  });
  const form=sandboxDialog.querySelector('form');

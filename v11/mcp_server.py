@@ -46,8 +46,9 @@ and ground_delete_sandbox to manage the dynamic sandbox registry.
 MCP reads and sandbox-local writes default to scope='all'. For a subset pass
 scope='sandboxes' AND sandbox_ids=['id1','id2']. Playback controls always apply
 to every sandbox. On those tools, scope filters the returned snapshots.
-Each result carries sandbox_id; inspect complete/failed for partial success.
-Writes affect every client viewing the targeted sandbox(s).
+Batch entries use results[].sandbox_id and results[].result. Check complete
+and failed before reporting success. Use sandbox IDs returned by ground_list_sandboxes.
+Sandbox-local writes affect every client viewing the targeted sandbox(s).
 This is a research/demo sandbox, NOT a connection to real Cathay systems:
 no actual airline booking, cargo move, customer notification, certified
 aircraft loading, or established financial ROI. The separate v12 five-policy
@@ -63,7 +64,8 @@ The three views
   approval is NOT carrier confirmation or authorization for physical work.
 
 Read control_get_state for all sandboxes (or a selected subset)
-Read tick, clock, v8.running/mode/config, decision.id/status/snapshot_version/
+Read tick, clock, v8.running, v8.speed_target, v8.actual_ticks_per_second,
+v8.mode/config, decision.id/status/snapshot_version/
 stale/warnings/proposed_actions, tasks[].depends_on_task_id, policies[ground_policy],
 shipment_objects, unified_events, portfolio_coverage
 and view_clock_contract. The full snapshot is large: extract relevant
@@ -122,7 +124,8 @@ The FCFS/RELAY comparison and cost units are synthetic, not airline ROI.
 
 Clock and safety
 One tick advances all sandboxes by 10 SIMULATED minutes. Manual stepping requires paused autoplay.
-Speed is a REQUESTED multiplier; actual_ticks_per_second may be lower.
+speed_target is the selected animation multiplier. actual_ticks_per_second
+is the measured shared clock throughput; target_ticks_per_second is its target.
 The dashboard and REST API provide reset. Never claim to have sent
 real flight, warehouse, customer or booking commands.
 """
