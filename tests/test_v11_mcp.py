@@ -25,13 +25,15 @@ def test_delete_sandbox_stops_playback_and_updates_default(monkeypatch):
         assert sandbox['policy'] == 'fcfs'
         default.start()
         assert client.delete(base+'/sandboxes/relay').status_code == 204
-        assert not default.running and not default._thread.is_alive()
+        assert default._closed
+        assert client.get(base+'/state').json()['v8']['running']
         assert client.get(base+'/sandboxes').json() == [sandbox]
         assert client.get(base+'/state').json()['sandbox_id'] == sandbox['id']
         assert client.delete(base+'/sandboxes/relay').status_code == 404
         assert client.delete(base+'/sandboxes/'+sandbox['id']).status_code == 204
         assert client.get(base+'/state').status_code == 404
         assert client.get(base+'/sandboxes').json() == []
+        assert not registry.clock.running
 
 
 def test_v11_sandboxes_run_all_v12_dispatch_models(monkeypatch):
@@ -53,6 +55,7 @@ def test_v11_sandboxes_run_all_v12_dispatch_models(monkeypatch):
             sandbox = created.json()
             assert sandbox['model_name'] == name
             params = {'sandbox_id': sandbox['id']}
+            assert client.post(base+'/control', json={'action': 'reset'}).status_code == 200
             state = client.post(base+'/control', params=params, json={
                 'action': 'tune', 'weather': 'CLEAR', 'chaos': 0,
             }).json()
@@ -153,19 +156,25 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                             response = await client.get('/v11/api/state', params={'sandbox_id': sandbox_id})
                             assert list(response.json()['policies']) == ['fcfs']
                             assert (await call('control_get_state', **selected))['results'][0]['result']['tick'] == 2
-                            assert (await client.get('/v11/api/state')).json()['tick'] == initial['tick']
+                            assert (await client.get('/v11/api/state')).json()['tick'] == initial['tick'] + 2
                             assert (await client.get('/v11/api/state', params={'sandbox_id': 'missing'})).status_code == 404
 
-                            # Clock, shipment, and flight stores are sandbox-local.
+                            # Sandboxes share a clock while shipment and flight data remain local.
                             relay_before = (await call('control_get_state', scope='sandboxes', sandbox_ids=['relay']))['results'][0]['result']
-                            assert relay_before['tick'] == 0
-                            assert relay_before['clock'] != response.json()['clock']
+                            assert relay_before['tick'] == 2
+                            assert relay_before['clock'] == response.json()['clock']
+                            batch = (await client.get('/v11/api/ground', params=[
+                                ('sandbox_ids', 'relay'), ('sandbox_ids', sandbox_id),
+                            ])).json()
+                            assert set(batch) == {'relay', sandbox_id}
+                            assert {state['tick'] for state in batch.values()} == {2}
+                            assert len({state['clock'] for state in batch.values()}) == 1
                             # Cross-view clocks match *inside* each sandbox.
-                            for state in (relay_before, response.json()):
-                                contract = state['view_clock_contract']
-                                assert contract['ground_tick'] == state['tick']
-                                assert contract['tower_tick'] == state['tick']
-                                assert contract['customer_tick'] == state['tick']
+                            for snapshot in (relay_before, response.json()):
+                                contract = snapshot['view_clock_contract']
+                                assert contract['ground_tick'] == snapshot['tick']
+                                assert contract['tower_tick'] == snapshot['tick']
+                                assert contract['customer_tick'] == snapshot['tick']
 
                             # An incident in FCFS must not change RELAY's flight data.
                             relay_flights_before = relay_before['flights']
@@ -195,8 +204,26 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                             assert all_speed['complete'] and all_speed['success_count'] == 2
                             assert all(entry['result']['speed_target'] == 4 for entry in all_speed['results'])
                             assert (await call('ground_start_simulation', **selected))['complete']
+                            playing = await call('control_get_state')
+                            assert all(entry['result']['v8']['running'] for entry in playing['results'])
+                            assert len({entry['result']['tick'] for entry in playing['results']}) == 1
                             assert (await call('ground_pause_simulation', **selected))['complete']
-                            assert (await call('ground_step_simulation', count=1, **selected))['complete']
+                            paused = (await client.get('/v11/api/state')).json()
+                            assert not paused['v8']['running']
+                            stepped_all = await call('ground_step_simulation', count=1)
+                            assert stepped_all['complete']
+                            assert {entry['result']['tick'] for entry in stepped_all['results']} == {paused['tick'] + 1}
+
+                            late = await call('ground_create_sandbox', name='Late arrival', policy='fcfs', seed=42)
+                            try:
+                                current = await call('control_get_state')
+                                assert {entry['result']['tick'] for entry in current['results']} == {paused['tick'] + 1}
+                                assert len({entry['result']['clock'] for entry in current['results']}) == 1
+                            finally:
+                                await call('ground_delete_sandbox', sandbox_id=late['id'])
+                            reset = await client.post('/v11/api/control', params={'sandbox_id': sandbox_id}, json={'action': 'reset'})
+                            assert reset.status_code == 200
+                            assert all(entry['result']['tick'] == 0 for entry in (await call('control_get_state'))['results'])
 
                             # All-scope reads, and deletion of only one sandbox.
                             deleted = await call('ground_delete_sandbox', sandbox_id=sandbox_id)
@@ -205,7 +232,7 @@ def test_mcp_tools_share_dashboard_state(monkeypatch):
                             assert (await call('ground_list_sandboxes'))['result'][0]['id'] == 'relay'
                         finally:
                             if sandbox_id in [s.id for s in api.sandboxes.list()]:
-                                api.sandboxes.delete(sandbox_id)
+                                await asyncio.to_thread(api.sandboxes.delete, sandbox_id)
 
                         # Review and work orders still operate on the remaining sandbox.
                         await call('control_set_review_mode', mode='MANUAL_REVIEW')

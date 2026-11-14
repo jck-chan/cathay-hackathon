@@ -39,12 +39,13 @@ LEGACY_MCP_PATH = '/v11/mcp'
 INSTRUCTIONS = """RELAY Three Twins -- MCP agent operating guide
 
 What this server is
-Each v11 sandbox has its own shipments, flights, event store, decisions and 10-minute
-clock, shared by its Customer, Ground and Control Tower views. DIFFERENT sandboxes
-do not share clocks or stores. Use ground_list_sandboxes, ground_create_sandbox,
+Each v11 sandbox has its own shipments, flights, event store and decisions.
+One 10-minute simulation clock drives every sandbox and its Customer, Ground and
+Control Tower views. Use ground_list_sandboxes, ground_create_sandbox,
 and ground_delete_sandbox to manage the dynamic sandbox registry.
-Every MCP read/write defaults to scope='all', targeting every existing sandbox.
-For a subset pass scope='sandboxes' AND sandbox_ids=['id1','id2'].
+MCP reads and sandbox-local writes default to scope='all'. For a subset pass
+scope='sandboxes' AND sandbox_ids=['id1','id2']. Playback controls always apply
+to every sandbox. On those tools, scope filters the returned snapshots.
 Each result carries sandbox_id; inspect complete/failed for partial success.
 Writes affect every client viewing the targeted sandbox(s).
 This is a research/demo sandbox, NOT a connection to real Cathay systems:
@@ -71,8 +72,8 @@ use decision.snapshot_version (not the top-level version). Check
 decision_scope before claiming global optimality.
 
 End-to-end scenario (customer -> ground -> control -> customer)
-1. Pause with ground_pause_simulation to obtain stable clocks. This pauses
-   every sandbox by default, or the selected sandbox IDs. Set control_set_review_mode to
+1. Pause with ground_pause_simulation to pause the clock for every sandbox.
+   Set control_set_review_mode to
    MANUAL_REVIEW if you want explicit operator-style review. Read state.
 2. Create a synthetic order with customer_place_order (all sandboxes by default)
    or an explicit subset. customer_place_order_all_sandboxes is an alias. For both,
@@ -120,7 +121,7 @@ warnings are operational boundaries, not instructions to circumvent.
 The FCFS/RELAY comparison and cost units are synthetic, not airline ROI.
 
 Clock and safety
-One tick = 10 SIMULATED minutes PER SANDBOX. Manual stepping requires paused autoplay in every target.
+One tick advances all sandboxes by 10 SIMULATED minutes. Manual stepping requires paused autoplay.
 Speed is a REQUESTED multiplier; actual_ticks_per_second may be lower.
 The dashboard and REST API provide reset. Never claim to have sent
 real flight, warehouse, customer or booking commands.
@@ -168,14 +169,14 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
         name: str, policy: DispatchPolicy = 'relay',
         seed: Annotated[int, Field(ge=0, le=2147483647)] = 2048,
     ) -> dict[str, Any]:
-        """Create an independent, paused synthetic v11 sandbox. Choose FCFS, RELAY_V10, RELAY_V11, A_CRITICAL (RELAY + Model A), or A_EDF (RELAY + EDF). Save the returned ID for tools and live embeds."""
+        """Create a synthetic v11 sandbox at the current shared tick with its own shipments and decisions. Choose FCFS, RELAY_V10, RELAY_V11, A_CRITICAL (RELAY + Model A), or A_EDF (RELAY + EDF). Save the returned ID for tools and live embeds."""
         sandbox = await run_in_threadpool(v11_create_sandbox, SandboxCreate(name=name, policy=policy, seed=seed))
         return sandbox.model_dump()
 
 
     @mcp.tool()
     async def ground_delete_sandbox(sandbox_id: str) -> dict[str, Any]:
-        """Permanently delete ONE synthetic sandbox by its ID, stopping its playback and disposing its simulation. The other sandboxes are untouched. Call ground_list_sandboxes first."""
+        """Permanently delete ONE synthetic sandbox by its ID, removing it from playback and discarding its simulation state. The shared clock continues for remaining sandboxes. Call ground_list_sandboxes first."""
         from .api import v11_delete_sandbox
         await run_in_threadpool(v11_delete_sandbox, sandbox_id)
         return {'deleted': True, 'sandbox_id': sandbox_id}
@@ -184,8 +185,11 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
     async def control_get_state(
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Read independent synthetic simulation snapshots from ALL sandboxes by default, or selected sandbox_ids with scope='sandboxes'. Every result includes its sandbox ID, tick, clock, flights, shipments, tasks, review decisions, and policies. Each sandbox has its OWN clock and store; only Ground/Control/Customer views WITHIN that sandbox share a clock."""
-        return await run_in_threadpool(_fanout, lambda sid: v11_state(None, sid), scope, sandbox_ids)
+        """Read independent synthetic simulation snapshots from ALL sandboxes by default, or selected sandbox_ids with scope='sandboxes'. Every result includes its sandbox ID, tick, clock, flights, shipments, tasks, review decisions, and policies. All results share one tick and clock, with separate sandbox stores."""
+        def snapshots():
+            with simulation_api.sandboxes.clock.guard:
+                return _fanout(lambda sid: v11_state(None, sid), scope, sandbox_ids)
+        return await run_in_threadpool(snapshots)
 
     @mcp.tool(annotations=read_only)
     async def customer_track_shipment(
@@ -235,21 +239,21 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
         task_id: str, scope: Literal['all', 'sandboxes'] = 'all',
         sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Acknowledge a synthetic task in all or selected sandboxes. IDs and prerequisite chains may differ; unknown task IDs generate per-sandbox errors. This does not initiate real ground handling."""
+        """Acknowledge a synthetic task in all or selected sandboxes. Check depends_on_task_id for each sandbox; unknown task IDs generate per-sandbox errors. This does not initiate real ground handling."""
         return await run_in_threadpool(_fanout, lambda sid: v11_task_done(task_id, sid)['result'], scope, sandbox_ids)
 
     @mcp.tool()
     async def ground_start_simulation(
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Start each selected synthetic sandbox's INDEPENDENT autoplay clock; targets all existing sandboxes unless scoped. Returns per-sandbox tick, clock, and running state, with individual errors."""
+        """Start the shared synthetic autoplay clock for every sandbox. Return tick, clock, and playback settings for all sandboxes or the selected subset."""
         return await apply_control(SimulationControl(action='start'), scope, sandbox_ids)
 
     @mcp.tool()
     async def ground_pause_simulation(
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Pause all independent synthetic sandbox clocks by default, or selected sandbox_ids. Pausing one does not pause another unless both are targeted."""
+        """Pause the shared synthetic clock for every sandbox. Return tick, clock, and playback settings for all sandboxes or the selected subset."""
         return await apply_control(SimulationControl(action='pause'), scope, sandbox_ids)
 
     @mcp.tool()
@@ -257,7 +261,7 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
         count: Annotated[int, Field(ge=1, le=100)] = 1,
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Advance each selected synthetic sandbox by count 10-minute ticks, all by default. EACH targeted sandbox must be PAUSED. Their clocks are independent; partial successes and running-sandbox conflicts are explicitly reported."""
+        """Advance every synthetic sandbox by count shared 10-minute ticks. Autoplay must be PAUSED. Return playback settings for all sandboxes or the selected subset."""
         return await apply_control(SimulationControl(action='step', count=count), scope, sandbox_ids)
 
     @mcp.tool()
@@ -265,7 +269,7 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
         speed: Literal[1, 4, 16, 32, 100],
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Request synthetic playback speed for all existing independent sandboxes by default, or selected IDs. Actual throughput may differ. Returns per-sandbox settings."""
+        """Set the requested playback speed of the shared synthetic clock for every sandbox. Actual throughput may be lower. Scope filters the returned settings."""
         return await apply_control(SimulationControl(action='speed', speed=speed), scope, sandbox_ids)
 
     @mcp.tool()
@@ -288,7 +292,7 @@ def create_mcp_server(public_domains: set[str] | None = None) -> FastMCP:
     async def control_recalculate_decision(
         scope: Literal['all', 'sandboxes'] = 'all', sandbox_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        """Recalculate independent synthetic Control Tower decisions for all or selected sandboxes at their OWN current ticks. Returns each sandbox's decision separately; no actual bookings."""
+        """Recalculate independent synthetic Control Tower decisions for all or selected sandboxes at the current shared tick. Returns each sandbox's decision separately; no actual bookings."""
         return await run_in_threadpool(_fanout, lambda sid: {'decision': v11_control(SimulationControl(action='recalculate'), sid)['decision']}, scope, sandbox_ids)
 
     return mcp
@@ -362,7 +366,22 @@ def _place_order_scoped(order: OrderRequest, scope: str, sandbox_ids: list[str] 
 async def apply_control(
     control: SimulationControl, scope: str = 'all', sandbox_ids: list[str] | None = None,
 ) -> dict[str, Any]:
-    def perform(sid: str) -> dict[str, Any]:
-        state = v11_control(control, sid)
+    def playback_result(state):
         return {'tick': state['tick'], 'clock': state['clock'], **state['v8']}
-    return await run_in_threadpool(_fanout, perform, scope, sandbox_ids)
+
+    def perform():
+        if control.action not in ('start', 'pause', 'step', 'speed'):
+            return _fanout(lambda sid: playback_result(v11_control(control, sid)), scope, sandbox_ids)
+
+        with simulation_api.sandboxes.clock.guard:
+            targets = _targets(scope, sandbox_ids)
+            try:
+                # Playback is global. Apply the requested action exactly once.
+                v11_control(control, targets[0])
+            except Exception as exc:
+                def failed(_):
+                    raise exc
+                return _fanout(failed, scope, sandbox_ids)
+            return _fanout(lambda sid: playback_result(v11_state(None, sid)), scope, sandbox_ids)
+
+    return await run_in_threadpool(perform)

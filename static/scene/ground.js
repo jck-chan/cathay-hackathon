@@ -954,7 +954,11 @@ class GLWorld {
   this.wallTime = t / 1000;
   const controls = this.sceneControls, configured = controls.configured || {};
   if (this.state !== this.syncedState || this.simTick !== this.syncedTick) {
-   if (this.simTick !== this.syncedTick) this.lastTickChange = t;
+   if (this.simTick > this.syncedTick && !this.running && !this.wasRunning) this.lastManualStep = t;
+   if (this.simTick < this.syncedTick) {
+    this.lastManualStep = undefined;
+    this.ops.reset();
+   }
    this.syncedState = this.state;
    this.syncedTick = this.simTick;
    this.ops.sync(this.state, {
@@ -964,10 +968,11 @@ class GLWorld {
    });
   }
   const rate = Math.max(0, Number(this.actualTicksPerSecond) || 0);
-  // Visual tempo follows achieved simulation speed; a manual step plays out briefly while paused.
-  const stepping = !this.running && t - (this.lastTickChange ?? -1e9) < 2600;
-  const tempo = this.running ? clamp(1 + .8 * Math.log2(Math.max(1, rate / .5)), 1, 6) : stepping ? 1.6 : 0;
-  this.ops.step(seconds, tempo, this.running ? Math.max(rate, .5) : stepping ? .5 : 0);
+  this.wasRunning = this.running;
+  // Motion follows the selected multiplier; cargo interpolation follows completed ticks.
+  const stepping = !this.running && t - (this.lastManualStep ?? -Infinity) < 2600;
+  const tempo = this.running ? this.requestedSpeed : stepping ? 1 : 0;
+  this.ops.step(seconds, tempo, this.running ? rate : stepping ? .5 : 0);
   this.sceneTime += seconds * tempo;
   return seconds;
  }

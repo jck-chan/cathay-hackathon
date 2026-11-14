@@ -52,7 +52,7 @@ def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch, railway):
 
                 inputs = {e['toolName']: e for e in events if e['type'] == 'tool-input-available'}
                 outputs = {e['toolCallId']: e['output'] for e in events if e['type'] == 'tool-output-available'}
-                assert outputs[inputs['control_get_state']['toolCallId']]['tick'] == conductor.snapshot()['tick']
+                assert outputs[inputs['control_get_state']['toolCallId']]['results'][0]['result']['tick'] == conductor.snapshot()['tick']
                 assert '<script>' in inputs['create_artifact']['input']['html']
                 text = ''.join(e['delta'] for e in events if e['type'] == 'text-delta')
                 assert '<relay-twin view="ground" />' in text
@@ -70,7 +70,7 @@ def test_chat_streams_ui_messages_and_runs_mcp_tools(monkeypatch, railway):
                 assert len(runtime.history('c1', [{**user, 'id': 'edited'}, reply, follow_up])) == 2  # falls back to a rebuild
 
                 stepped = await client.post('/v11/api/chat/tool', json={'name': 'ground_step_simulation', 'arguments': {'count': 2}})
-                assert stepped.json()['result']['tick'] == 2 == conductor.snapshot()['tick']
+                assert stepped.json()['result']['results'][0]['result']['tick'] == 2 == conductor.snapshot()['tick']
                 assert (await client.post('/v11/api/chat/tool', json={'name': 'create_artifact'})).status_code == 404
                 assert (await client.post('/v11/api/chat/tool', json={'name': 'ground_step_simulation', 'arguments': {'count': 0}})).status_code == 422
                 denied = await client.post('/v11/api/chat/tool', json={'name': 'control_get_state'}, headers={'Origin': 'null'})

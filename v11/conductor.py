@@ -1,4 +1,4 @@
-"""Server-owned clock for the v11 three-twin simulation.
+"""Server-owned playback for the v11 three-twin simulation.
 
 One V7Lab/store is the authority for all three *views*.  An auto-review is
 strictly a simulated internal work-order authorization; real booking/physical
@@ -7,7 +7,6 @@ target, never a promise that the CPU achieved it.
 """
 from __future__ import annotations
 from collections import deque
-from datetime import datetime, timezone
 from threading import RLock, Thread, Event
 import math, time, uuid, random
 from v7_product import V7Lab
@@ -18,12 +17,133 @@ from unified_lab import safe_job
 SPEEDS = (1, 4, 16, 32, 100)
 MODES = ('AUTO_SHADOW','MANUAL_REVIEW','ADVISORY')
 
+class SimulationClock:
+    """Advance all attached labs together, publishing snapshots between batches."""
+
+    def __init__(self):
+        self.guard = RLock()
+        self.members: list[Conductor] = []
+        self.running = False
+        self.speed = 1
+        self.tick = 0
+        self.worker_error = None
+        self.actual_ticks_per_sec = 0.0
+        self._samples = deque(maxlen=250)
+        self._started_at = 0.0
+        self._stop = Event()
+
+    def attach(self, conductor):
+        with self.guard:
+            # A new sandbox replays the elapsed ticks with its own seed and policy.
+            self._advance_lab(conductor, self.tick)
+            conductor.clock = self
+            conductor.guard = self.guard
+            self.members.append(conductor)
+
+    @staticmethod
+    def _advance_lab(conductor, count):
+        for offset in range(0, count, 4):
+            conductor._advance(min(4, count - offset))
+
+    def _advance(self, count):
+        try:
+            for conductor in self.members:
+                conductor._advance(count)
+        except Exception as exc:
+            self._halt()
+            self.worker_error = f'{type(exc).__name__}: {exc}'
+            self._record('ERROR', self.worker_error)
+            raise
+        self.tick += count
+
+    def _record(self, kind, message):
+        for conductor in self.members:
+            conductor._record(kind, message)
+
+    def _worker(self, stop_event):
+        due = time.monotonic()
+        while not stop_event.is_set():
+            with self.guard:
+                if stop_event.is_set():
+                    return
+                target_tps = self.speed * .5
+                batch = min(4, max(1, math.ceil(target_tps * .25)))
+                try:
+                    self._advance(batch)
+                except Exception:
+                    return
+                now = time.monotonic()
+                self._samples.append((now, batch))
+                while self._samples and now - self._samples[0][0] > 5:
+                    self._samples.popleft()
+                elapsed = max(now - max(self._started_at, now - 5), .1)
+                self.actual_ticks_per_sec = round(sum(n for _, n in self._samples) / elapsed, 2)
+            due = max(due + batch / target_tps, now)
+            # Yield even when a batch exceeds its wall-clock budget.
+            stop_event.wait(max(.05, due - time.monotonic()))
+
+    def _require_healthy(self):
+        if self.worker_error:
+            raise Conflict('Reset the shared simulation before advancing after an engine error')
+
+    def start(self):
+        with self.guard:
+            self._require_healthy()
+            if self.running:
+                return
+            self._stop = Event()
+            self.running = True
+            self._samples.clear()
+            self._started_at = time.monotonic()
+            self._record('PLAY', 'Shared synthetic clock started')
+            Thread(target=self._worker, args=(self._stop,), name='RELAY-synthetic-clock', daemon=True).start()
+
+    def _halt(self):
+        self._stop.set()
+        self.running = False
+        self.actual_ticks_per_sec = 0.0
+
+    def pause(self):
+        with self.guard:
+            self._halt()
+            self._record('PAUSE', 'Shared synthetic clock paused')
+
+    def set_speed(self, value):
+        if value not in SPEEDS:
+            raise ValueError('Unsupported speed')
+        with self.guard:
+            self.speed = value
+            self._record('SPEED', f'{value}× requested for the shared synthetic clock')
+
+    def step(self, count):
+        with self.guard:
+            if self.running:
+                raise Conflict('Pause shared simulation before manual stepping')
+            self._require_healthy()
+            for offset in range(0, count, 4):
+                self._advance(min(4, count - offset))
+
+    def reset(self, seed):
+        with self.guard:
+            self._halt()
+            for conductor in self.members:
+                conductor._reset_lab(seed)
+            self.tick = 0
+            self.worker_error = None
+
+    def detach(self, conductor):
+        with self.guard:
+            self.members.remove(conductor)
+            if not self.members:
+                self._halt()
+                self.tick = 0
+                self.speed = 1
+                self.worker_error = None
+
+
 class Conductor:
-    def __init__(self,seed=2048,*,dispatch_policies=('fcfs','relay')):
-        self.guard=RLock()
+    def __init__(self,seed=2048,*,dispatch_policies=('fcfs','relay'), clock=None):
         self.lab=V7Lab(seed=seed,dispatch_policies=dispatch_policies)
-        self.running=False
-        self.speed=1
         self.mode='AUTO_SHADOW'
         self.config={'rate':2.0,'chaos':.2,'handlers':3,'cold_bays':1,'stands':3,'weather':'CLEAR'}
         self.weather_mode='AUTO'  # synthetic weather transitions; seed-reproducible, no METAR
@@ -36,17 +156,12 @@ class Conductor:
         self.last_tick=self.lab.t
         self.last_clock=self.lab.store.clock()
         self.completed_ticks=0
-        self.worker_error=None
-        self.actual_ticks_per_sec=0.0
-        self._wall_samples=deque(maxlen=250)
-        self._worker_start=None
         self.last_advance_ms=0.0
         self._last_effective_capacity=None  # v11 observable restoration marker
-        self._stop=Event()
-        self._thread=None
         self._closed=False
         self._record('READY','One synthetic event store powers three views; no airline controls are connected.')
         self._observe('INITIAL')
+        (clock or SimulationClock()).attach(self)
     def _record(self,kind,message,**extra):
         self.sequence+=1
         self.events.append({'seq':self.sequence,'tick':self.lab.t,'at':self.lab.store.clock(),
@@ -143,68 +258,25 @@ class Conductor:
         finished=max(0,len(self.lab.policies[ground_policy]['completed'])-before_complete)
         if added:self._record('ARRIVAL',f'{added} synthetic orders entered the shared cargo simulation',count=added)
         if finished:self._record('COMPLETED',f'{finished} synthetic {ground_policy.upper()} staging jobs completed',count=finished)
-        if self.running:
-            now=time.monotonic()
-            self._wall_samples.append((now,count))
-            while self._wall_samples and now-self._wall_samples[0][0]>5:
-                self._wall_samples.popleft()
-            begin=max(self._worker_start or now,now-5)
-            self.actual_ticks_per_sec=round(sum(n for _,n in self._wall_samples)/max(now-begin,0.1),2)
-        else:
-            # A manual Step is not playback and must not display fake 80× speed.
-            self.actual_ticks_per_sec=0.0
-    def _worker(self,stop_event):
-        due=time.monotonic()
-        try:
-            while not stop_event.is_set():
-                with self.guard:
-                    if stop_event.is_set() or not self.running:break
-                    speed=self.speed
-                    # Target: 1x = 0.5 simulated ticks/second (10 simulated minutes/tick).
-                    # Solver CPU caps achieved throughput.  Never fabricate ticks.
-                    target_tps=speed*.5
-                    batch=min(4,max(1,math.ceil(target_tps*.25)))
-                    self._advance(batch)
-                    interval=batch/max(target_tps,.0001)
-                due=max(due+interval,time.monotonic())
-                # Always yield when CPU-limited, otherwise continuous max-speed
-                # batches could starve HTTP pause/status requests on the lock.
-                if stop_event.wait(max(.05,due-time.monotonic())):break
-        except Exception as exc:
-            with self.guard:
-                if self._stop is stop_event:
-                    self.running=False
-                    self.worker_error=type(exc).__name__+': '+str(exc)
-                    self._record('ERROR',self.worker_error)
-        finally:
-            with self.guard:
-                if self._stop is stop_event:self.running=False
-    def start(self):
+    def _clock_control(self, action, *args):
         with self.guard:
-            if self._closed:raise Conflict('Sandbox has been deleted')
-            if self.running:return self.snapshot()
-            self._stop=Event()
-            self.running=True
-            self.worker_error=None
-            self._wall_samples.clear();self._worker_start=time.monotonic()
-            self._record('PLAY','Synchronized Ground, Control and Customer projections started')
-            self._thread=Thread(target=self._worker,args=(self._stop,),name='RELAY-v8-synthetic-clock',daemon=True)
-            self._thread.start()
+            if self._closed:
+                raise Conflict('Sandbox has been deleted')
+            getattr(self.clock, action)(*args)
             return self.snapshot()
+
+    def start(self):
+        return self._clock_control('start')
+
     def close(self):
         with self.guard:
-            self._closed=True
-            self.running=False
-            self._stop.set()
-            thread=self._thread
-        if thread is not None:thread.join()
+            if not self._closed:
+                self._closed = True
+                self.clock.detach(self)
 
     def pause(self):
-        with self.guard:
-            self._stop.set()
-            self.running=False
-            self._record('PAUSE','Shared synthetic clock paused')
-            return self.snapshot()
+        return self._clock_control('pause')
+
     def configure(self,config):
         with self.guard:
             for key,value in config.items():
@@ -217,11 +289,7 @@ class Conductor:
             self._record('TUNE','Shared resource/demand settings updated',settings=dict(self.config))
             return self.snapshot()
     def set_speed(self,value):
-        if value not in SPEEDS:raise ValueError('Unsupported speed')
-        with self.guard:
-            self.speed=value
-            self._record('SPEED',f'{value}× requested; completed ticks/s is measured, not assumed')
-            return self.snapshot()
+        return self._clock_control('set_speed', value)
     def set_mode(self,value):
         if value not in MODES:raise ValueError('Unsupported review mode')
         with self.guard:
@@ -235,28 +303,25 @@ class Conductor:
             self._observe('MODE')
             return self.snapshot()
     def reset(self,seed=None):
-        with self.guard:
-            self._stop.set()
-            self.running=False
-            seed=self.lab.seed if seed is None else seed
-            self.lab.reset(seed)
-            self.weather_mode='AUTO'
-            self._weather_rng=random.Random(seed+8887)
-            self._weather_bucket=-1
-            self.config['weather']='CLEAR'
-            self.review_signatures.clear()
-            self.last_decision_id=None;self._last_event_marker=None
-            self.last_tick=0;self.completed_ticks=0;self.actual_ticks_per_sec=0.;self.worker_error=None
-            self._last_effective_capacity=None
-            self._wall_samples.clear();self._worker_start=None
-            self._record('RESET','Synthetic experiment reset; previous work-order simulation discarded')
-            self._observe('RESET')
-            return self.snapshot()
+        return self._clock_control('reset', seed)
+
+    def _reset_lab(self, seed):
+        seed=self.lab.seed if seed is None else seed
+        self.lab.reset(seed)
+        self.weather_mode='AUTO'
+        self._weather_rng=random.Random(seed+8887)
+        self._weather_bucket=-1
+        self.config['weather']='CLEAR'
+        self.review_signatures.clear()
+        self.last_decision_id=None;self._last_event_marker=None
+        self.last_tick=0;self.completed_ticks=0
+        self.last_clock=self.lab.store.clock()
+        self._last_effective_capacity=None
+        self._record('RESET','Synthetic experiment reset; previous work-order simulation discarded')
+        self._observe('RESET')
+
     def step(self,count=1):
-        with self.guard:
-            if self.running:raise Conflict('Pause shared simulation before manual stepping')
-            for n in range(0,count,4):self._advance(min(4,count-n))
-            return self.snapshot()
+        return self._clock_control('step', count)
     def incident(self,kind):
         with self.guard:
             self.lab.incident(kind)
@@ -295,13 +360,13 @@ class Conductor:
                          shipment_id=owning['shipment_id'] if owning else None)
             return {'result':result,'state':self.snapshot()}
     def playback_state(self):
-        return {'mode':self.mode,'running':self.running,'speed_target':self.speed,
-                'target_ticks_per_second':self.speed*.5,
-                'actual_ticks_per_second':self.actual_ticks_per_sec,
+        return {'mode':self.mode,'running':self.clock.running,'speed_target':self.clock.speed,
+                'target_ticks_per_second':self.clock.speed*.5,
+                'actual_ticks_per_second':self.clock.actual_ticks_per_sec,
                 'last_batch_ms':self.last_advance_ms,
                 'weather_capacity_assumption':'RAIN: stands -1; STORM: stands -2 and crew -1; CLEAR/FOG: unchanged; non-certified synthetic',
                 'visualization_scope':'PROCEDURAL_FACILITY_REPRESENTATION; NOT SURVEYED CATHAY TERMINAL OR TRACKED AIRCRAFT',
-                'sequence':self.sequence,'worker_error':self.worker_error,
+                'sequence':self.sequence,'worker_error':self.clock.worker_error,
                 'weather_mode':self.weather_mode,
                 'config':dict(self.config),
                 'scope':'SINGLE_SERVER_OWNED_SYNTHETIC_CLOCK; PHYSICAL_AIRLINE_COMMANDS_DISABLED'}

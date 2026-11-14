@@ -530,7 +530,12 @@ class GroundOps {
     for (const pop of this.pops) pop.age += seconds;
     this.pops = this.pops.filter(pop => pop.age < 2.6);
     if (dt <= 0) return;
+    // Keep the kinematics stable when a high multiplier spans several physics steps.
+    const steps = Math.ceil(dt / .1);
+    for (let i = 0; i < steps; i++) this.move(dt / steps, seconds / steps, ticksPerSecond);
+  }
 
+  move(dt, seconds, ticksPerSecond) {
     for (const job of this.jobs.values()) {
       if (job.status === 'WAIT') {
         if (!job.route) continue;
@@ -584,7 +589,7 @@ class GroundOps {
     this.effects = this.effects.filter(effect => effect.age < effect.life);
 
     this.stepAircraft(dt);
-    this.stepWorkers(dt, seconds * Math.min(tempo, 1.5));
+    this.stepWorkers(dt, dt);
   }
 
   stepAircraft(dt) {

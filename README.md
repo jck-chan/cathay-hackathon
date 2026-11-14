@@ -81,15 +81,16 @@ Advances **all** sandboxes five ticks each. To target only two:
 {"count": 5, "scope": "sandboxes", "sandbox_ids": ["relay", "fcfs"]}
 ```
 
-Sandboxes are separate `Conductor` and simulated shipment/flight stores,
-with independent ticks, clocks, configuration and progression. Within **one**
-sandbox, the Customer, Ground and Control Tower projections share the same
-tick/clock. Identical starting seeds may yield matching initial catalogs, but
-that is **not** a shared mutable store. Order fan-out deliberately assigns one
-common synthetic AWB for cross-policy comparison; orders remain independent.
-The MCP's default all-sandbox operations are best-effort fan-out, **not atomic
-transactions**. Always examine `complete`, `results`, and `failed`; reviews
-and task completion may fail in sandboxes with different decision/task IDs.
+All v11 sandboxes advance on one server-owned clock. Play, pause, step, speed
+and reset affect every sandbox. A new sandbox simulates up to the current tick
+using its own starting seed and policy. On MCP playback tools, scope selects
+which sandbox snapshots are returned.
+
+Each sandbox keeps its own shipments, flights, decisions and environment
+settings. The Control Tower and shipment tracking views each let you select a
+sandbox. Order fan-out assigns one synthetic AWB for cross-policy comparison.
+Check `complete`, `results`, and `failed` on batch operations. Reviews and task
+completion may fail in sandboxes with different decision or task IDs.
 
 Reset stays in the dashboard and REST API. The Evidence Lab, benchmark runs,
 the five-world arena, and the standalone research API are outside the MCP tool

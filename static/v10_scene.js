@@ -1,5 +1,5 @@
 /* RELAY V10 · cinematic but evidence-bounded synthetic scene & multi-route globe.
-   Visual tempo is independent of actual solver throughput. Every cargo-work representation
+   Visual tempo follows the requested playback multiplier. Every cargo-work representation
    is derived from observed waiting/active/done; decorative aircraft are explicitly illustrative.
    No certified aircraft or GSE kinematics are represented. Offline, no external assets. */
 (()=>{'use strict';
@@ -13,12 +13,10 @@ class FlowWorld extends PreviousWorld {
   }
   render(t){
     const dt=clip((t-(this.lastMotionFrame??t))/1000,0,.075);this.lastMotionFrame=t;
-    const measured=Number(this.actualTicksPerSecond)||0,requested=this.requestedSpeed||1;
-    // At 100x, the visualized work moves faster, but never claims the solver completed 100x work.
-    this.visualTempo=this.running?clip(1+.82*Math.log2(requested)+.25*Math.log2(1+measured),1,8.2):0;
+    this.visualTempo=this.running?(this.requestedSpeed||1):0;
     this.motionTime+=dt*this.visualTempo;
     if(this.airport){super.render(t);return;}
-    if(this.fallback){super.render(t);this.drawFallbackFlow(t);return;}
+    if(this.fallback){super.render(this.motionTime*1000);this.drawFallbackFlow(t);return;}
     // Original world camera/renderer retained. V10 overlays bounded, state-coupled kinematics.
     super.render(t);
     this.drawFallbackFlow(t);
@@ -106,7 +104,7 @@ class NetworkGlobe extends window.RelayV6.CustomerGlobe{
  render(time){
   if(this.targetLon!==null&&!this.drag){let dl=((this.targetLon-this.lon+540)%360)-180;this.lon+=dl*.07;this.lat+=(this.targetLat-this.lat)*.07;if(Math.abs(dl)<.07&&Math.abs(this.targetLat-this.lat)<.07)this.targetLon=null;}
   const dt=clip((time-(this.lastRenderFrame??time))/1000,0,.08);this.lastRenderFrame=time;
-  if(this.running)this.renderClock+=dt*1000*clip(1+.83*Math.log2(this.requestedSpeed||1),1,7);
+  if(this.running)this.renderClock+=dt*1000*(this.requestedSpeed||1);
   const animationTime=this.renderClock;
   super.render(animationTime);
   const modern=this.canvas.dataset.style==='customer';const c=this.c,R=this.r,drawn=this.routes||[];let selectedRoute=null;

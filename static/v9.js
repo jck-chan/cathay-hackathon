@@ -13,14 +13,22 @@ const embeddedSandbox=embed&&(query.get('sandbox_id')||(embed==='ground'&&query.
 const singleGround=embed==='ground'&&embeddedSandbox;
 const sandboxIds=singleGround?[embeddedSandbox]:[null,null];
 const groundStates=new Map(), groundErrors=new Map();
-let sandboxList=[], createSlot=0, creatingSandbox=false, queuedRefresh=null, sandboxRevision=0, dashboardSandboxId=embeddedSandbox;
+let sandboxList=[], createSlot=0, creatingSandbox=false, queuedRefresh=null, sandboxRevision=0;
+const dashboardPickers={tower:$('towerSandbox'),customer:$('customerSandbox')};
+const dashboardIds={tower:embeddedSandbox,customer:embeddedSandbox};
+const defaultSandbox=()=>sandboxList.find(s=>s.id==='relay')?.id??sandboxList[0]?.id??null;
+const dashboardSandbox=()=>dashboardIds[currentTab]??(singleGround?sandboxIds[0]:embeddedSandbox)??defaultSandbox();
+function dashboardLoading(){
+ const screen=$(currentTab+'-screen');
+ if(dashboardPickers[currentTab])screen.toggleAttribute('data-sandbox-loading',true);
+}
 const worlds=[new RelayV6.GroundScene($('baselineWorld'),'fcfs')];
 if(!singleGround)worlds.push(new RelayV6.GroundScene($('relayWorld'),'relay'));
 const globe=new RelayV6.CustomerGlobe($('customerGlobe'));
 function toast(message,bad=false){let t=$('toast');t.textContent=message;t.classList.toggle('error',bad);t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3700)}
 const {run:withRequestButton,setPending,setDisabled,replaceContents}=window.RelayRequestButton;
 async function api(path,method='GET',payload){let c=new AbortController(),tm=setTimeout(()=>c.abort(),25000);try{let r=await fetch(path,{method,signal:c.signal,cache:'no-store',headers:payload?{'Content-Type':'application/json'}:undefined,body:payload?JSON.stringify(payload):undefined});let t=await r.text();let o;try{o=JSON.parse(t)}catch{o={detail:t.slice(0,250)}}if(!r.ok)throw Error(typeof o.detail==='string'?o.detail:JSON.stringify(o.detail||o).slice(0,270));return o}finally{clearTimeout(tm)}}
-function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(state)render(state);if(sandboxDialog)return refreshState();}
+function showTab(name){if(!['ground','tower','customer','chat'].includes(name))return;currentTab=name;if($('simulationControls'))closePops();$$('.screen').forEach(x=>x.classList.toggle('active',x.id===name+'-screen'));$$('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));try{history.replaceState(null,'','#'+name)}catch{/* embedded QA / file origin */}if(!sandboxDialog&&state)render(state);if(sandboxDialog){dashboardLoading();return refreshState();}}
 let returnFocus=null;
 function drawer(title,html,{popup=false}={}){
  returnFocus=document.activeElement;const panel=$('drawer');panel.classList.toggle('order-popup',popup);
@@ -52,15 +60,14 @@ function render(s){state=s;window.dispatchEvent(new CustomEvent('relay:state',{d
  txt('costBefore',num(costA,1));txt('costAfter',num(costB,1));txt('costDelta',(delta>=0?'+':'')+num(delta,1));txt('decisionHeadline',statusLabel(d));
  txt('decisionExplain',d?.proposed_actions?.length?`${d.proposed_actions.length} tentative route change(s). Internal review is not carrier confirmation.`:d?.model_ii?.affected_shipments?.length?'Verification decisions are gating uncertain shipments.':'Network and ground queue recomputed from shared synthetic events.');
  if($('ctCompareTitle'))$('ctCompareTitle').closest('article').hidden=!(s.policies?.fcfs&&s.policies?.relay);
- (window.RELAY_TOWER?.render||renderTower)(s,baseline,relay,delta,statusLabel);renderCustomer(s);v9Render(s);window.RELAY_V10?.render(s,{selectedAwb,currentTab,globe,worlds});if(v.worker_error)toast('Simulation stopped: '+v.worker_error,true);
+ (window.RELAY_TOWER?.render||renderTower)(s,baseline,relay,delta,statusLabel);if(!sandboxDialog||currentTab==='customer')renderCustomer(s);v9Render(s);window.RELAY_V10?.render(s,{selectedAwb,currentTab,globe:!sandboxDialog||currentTab==='customer'?globe:null,worlds});if(v.worker_error)toast('Simulation stopped: '+v.worker_error,true);
 }
 function renderPlayback(s){
- const v=s.v8||{}, running=sandboxDialog&&currentTab==='ground'?
-   sandboxIds.some(id=>groundStates.get(id)?.v8.running):v.running;
+ const v=s.v8||{}, running=v.running;
  txt('clock',when(s.clock));if(s.clock&&$('simulationControls'))$('clock').dateTime=s.clock;txt('simTime',when(s.clock));txt('liveState',running?'RUNNING':'PAUSED');$('statusPulse').classList.toggle('on',running);
  txt('achieved',`${num(v.actual_ticks_per_second,1)} ticks/s actual`);$('speed').value=String(v.speed_target||1);
  const play=$('globalPlay'),playLabel=play.querySelector('.control-label');
- if(playLabel){play.dataset.running=String(Boolean(running));playLabel.textContent=sandboxDialog&&currentTab!=='ground'?(running?'Pause':'Start'):(running?'Pause all':'Start all')}
+ if(playLabel){play.dataset.running=String(Boolean(running));playLabel.textContent=running?'Pause all':'Start all'}
  else{play.textContent=running?'❚❚ Pause all':'▶ Start all'}
  txt('tickPill','TICK '+s.tick);
 }
@@ -151,6 +158,27 @@ function updateSandboxOptions(){
   }
  });
 }
+function updateDashboardOptions(){
+ for(const [view,picker] of Object.entries(dashboardPickers)){
+  if(!picker)continue;
+  const previous=dashboardIds[view];
+  const selected=sandboxList.some(s=>s.id===previous)?previous:defaultSandbox();
+  dashboardIds[view]=selected;
+  if(view==='customer'&&previous&&previous!==selected)selectedAwb=null;
+  picker.replaceChildren(...(sandboxList.length?sandboxList.map(s=>new Option(s.name,s.id)):[new Option('No sandboxes available','')]));
+  picker.value=selected??'';
+  picker.disabled=!selected;
+ }
+}
+for(const [view,picker] of Object.entries(dashboardPickers)){
+ picker?.addEventListener('change',()=>{
+  dashboardIds[view]=picker.value;
+  if(view==='customer')selectedAwb=null;
+  closeDrawer();
+  dashboardLoading();
+  refreshState();
+ });
+}
 function syncSandboxList(list){
  const changed=JSON.stringify(list)!==JSON.stringify(sandboxList);
  sandboxList=list;
@@ -158,6 +186,7 @@ function syncSandboxList(list){
   if(!list.some(s=>s.id===id))sandboxIds[slot]=list[slot]?.id||list[0]?.id||null;
  });
  if(changed||sandboxPickers[0].querySelector('.sandbox-trigger').disabled)updateSandboxOptions();
+ if(changed||dashboardPickers.tower?.options[0]?.text==='Loading sandboxes…')updateDashboardOptions();
 }
 function selectSandbox(slot,id){
  sandboxIds[slot]=id;
@@ -166,17 +195,14 @@ function selectSandbox(slot,id){
  return refreshState();
 }
 async function pollGround(){
- const revision=sandboxRevision;
- const list=await api('/v11/api/sandboxes');
- if(revision!==sandboxRevision)return;
- syncSandboxList(list);
  const ids=visibleSandboxIds();
- const results=await Promise.allSettled(ids.map(id=>api('/v11/api/sandboxes/'+encodeURIComponent(id)+'/ground')));
+ const params=new URLSearchParams(ids.map(id=>['sandbox_ids',id]));
+ const snapshots=ids.length?await api('/v11/api/ground?'+params):{};
  groundStates.clear();
  groundErrors.clear();
- results.forEach((result,index)=>{
-  if(result.status==='fulfilled')groundStates.set(ids[index],result.value);
-  else groundErrors.set(ids[index],result.reason.message);
+ ids.forEach(id=>{
+  if(snapshots[id])groundStates.set(id,snapshots[id]);
+  else groundErrors.set(id,'Sandbox is unavailable');
  });
  renderGround();
 }
@@ -184,21 +210,35 @@ async function fetchState(){
  if(pollBusy||actionBusy)return;
  pollBusy=true;
  try{
-  const ground=sandboxDialog&&currentTab==='ground';
-  const [dashboard]=await Promise.allSettled([
-   ground&&embed?null:api(scopedPath('/v11/api/state',dashboardSandboxId,selectedAwb?{awb:selectedAwb}:{})),
-   ground?pollGround().catch(e=>{console.error(e);if(!sandboxList.length)sandboxPickers.forEach(picker=>{picker.querySelector('[data-sandbox-name]').textContent='Sandboxes unavailable'})}):null,
+  const tab=currentTab;
+  if(sandboxDialog){
+   const revision=sandboxRevision;
+   const list=await api('/v11/api/sandboxes');
+   if(revision!==sandboxRevision||tab!==currentTab)return;
+   syncSandboxList(list);
+  }
+  const id=dashboardSandbox(), awb=tab==='customer'?selectedAwb:null;
+  const ground=sandboxDialog&&tab==='ground';
+  if(ground&&embed){await pollGround();return}
+  if(sandboxDialog&&!sandboxList.length){if(ground)await pollGround();dashboardLoading();return}
+  const [dashboard]=await Promise.all([
+   api(scopedPath('/v11/api/state',id,awb?{awb}:{})),
+   ground?pollGround():null,
   ]);
-  if(dashboard.status==='rejected')throw dashboard.reason;
-  if(dashboard.value)render(dashboard.value);
-  else if(groundReference())renderPlayback(groundReference());
+  if(actionBusy||tab!==currentTab||id!==dashboardSandbox()||(tab==='customer'&&awb!==selectedAwb))return;
+  if(dashboard.sandbox_id&&state?.sandbox_id!==dashboard.sandbox_id){
+   v9LastEvent=0;
+   $('eventLive')?.replaceChildren();
+  }
+  render(dashboard);
+  $(tab+'-screen').removeAttribute('data-sandbox-loading');
  }catch(e){txt('liveState','OFFLINE');$('statusPulse').classList.remove('on');console.error(e)}
  finally{
   pollBusy=false;
   flushRefresh();
  }
 }
-async function action(path,body,success,ids=[dashboardSandboxId]){
+async function action(path,body,success,ids=[dashboardSandbox()]){
  if(actionBusy)return;
  actionBusy=true;
  try{
@@ -218,7 +258,7 @@ async function action(path,body,success,ids=[dashboardSandboxId]){
 }
 function groundTargets(){return sandboxDialog&&currentTab==='ground'?visibleSandboxIds():[embeddedSandbox]}
 async function ctrl(actionName,more={}){
- const ids=['mode','recalculate'].includes(actionName)?[dashboardSandboxId]:groundTargets();
+ const ids=actionName==='tune'?groundTargets():[dashboardSandbox()];
  const message=sandboxDialog?null:({start:'All three Twins are now running on one clock',pause:'Shared simulation paused'})[actionName];
  await action('/v11/api/control',{action:actionName,...more},message,ids);
 }
@@ -321,10 +361,10 @@ async function showEvidence(kind){if(kind==='events'){
 }
  if(kind==='journey'){let c=state?.customer_projection;details('Customer journey · '+(c?.awb||'—'),`<p>Observed synthetic milestones stay separate from simulated ground actions and tentative routing.</p>${journeyEventRows(c?.journey_events)}`);return}
  if(kind==='math'||['model_i','model_ii','model_iii'].includes(kind)){let d=state?.decision||{},k=kind==='math'?'model_iii':kind;details(kind==='math'?'Mathematical decision trace':'Inspect '+k.toUpperCase(),`<p>Model I = bounded 2D arrangement; Model II = one-step Bayesian verification; Model III = finite-column capacity MILP.</p><pre>${esc(JSON.stringify(kind==='math'?d:d[k]||{},null,2))}</pre><button class="btn soft" id="fullEvidence">Load source provenance ↗</button>`);return}
- if(kind==='audit'||kind==='source'){if(kind==='audit')details('Runtime integrity audit','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(scopedPath(kind==='audit'?'/v11/api/audit':'/v11/api/evidence',groundReference()?sandboxIds[0]:embeddedSandbox));if(kind==='source'){txt('drawerTitle','OAG / dataset provenance');if(!$('drawer').hidden)$('closeDrawer').focus()}$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
+ if(kind==='audit'||kind==='source'){if(kind==='audit')details('Runtime integrity audit','<p>Running audit against the canonical synthetic event store…</p>');try{let r=await api(scopedPath(kind==='audit'?'/v11/api/audit':'/v11/api/evidence',groundReference()?sandboxIds[0]:dashboardSandbox()));if(kind==='source'){txt('drawerTitle','OAG / dataset provenance');if(!$('drawer').hidden)$('closeDrawer').focus()}$('drawerContent').innerHTML=explainIntro()+'<pre>'+esc(JSON.stringify(r,null,2))+'</pre>'}catch(e){$('drawerContent').textContent=e.message}return}
  if(kind==='tasks'){details('Simulated team handoffs',(state?.tasks||[]).map(t=>`<div class="ledger-row"><b>${esc(t.shipment_id)} · ${esc(t.task_type||'Ground handoff')}</b>${esc(t.status)}</div>`).join('')||'No simulated tasks.');return}
 }
-function newOrderForm(){const currentId=dashboardSandboxId||state?.sandbox_id||embeddedSandbox||sandboxIds[0]||'relay';const currentName=sandboxList.find(s=>s.id===currentId)?.name||'current sandbox';drawer('New synthetic cargo request',`<p>This creates a synthetic cargo request, not a real airline booking. Choose one sandbox or all existing sandboxes.</p><form id="orderForm"><label>Destination<select name="destination"><option value="NRT">Tokyo · NRT</option><option value="LHR">London · LHR</option><option value="SIN">Singapore · SIN</option><option value="SYD">Sydney · SYD</option><option value="FRA">Frankfurt · FRA</option><option value="BKK">Bangkok · BKK</option><option value="LAX">Los Angeles · LAX</option><option value="DXB">Dubai · DXB</option></select></label><label>Weight (kg)<input name="weight_kg" type="number" required min="10" max="450" value="125"></label><label>Service<select name="service"><option value="PRIORITY">Priority</option><option value="STANDARD">Standard</option><option value="CRITICAL">Critical</option></select></label><label>Handling<select name="handling"><option value="GENERAL">General</option><option value="COL">Cold chain</option></select></label><div class="fieldgrid"><label>Length cm<input name="length_cm" type="number" value="70" min="15" max="180"></label><label>Width cm<input name="width_cm" type="number" value="55" min="15" max="180"></label><label>Height cm<input name="height_cm" type="number" value="45" min="15" max="180"></label></div><p id="orderError" class="order-error" role="alert" hidden></p><div class="order-actions"><button type="submit" class="btn soft" name="scope" value="current">Create order in ${esc(currentName)}</button><button type="submit" class="btn primary" name="scope" value="all">Create order in all sandboxes</button></div></form>`,{popup:true});$('orderForm').dataset.sandboxId=currentId;}
+function newOrderForm(){const currentId=dashboardSandbox()||state?.sandbox_id||'relay';const currentName=sandboxList.find(s=>s.id===currentId)?.name||'current sandbox';drawer('New synthetic cargo request',`<p>This creates a synthetic cargo request, not a real airline booking. Choose one sandbox or all existing sandboxes.</p><form id="orderForm"><label>Destination<select name="destination"><option value="NRT">Tokyo · NRT</option><option value="LHR">London · LHR</option><option value="SIN">Singapore · SIN</option><option value="SYD">Sydney · SYD</option><option value="FRA">Frankfurt · FRA</option><option value="BKK">Bangkok · BKK</option><option value="LAX">Los Angeles · LAX</option><option value="DXB">Dubai · DXB</option></select></label><label>Weight (kg)<input name="weight_kg" type="number" required min="10" max="450" value="125"></label><label>Service<select name="service"><option value="PRIORITY">Priority</option><option value="STANDARD">Standard</option><option value="CRITICAL">Critical</option></select></label><label>Handling<select name="handling"><option value="GENERAL">General</option><option value="COL">Cold chain</option></select></label><div class="fieldgrid"><label>Length cm<input name="length_cm" type="number" value="70" min="15" max="180"></label><label>Width cm<input name="width_cm" type="number" value="55" min="15" max="180"></label><label>Height cm<input name="height_cm" type="number" value="45" min="15" max="180"></label></div><p id="orderError" class="order-error" role="alert" hidden></p><div class="order-actions"><button type="submit" class="btn soft" name="scope" value="current">Create order in ${esc(currentName)}</button><button type="submit" class="btn primary" name="scope" value="all">Create order in all sandboxes</button></div></form>`,{popup:true});$('orderForm').dataset.sandboxId=currentId;}
 function requestClick(button,request){
  button.addEventListener('click',()=>withRequestButton(button,request));
 }
@@ -343,7 +383,7 @@ requestClick($('globalPlay'),()=>ctrl($('globalPlay').dataset.running==='true'||
 $('speed').addEventListener('change',()=>ctrl('speed',{speed:+$('speed').value}));
 requestClick($('stepOnce'),()=>ctrl('step',{count:1}));
 $('resetBtn').addEventListener('click',()=>{
- if(confirm(sandboxDialog&&currentTab==='ground'?'Reset the displayed sandboxes?':'Reset synthetic orders, decisions and ground states for all three Twins?')){
+ if(confirm('Reset synthetic orders, decisions and ground states in all sandboxes?')){
   withRequestButton($('resetBtn'),()=>ctrl('reset'));
  }
 });
@@ -429,7 +469,7 @@ $('drawerContent').addEventListener('submit',async event=>{
    error.textContent=`Created in ${out.created_count}/${out.target_count} sandboxes. ${out.failed.map(item=>`${item.sandbox_name}: ${item.error}`).join('; ')}. Check results before retrying to avoid duplicates.`;
    error.hidden=false;toast('Order partially created; inspect the details',true);return;
   }
-  selectedAwb=out.awb;dashboardSandboxId=currentId;closeDrawer();await fetchState();
+  if(!sandboxDialog||dashboardIds.customer===currentId)selectedAwb=out.awb;closeDrawer();await refreshState();
   toast(scope==='all'?`Order ${out.awb} created in all ${out.created_count} sandboxes`:`Order ${out.awb} created in ${sandboxList.find(item=>item.id===currentId)?.name||'current sandbox'}`);
  }catch(err){error.textContent=err.message;error.hidden=false;toast(err.message,true)}
  finally{buttons.forEach(button=>setPending(button,false))}
@@ -572,6 +612,8 @@ function renderGround(){
   world.canvas.parentElement.querySelector('.sandbox-empty').hidden=Boolean(id);
   if(world.sandboxId!==id){
    world.sandboxId=id;
+   world.lastManualStep=undefined;
+   world.syncedTick=undefined;
    world.ops.reset();
   }
   world.state=ground||{objects:[]};

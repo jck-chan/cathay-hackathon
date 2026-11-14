@@ -1,11 +1,10 @@
-"""Registry of independent v11 simulations."""
+"""Registry of v11 simulations sharing a playback clock."""
 from dataclasses import dataclass
-from threading import Lock
 from typing import Literal
 from uuid import uuid4
 
 from v12.policies import DispatchModel, LABELS
-from .conductor import Conductor
+from .conductor import Conductor, SimulationClock
 
 DispatchPolicy = DispatchModel | Literal['fcfs', 'relay']
 
@@ -32,7 +31,11 @@ class Sandbox:
 class SandboxManager:
     def __init__(self, *sandboxes: Sandbox):
         self._sandboxes = {sandbox.id: sandbox for sandbox in sandboxes}
-        self._lock = Lock()
+        self.clock = sandboxes[0].conductor.clock if sandboxes else SimulationClock()
+        for sandbox in sandboxes[1:]:
+            conductor = sandbox.conductor
+            conductor.clock.detach(conductor)
+            self.clock.attach(conductor)
 
     def create(self, name: str, *, policy: DispatchPolicy = 'relay', seed: int = 2048) -> Sandbox:
         name = name.strip()
@@ -40,21 +43,21 @@ class SandboxManager:
             raise ValueError('Enter a sandbox name')
         if policy not in LABELS and policy not in ('fcfs', 'relay'):
             raise ValueError(f'Unknown dispatch policy: {policy}')
-        conductor = Conductor(seed=seed, dispatch_policies=(policy,))
-        sandbox = Sandbox(uuid4().hex, name, conductor)
-        with self._lock:
+        with self.clock.guard:
+            conductor = Conductor(seed=seed, dispatch_policies=(policy,), clock=self.clock)
+            sandbox = Sandbox(uuid4().hex, name, conductor)
             self._sandboxes[sandbox.id] = sandbox
         return sandbox
 
     def get(self, sandbox_id: str) -> Sandbox:
-        with self._lock:
+        with self.clock.guard:
             return self._sandboxes[sandbox_id]
 
     def list(self) -> tuple[Sandbox, ...]:
-        with self._lock:
+        with self.clock.guard:
             return tuple(self._sandboxes.values())
 
     def delete(self, sandbox_id: str) -> None:
-        with self._lock:
+        with self.clock.guard:
             sandbox = self._sandboxes.pop(sandbox_id)
-        sandbox.conductor.close()
+            sandbox.conductor.close()

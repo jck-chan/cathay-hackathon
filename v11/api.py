@@ -113,19 +113,30 @@ def v11_state(awb: str | None = Query(None, max_length=80), sandbox_id: str | No
 
 @router.get('/sandboxes/{sandbox_id}/ground', tags=['Three-twin simulation'])
 def v11_ground_state(sandbox_id: str):
-    sandbox = get_sandbox(sandbox_id)
+    with sandboxes.clock.guard:
+        return ground_snapshot(get_sandbox(sandbox_id))
+
+
+@router.get('/ground', tags=['Three-twin simulation'])
+def v11_ground_states(sandbox_ids: list[str] = Query(...)):
+    with sandboxes.clock.guard:
+        return {sandbox.id: ground_snapshot(sandbox) for sandbox in sandboxes.list()
+                if sandbox.id in sandbox_ids}
+
+
+def ground_snapshot(sandbox: Sandbox):
     target = sandbox.conductor
-    with target.guard:
-        state = target.lab.snapshot()
-        return {
-            'tick': state['tick'],
-            'clock': state['clock'],
-            'resources': state['resources'],
-            'latest_event': state['latest_event'],
-            'unified_events': list(target.events)[-35:],
-            'ground': state['policies'][sandbox.policy],
-            'v8': target.playback_state(),
-        }
+    state = target.lab.snapshot()
+    return {
+        'tick': state['tick'],
+        'clock': state['clock'],
+        'resources': state['resources'],
+        'latest_event': state['latest_event'],
+        'unified_events': list(target.events)[-35:],
+        'ground': state['policies'][sandbox.policy],
+        'v8': target.playback_state(),
+    }
+
 
 class EnvironmentSettings(BaseModel):
     rate:float|None=Field(None,ge=.25,le=5)
