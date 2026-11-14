@@ -131,9 +131,53 @@ function flushRefresh(){
  queuedRefresh=null;
  resolve(fetchState());
 }
-function updateSandboxOptions(){
- sandboxPickers.slice(0,sandboxIds.length).forEach((picker,slot)=>{
-  const selectedId=sandboxIds[slot];
+function setMenu(picker,open){
+ picker.querySelector('.sandbox-trigger').setAttribute('aria-expanded',String(open));
+ picker.querySelector('.sandbox-menu').hidden=!open;
+}
+document.addEventListener('click',event=>{
+ [...sandboxPickers,...Object.values(dashboardPickers).filter(Boolean)].forEach(picker=>{if(!picker.contains(event.target))setMenu(picker,false)});
+});
+function bindSandboxPicker(picker){
+ const trigger=picker.querySelector('.sandbox-trigger');
+ const menu=picker.querySelector('.sandbox-menu');
+ trigger.addEventListener('click',()=>setMenu(picker,menu.hidden));
+ picker.addEventListener('focusout',event=>{if(!picker.contains(event.relatedTarget))setMenu(picker,false)});
+ picker.addEventListener('keydown',event=>{
+  if(event.key==='ArrowDown'||event.key==='ArrowUp'){
+   event.preventDefault();
+   const buttons=[...menu.querySelectorAll('button:not(:disabled)')];
+   const step=event.key==='ArrowDown'?1:-1;
+   const index=buttons.indexOf(document.activeElement);
+   setMenu(picker,true);
+   buttons[index<0?(step===1?0:buttons.length-1):(index+step+buttons.length)%buttons.length]?.focus();
+  }
+  if(event.key==='Escape'&&!menu.hidden){
+   event.preventDefault();
+   event.stopPropagation();
+   setMenu(picker,false);
+   trigger.focus();
+  }
+ });
+ return menu;
+}
+for(const [view,picker] of Object.entries(dashboardPickers)){
+ if(!picker)continue;
+ const menu=bindSandboxPicker(picker);
+ menu.addEventListener('click',event=>{
+  const id=event.target.closest('.sandbox-option')?.dataset.sandboxId;
+  if(!id)return;
+  setMenu(picker,false);
+  picker.querySelector('.sandbox-trigger').focus();
+  if(dashboardIds[view]===id)return;
+  dashboardIds[view]=id;
+  if(view==='customer')selectedAwb=null;
+  updateDashboardOptions();
+  dashboardLoading();
+  refreshState();
+ });
+}
+function renderSandboxPicker(picker,selectedId,canManage=false){
   const trigger=picker.querySelector('.sandbox-trigger');
   const options=picker.querySelector('.sandbox-options');
   const focused=document.activeElement;
@@ -142,21 +186,24 @@ function updateSandboxOptions(){
    const id=esc(s.id), name=esc(s.name);
    return `<div class="sandbox-row">
     <button type="button" class="sandbox-option" data-sandbox-id="${id}" aria-current="${s.id===selectedId}"><span>${name}</span><small>${esc(s.model_name)}</small></button>
-    <button type="button" class="sandbox-delete" data-sandbox-id="${id}" aria-label="Delete ${name}" title="Delete ${name}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6 4V2h4v2M4 4l1 10h6l1-10M7 7v4m2-4v4"/></svg></button>
+    ${canManage?`<button type="button" class="sandbox-delete" data-sandbox-id="${id}" aria-label="Delete ${name}" title="Delete ${name}"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6 4V2h4v2M4 4l1 10h6l1-10M7 7v4m2-4v4"/></svg></button>`:''}
    </div>`;
   });
   replaceContents(options,rows.join(''),button=>button.className+button.dataset.sandboxId);
   const selected=sandboxList.find(s=>s.id===selectedId);
-  trigger.querySelector('[data-sandbox-name]').textContent=selected?.name||'Choose sandbox';
+  trigger.querySelector('[data-sandbox-name]').textContent=selected?.name||(canManage?'Choose sandbox':'No sandboxes available');
   const model=trigger.querySelector('[data-sandbox-model]');
   model.textContent=selected?.model_name||'';
   model.hidden=!selected;
-  trigger.disabled=false;
+  trigger.disabled=!canManage&&!selected;
+  if(trigger.disabled)setMenu(picker,false);
   if(focusedId){
    const replacement=[...options.querySelectorAll('button')].find(b=>b.dataset.sandboxId===focusedId&&b.className===focused.className);
-   (replacement||picker.querySelector('[data-create-sandbox]')).focus();
+   (replacement||picker.querySelector('[data-create-sandbox]')||trigger).focus();
   }
- });
+}
+function updateSandboxOptions(){
+ sandboxPickers.slice(0,sandboxIds.length).forEach((picker,slot)=>renderSandboxPicker(picker,sandboxIds[slot],true));
 }
 function updateDashboardOptions(){
  for(const [view,picker] of Object.entries(dashboardPickers)){
@@ -165,19 +212,8 @@ function updateDashboardOptions(){
   const selected=sandboxList.some(s=>s.id===previous)?previous:defaultSandbox();
   dashboardIds[view]=selected;
   if(view==='customer'&&previous&&previous!==selected)selectedAwb=null;
-  picker.replaceChildren(...(sandboxList.length?sandboxList.map(s=>new Option(s.name,s.id)):[new Option('No sandboxes available','')]));
-  picker.value=selected??'';
-  picker.disabled=!selected;
+  renderSandboxPicker(picker,selected);
  }
-}
-for(const [view,picker] of Object.entries(dashboardPickers)){
- picker?.addEventListener('change',()=>{
-  dashboardIds[view]=picker.value;
-  if(view==='customer')selectedAwb=null;
-  closeDrawer();
-  dashboardLoading();
-  refreshState();
- });
 }
 function syncSandboxList(list){
  const changed=JSON.stringify(list)!==JSON.stringify(sandboxList);
@@ -185,8 +221,10 @@ function syncSandboxList(list){
  sandboxIds.forEach((id,slot)=>{
   if(!list.some(s=>s.id===id))sandboxIds[slot]=list[slot]?.id||list[0]?.id||null;
  });
- if(changed||sandboxPickers[0].querySelector('.sandbox-trigger').disabled)updateSandboxOptions();
- if(changed||dashboardPickers.tower?.options[0]?.text==='Loading sandboxes…')updateDashboardOptions();
+ if(changed||sandboxPickers[0].querySelector('.sandbox-trigger').disabled){
+  updateSandboxOptions();
+  updateDashboardOptions();
+ }
 }
 function selectSandbox(slot,id){
  sandboxIds[slot]=id;
@@ -511,34 +549,9 @@ if(sandboxDialog){
  $$('[data-create-empty-sandbox]').forEach((button,slot)=>{
   requestClick(button,()=>openCreate(slot));
  });
- function setMenu(picker,open){
-  picker.querySelector('.sandbox-trigger').setAttribute('aria-expanded',String(open));
-  picker.querySelector('.sandbox-menu').hidden=!open;
- }
- document.addEventListener('click',event=>{
-  sandboxPickers.forEach(picker=>{if(!picker.contains(event.target))setMenu(picker,false)});
- });
  sandboxPickers.forEach((picker,slot)=>{
   const trigger=picker.querySelector('.sandbox-trigger');
-  const menu=picker.querySelector('.sandbox-menu');
-  trigger.addEventListener('click',()=>setMenu(picker,menu.hidden));
-  picker.addEventListener('focusout',event=>{if(!picker.contains(event.relatedTarget))setMenu(picker,false)});
-  picker.addEventListener('keydown',event=>{
-   if(event.key==='ArrowDown'||event.key==='ArrowUp'){
-    event.preventDefault();
-    const buttons=[...menu.querySelectorAll('button:not(:disabled)')];
-    const step=event.key==='ArrowDown'?1:-1;
-    const index=buttons.indexOf(document.activeElement);
-    setMenu(picker,true);
-    buttons[index<0?(step===1?0:buttons.length-1):(index+step+buttons.length)%buttons.length]?.focus();
-   }
-   if(event.key==='Escape'&&!menu.hidden){
-    event.preventDefault();
-    event.stopPropagation();
-    setMenu(picker,false);
-    trigger.focus();
-   }
-  });
+  const menu=bindSandboxPicker(picker);
   menu.addEventListener('click',async event=>{
    const button=event.target.closest('button');
    if(!button)return;
@@ -583,7 +596,7 @@ if(sandboxDialog){
   try{
    const sandbox=await api('/v11/api/sandboxes','POST',payload);
    sandboxRevision++;
-   if(!sandboxList.some(s=>s.id===sandbox.id))sandboxList.push(sandbox);
+   syncSandboxList([...sandboxList.filter(s=>s.id!==sandbox.id),sandbox]);
    selectSandbox(createSlot,sandbox.id);
    sandboxDialog.close();
    sandboxPickers[createSlot].querySelector('.sandbox-trigger').focus();

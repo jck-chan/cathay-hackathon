@@ -464,24 +464,17 @@ html[data-embed="ground"][data-single-sandbox] .world { width: 100%; height: 100
 
 
 .dashboard-sandbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  position: relative;
   min-width: 0;
-  font-size: 13px;
+  width: fit-content;
+  max-width: min(220px, 100%);
+  background: #fffc;
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
-.dashboard-sandbox select {
-  min-width: 0;
-  max-width: 100%;
-  padding: 7px 8px;
-  font: inherit;
-  color: #233b43;
-  background: white;
-  border: 1px solid #cbd5da;
-  border-radius: 5px;
-}
-.ct-tools .dashboard-sandbox select { max-width: min(210px, 55vw); }
+.dashboard-sandbox .sandbox-trigger { font-size: 13px; font-weight: 700; }
+.dashboard-sandbox .sandbox-menu { width: min(260px, calc(100vw - 64px)); }
+.dashboard-sandbox .sandbox-option { padding-right: 8px; }
 .cx-portfolio .dashboard-sandbox { margin-top: 12px; }
-.cx-portfolio .dashboard-sandbox select { flex: 1; }
 .screen[data-sandbox-loading] :is(.ct-mode, #recalculate, .ct-analysis, .ct-activity, .ct-board > section,
   .cx-search-row, #portfolioItems, .cx-card, .cx-map, #portfolioCount) { visibility: hidden; }
