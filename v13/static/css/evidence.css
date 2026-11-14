@@ -6,6 +6,7 @@
   --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
   position: relative; max-width: 1240px; margin: 0 auto; padding: 18px 20px 40px;
 }
+.ev-page :is(h1, h2, figcaption b, .ev-tile-label) { font-family: var(--heading-font); }
 .ev-head { display: flex; justify-content: space-between; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
 .ev-head h1 { margin: 0 0 4px; font-size: 20px; }
 .ev-head p { margin: 0; color: var(--muted); max-width: 70ch; }

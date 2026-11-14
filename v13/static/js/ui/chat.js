@@ -324,7 +324,7 @@ function renderMessage(message) {
 function render() {
   const pinned = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 90;
   if (!messages.length && !thread.querySelector('.chat-empty')) {
-    thread.replaceChildren(el('div', 'chat-empty', '<h2>Chat with the Apron</h2><p>The agent reads and operates the live simulation through the same tools external agents use over MCP: it can check and load cargo, run the clock, build small control panels and run the evidence study.</p>' +
+    thread.replaceChildren(el('div', 'chat-empty', '<h2>Chat with the Apron</h2><p>The agent can check and load cargo, run the clock, build small control panels and run the evidence study.</p>' +
       `<div class="chat-suggestions">${SUGGESTIONS.map(s => `<button type="button" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}</div>`));
   }
   if (messages.length && !thread.querySelector('.chat-suggestions [data-request-pending]')) thread.querySelector('.chat-empty')?.remove();

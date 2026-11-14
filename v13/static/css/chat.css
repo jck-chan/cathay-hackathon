@@ -50,19 +50,19 @@
 }
 
 .chat-empty { margin-top: 9vh; }
-.chat-empty h2 { margin: 0 0 8px; font-family: 'Times New Roman', Times, serif; font-size: clamp(30px, 4.8vw, 48px); font-weight: 700; letter-spacing: 0; line-height: 1.05; }
+.chat-empty h2 { margin: 0 0 8px; font-family: var(--heading-font); font-size: clamp(30px, 4.8vw, 48px); font-weight: 700; letter-spacing: 0; line-height: 1.05; }
 .chat-empty p { margin: 0 0 clamp(32px, 7vh, 64px); color: #637c83; max-width: 56ch; }
 .chat-suggestions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .chat-suggestions button {
   text-align: left;
-  border: 1px solid #cfe4e0;
-  background: #eef6f4;
+  border: 1px solid color-mix(in srgb, #cfe4e0 60%, white);
+  background: color-mix(in srgb, #eef6f4 60%, white);
   border-radius: 9px;
   padding: 11px 13px;
   font-size: 13px;
   color: #116a61;
 }
-.chat-suggestions button:hover { background: #e0efec; border-color: #b3d6d0; }
+.chat-suggestions button:hover { background: color-mix(in srgb, #e0efec 60%, white); border-color: color-mix(in srgb, #b3d6d0 60%, white); }
 
 /* ---- messages ---- */
 .msg.user {

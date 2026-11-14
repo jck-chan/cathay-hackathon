@@ -14,6 +14,7 @@
 }
 
 .model-page h1, .model-page h2, .model-page p { margin: 0; }
+.model-page :is(h1, h2, summary, legend), .model-jobs strong, .model-result strong { font-family: var(--heading-font); }
 .model-page h2 { font-size: 19px; line-height: 1.25; }
 .model-page h2 + p { margin-top: 8px; }
 
