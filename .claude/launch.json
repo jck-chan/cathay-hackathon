@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "relay-v13",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["v13/server.py", "--port", "8813"],
+      "port": 8813
+    },
+    {
       "name": "relay-chat-demo",
       "runtimeExecutable": "sh",
       "runtimeArgs": ["-c", "RELAY_PORT=8791 RELAY_NO_BROWSER=1 RELAY_CHAT_MODEL=demo .venv/bin/python launch.py"],

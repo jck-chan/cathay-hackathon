@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>RELAY v13 · Live Apron</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/css/app.css">
+  <script type="importmap">
+  { "imports": { "three": "/vendor/three/three.module.min.js", "three/addons/": "/vendor/three/addons/" } }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">R</span><span><b>RELAY</b> v13</span></div>
+    <nav class="tabs" role="tablist">
+      <button class="tab on" role="tab" data-tab="apron" aria-selected="true">Live apron</button>
+      <button class="tab" role="tab" data-tab="t2" aria-selected="false">Tab 2</button>
+      <button class="tab" role="tab" data-tab="t3" aria-selected="false">Tab 3</button>
+    </nav>
+    <div class="simctl">
+      <div class="clock"><span id="clockDay">Day 1</span><b id="clockTime">06:00</b></div>
+      <div class="playgroup">
+        <button id="btnPlay" class="btn btn-primary" title="Start / pause (Space)"></button>
+        <button id="btnReset" class="btn" title="Generate a new synthetic world">New world</button>
+      </div>
+      <div class="stepper" title="Advance the simulation by n ticks (1 tick = 1 simulated minute)">
+        <input id="stepN" type="number" min="1" max="1440" value="5" aria-label="Ticks to step">
+        <button id="btnStep" class="btn"></button>
+      </div>
+      <div id="speedDd" title="Speed multiplier"></div>
+      <label class="tps" title="Base ticks per second at 1×">
+        <span>TPS</span><input id="tpsIn" type="number" min="0.1" max="60" step="0.5" value="1">
+        <em id="tpsMeasured">0.0</em>
+      </label>
+      <div id="rateDd" title="Cargo rate: share of the booking pool offered from now on (1× = base rate)"></div>
+      <label class="auto" title="Let RELAY's bounded exact optimiser dispatch cargo automatically">
+        <input id="autoIn" type="checkbox"><span class="switch"></span><span>Autopilot</span>
+      </label>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </header>
+
+  <main>
+    <section class="tabpane on" id="tab-apron">
+      <div class="viewport" id="viewport">
+        <div class="loading" id="loading"><div class="spinner"></div><span>Loading apron and Cathay fleet…</span></div>
+        <div class="hint" id="hint">Drag a cargo unit onto its aircraft · right-drag to pan · scroll to zoom</div>
+        <div class="toasts" id="toasts" aria-live="polite"></div>
+        <div class="legend">
+          <span><i class="int-critical"></i>Critical</span><span><i class="int-high"></i>High</span>
+          <span><i class="int-medium"></i>Medium</span><span><i class="int-low"></i>Low</span>
+        </div>
+      </div>
+      <aside class="side">
+        <section class="panel panel-rank" id="panelRank">
+          <header><h2>Priority ranking</h2><span class="rank-meta"></span></header>
+          <div class="rank-scroll"><div class="rank-list"></div></div>
+        </section>
+        <section class="panel panel-log" id="panelLog">
+          <header><h2>Event log</h2>
+            <div class="chips"><button data-filter="all" class="on">All</button><button data-filter="decisions">Decisions</button>
+              <button data-filter="flights">Flights</button><button data-filter="alerts">Alerts</button></div>
+          </header>
+          <div class="log-list"></div>
+        </section>
+        <section class="panel panel-stage" id="panelStage">
+          <header><h2>Staging capacity</h2><span class="sub">Accumulation area · hard cap</span></header>
+          <div class="stg-body"></div>
+        </section>
+      </aside>
+    </section>
+    <section class="tabpane" id="tab-t2"><div class="placeholder"><h2>Tab 2</h2><p>To be written.</p></div></section>
+    <section class="tabpane" id="tab-t3"><div class="placeholder"><h2>Tab 3</h2><p>To be written.</p></div></section>
+  </main>
+  <script type="module" src="/js/main.js"></script>
+</body>
+</html>

@@ -10,3 +10,5 @@ __pycache__/
 .env
 .codex/
 .claude/
+# v13: CC BY-NC-SA local-use aircraft model (see v13/assets_src/aircraft/ASSET_CREDITS.md)
+v13/static/assets/aircraft/a330-300.glb
