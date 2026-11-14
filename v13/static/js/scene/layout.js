@@ -16,10 +16,11 @@ export function makeLayout(stands, stagingCap) {
   const standX = Array.from({ length: stands }, (_, i) => (i - (stands - 1) / 2) * spacing);
   const cols = Math.ceil(stagingCap / 3);
   const pitch = 17;
+  const rowPitch = 22;
   const staging = [];
   for (let k = 0; k < stagingCap; k++) {
     const r = Math.floor(k / cols), c = k % cols;
-    staging.push(new THREE.Vector3((c - (cols - 1) / 2) * pitch, 0, 20 + r * 18));
+    staging.push(new THREE.Vector3((c - (cols - 1) / 2) * pitch, 0, 20 + r * rowPitch));
   }
   const exception = [];
   const exX = -((cols - 1) / 2) * pitch - 30;

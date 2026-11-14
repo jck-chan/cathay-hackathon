@@ -132,8 +132,8 @@ body.dragging .hint { opacity: 0; }
 .pt-bar i { display: block; height: 100%; background: #17b3a8; }
 .pt-phase { color: #9fc1bc; font-style: italic; }
 .pt-reason { display: none; margin-top: 4px; color: #ffd2cc; font-size: 10.5px; white-space: normal; max-width: 210px; }
-body.dragging .plane-tag.drop-ok { border-color: #34d399; }
-body.dragging .plane-tag.drop-no { border-color: #f87171; }
+.plane-tag.drop-ok { border-color: #34d399; }
+.plane-tag.drop-no { border-color: #f87171; }
 body.dragging .plane-tag.drop-no .pt-reason { display: block; }
 body.dragging .plane-tag.drop-hover { transform: scale(1.08); }
 .plane-tag.shake { animation: shake .45s; border-color: #f87171; }

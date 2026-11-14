@@ -82,6 +82,7 @@ function apply(s) {
     if (a) a.update(f); else actors.set(f.id, new AircraftActor(world.scene, layout, f));
   }
   cargo.sync(s.cargo, actors);
+  drag.updatePreview();
   ranking.render(s); staging.render(s.staging); renderTop(s);
   window.dispatchEvent(new CustomEvent('relay:state', { detail: s }));  // chat artifacts subscribe to this
 }

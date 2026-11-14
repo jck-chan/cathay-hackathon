@@ -9,11 +9,12 @@ export class DragDrop {
     Object.assign(this, { world, cargo, actors, layout, api, toast, onState });
     this.ray = new THREE.Raycaster(); this.ndc = new THREE.Vector2();
     this.ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    this.drag = null; this.checks = {};
+    this.drag = null; this.preview = null;
     const el = world.renderer.domElement;
     // capture phase on the container so a cargo grab never reaches OrbitControls
     el.parentElement.addEventListener('pointerdown', e => this.down(e), { capture: true });
     el.addEventListener('pointermove', e => this.move(e));
+    el.addEventListener('pointerleave', () => this.setHovered(null));
     window.addEventListener('pointerup', e => this.up(e));
     el.addEventListener('contextmenu', e => { if (this.drag) e.preventDefault(); });
   }
@@ -56,6 +57,36 @@ export class DragDrop {
     return p.x > Math.min(...xs) - 6 && p.x < Math.max(...xs) + 6 && p.z > Math.min(...zs) - 7 && p.z < Math.max(...zs) + 7;
   }
 
+  setHovered(o) {
+    this.cargo.hovered = o?.id ?? null;
+    if (this.drag) return;
+    this.world.renderer.domElement.style.cursor = o && [2, 3, 4, 5].includes(o.data.state) ? 'grab' : '';
+    this.updatePreview();
+  }
+
+  updatePreview() {
+    const o = this.drag ? this.drag.o : this.cargo.objs.get(this.cargo.hovered);
+    const loadable = o && !o.leaving && (!this.drag || this.drag.mode === 'load')
+      && (o.data.state === 2 || o.data.state === 3);
+    if (!loadable) {
+      if (this.preview) { this.preview = null; this.paintPads(); }
+      return;
+    }
+    const current = this.preview;
+    const now = performance.now();
+    if (current?.cargo === o && (current.pending || now - current.requestedAt < 1000)) return;
+    const preview = { cargo: o, checks: current?.cargo === o ? current.checks : null, pending: true, requestedAt: now };
+    this.preview = preview;
+    this.paintPads();
+    this.api.check(o.id).then(r => {
+      if (this.preview !== preview) return;
+      preview.checks = r.flights ?? null;
+      this.paintPads();
+    }).catch(() => {
+      if (this.preview === preview) { preview.checks = null; this.paintPads(); }
+    }).finally(() => { preview.pending = false; });
+  }
+
   down(e) {
     if (e.button !== 0) return;
     this.setPointer(e);
@@ -66,26 +97,24 @@ export class DragDrop {
     o.dragging = true; this.drag = { o, origin: o.pos.clone(), target: null, mode: o.data.state >= 4 ? 'offload' : 'load' };
     this.world.renderer.domElement.style.cursor = 'grabbing';
     document.body.classList.add('dragging');
-    this.checks = {};
-    if (this.drag.mode === 'load') {
-      this.api.check(o.id).then(r => { if (this.drag && this.drag.o === o) { this.checks = r.flights; this.paintPads(); } });
-    }
+    this.updatePreview();
     this.paintPads();
   }
 
-  paintPads(hoverStand = -1) {
+  paintPads() {
     const d = this.drag;
+    const checks = this.preview?.checks;
     this.world.standPads.forEach((pad, i) => {
-      const a = this.parkedOn(i); const chk = a && this.checks[a.id];
+      const a = this.parkedOn(i); const chk = a && checks?.[a.id];
       let color = 0x8a949c, op = 0;
-      if (d && d.mode === 'load' && a) {
+      if (this.preview && a) {
         color = chk ? (chk.ok ? 0x18b26b : 0xe0483a) : 0x8a949c;
-        op = i === hoverStand ? 0.5 : 0.2;
+        op = d?.target === a ? 0.5 : 0.2;
       }
       pad.material.color.setHex(color); pad.material.opacity = op;
     });
     for (const a of this.actors.values()) {
-      const chk = d && d.mode === 'load' && this.checks[a.id];
+      const chk = a.parked && checks?.[a.id];
       a.labelEl.classList.toggle('drop-ok', !!chk && chk.ok);
       a.labelEl.classList.toggle('drop-no', !!chk && !chk.ok);
       a.labelEl.classList.toggle('drop-hover', !!d && d.target === a);
@@ -97,11 +126,7 @@ export class DragDrop {
     this.setPointer(e);
     if (!this.drag) {
       const o = this.pickCargo();
-      const id = o && !o.leaving ? o.id : null;
-      if (id !== this.cargo.hovered) {
-        this.cargo.hovered = id;
-        this.world.renderer.domElement.style.cursor = id && [2, 3, 4, 5].includes(o.data.state) ? 'grab' : '';
-      }
+      this.setHovered(o && !o.leaving ? o : null);
       return;
     }
     const p = new THREE.Vector3();
@@ -110,13 +135,13 @@ export class DragDrop {
     o.pos.set(p.x, 6, p.z);
     const target = this.drag.mode === 'load' ? this.targetAt(p) : null;
     this.drag.target = target; this.drag.point = p;
-    this.paintPads(target ? target.flight.stand : -1);
+    this.paintPads();
   }
 
   async up() {
     const d = this.drag; if (!d) return;
     this.drag = null; this.world.controls.enabled = true;
-    this.world.renderer.domElement.style.cursor = '';
+    this.setHovered(null);
     document.body.classList.remove('dragging');
     const o = d.o;
     try {
