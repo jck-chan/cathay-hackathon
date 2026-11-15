@@ -1,241 +1,135 @@
-# RELAY Fusion v11 — Three Digital Twins
+# RELAY — Every cargo decision has a consequence
 
-**Three synchronized light-theme digital twins + bounded mathematical decision engine + reproducible synthetic effectiveness benchmark.**
+**An interactive air-cargo decision-support demonstrator that helps operators decide what can move, what should move next, and how to use limited handling capacity.**
 
-**IMPORTANT:** This is a **LOCAL synthetic shadow-mode research prototype**, **not airline production software**. It does not connect to Cathay/OAG live credentials, confirm airline bookings, issue real cargo commands, certify ULD loading, or establish real ROI. Simulated cargo penalty units have no known HKD conversion.
+Built for the Cathay hackathon, RELAY turns cargo operations into a visible, testable decision loop: inspect the apron, check a shipment, prioritise the queue, assign work, and measure the outcome.
 
-On macOS or Linux, run `sh run_unix.sh` with Python 3.10+ to open v13 Live Apron
-at [http://127.0.0.1:8766/](http://127.0.0.1:8766/). See the [v13 README](v13/README.md)
-for its interface and MCP tools.
+> **Prototype scope:** The current demo is **v13 Live Apron**, a synthetic research simulator. Flights, shipments, operator behaviours and costs are simulated. RELAY does not connect to airline inventory, make bookings or authorise real cargo movements.
 
-When running the v11 server, open `/` or `/v11` for Ground, Control Tower, and Customer. Open
-`/v11/evidence` for the Evidence Lab. The three views and chat use the
-`/v11/api/*` routes, and the simulation tools are available at `/mcp`.
-Earlier releases are available in Git history.
+## The problem
 
-### v11 sandboxes
+A cargo queue is more than a list of arrival times. A shipment may be urgent but missing paperwork, booked onto a flight nearing cutoff, dependent on cold-chain handling, or competing for the same crew as another shipment.
 
-Ground Twin opens the first two listed sandboxes. Each pane can select any
-sandbox by name, including the same sandbox in both panes. Choose **Create
-sandbox…**, enter a name, and choose a dispatch policy (FCFS, RELAY v10, RELAY
-v11, RELAY + Model A, or RELAY + EDF). The new sandbox opens in that pane and
-appears in both menus. Use the trash button beside a
-sandbox to delete it. Ground environment controls apply to the distinct sandboxes on display.
-Playback controls apply to every sandbox.
+The decision has three parts:
 
-`GET /v11/api/sandboxes` lists IDs, names and dispatch policies in display
-order. `GET /v11/api/sandbox-models` lists the dispatch model IDs and names.
-`POST /v11/api/sandboxes` accepts a name and optional policy and seed,
-and returns the created sandbox's ID.
-`DELETE /v11/api/sandboxes/{sandbox_id}` stops and removes a sandbox.
-Pass `sandbox_id` as a query parameter to REST simulation routes. REST calls
-without an ID use the initial RELAY sandbox when available, or the first
-remaining sandbox. **MCP reads and sandbox-local writes** target all current
-sandboxes by default, unless `scope="sandboxes"` and
-`sandbox_ids=["id1", "id2"]` select a subset. Results identify each sandbox
-and report partial failures; single-sandbox reads are returned in the same
-batch envelope. Created sandboxes are available until deletion or restart.
+1. **Can it move?** Check eligibility and operational constraints.
+2. **What matters next?** Rank feasible work as conditions change.
+3. **What can we actually execute?** Assign work within available capacity.
 
-### Adding agents to the three twins
+RELAY brings these questions into one interactive environment so a judge can see both the recommendation and its operational consequence.
 
-Put new agent code under `v11/agents/` and use the HTTP routes defined in
-`v11/api.py`. The shared clock and simulation controls live in `v11/conductor.py`.
+## What we built
 
-| Suggested file | API calls |
-|---|---|
-| `v11/agents/control_centre.py` | Read `GET /v11/api/state`, set `MANUAL_REVIEW` through `POST /v11/api/control`, and submit decisions to `POST /v11/api/review`. |
-| `v11/agents/ground_worker.py` | Post disruptions to `/v11/api/incident` and tune environment settings through `/v11/api/control`. |
-| `v11/agents/customer.py` | Submit synthetic orders to `POST /v11/api/order` and track the returned AWB with `GET /v11/api/state?awb=…`. |
+| Experience | What judges can explore |
+| --- | --- |
+| **Live Apron** | A 3D airport with aircraft movements, inbound cargo, staging, loading and exceptions. Drag cargo onto a stand and see the backend accept or reject the action with a reason. |
+| **Decision support** | A changing priority leaderboard, feasibility checks and an autopilot that selects work within the simulated constraints. |
+| **Evidence** | Replay identical synthetic worlds under manual and RELAY-assisted operator policies. Inspect paired effects, confidence intervals and downloadable result rows. |
+| **How it works** | A plain-language explanation and a three-box puzzle that makes constraints tangible. |
+| **Agent and MCP** | A chat interface and external-agent tools that inspect and operate the same simulation through a shared tool registry. |
 
-### Connect an MCP harness
+The core interaction is deliberately concrete: **a recommendation becomes a checked action, and that action changes the world you can see.**
 
-From the project folder, run `run_windows.bat` on Windows. On macOS or Linux,
-install `requirements.txt` in a virtual environment and run `python launch.py`
-from that environment. Leave the server running and
-add `http://127.0.0.1:8766/mcp` to a local harness using **Streamable HTTP**.
-The local server requires no token. If you set `RELAY_PORT`, use that port in
-the URL. The older `/v11/mcp` URL still works.
+## Run the demo
 
-Each tool name starts with the view it belongs to. The server sends the same
-guide to the harness in the `instructions` field of its MCP `initialize` reply.
+**Requirements:** Python 3.10+ and a browser. The core v13 simulator uses the Python standard library; Three.js is bundled locally.
 
-| View | Prefix | MCP tools |
-|---|---|---|
-| Ground environment | `ground_` | `ground_list_sandboxes`, `ground_create_sandbox`, `ground_delete_sandbox`, `ground_start_simulation`, `ground_pause_simulation`, `ground_step_simulation`, `ground_set_playback_speed`, `ground_configure_environment`, `ground_inject_incident` |
-| Control centre | `control_` | `control_get_state`, `control_set_review_mode`, `control_recalculate_decision`, `control_review_decision`, `control_mark_task_done` |
-| Customer | `customer_` | `customer_place_order`, `customer_place_order_all_sandboxes`, `customer_track_shipment` |
+From the repository root, on macOS or Linux:
 
-**MCP step example**
-
-```json
-{"count": 5}
+```bash
+sh run_unix.sh
 ```
 
-Advances every sandbox by five ticks. To return snapshots for only two:
+Open **[RELAY Live Apron](http://127.0.0.1:8766/)**. The launcher opens the browser automatically unless `RELAY_NO_BROWSER=1` is set.
 
-```json
-{"count": 5, "scope": "sandboxes", "sandbox_ids": ["relay", "fcfs"]}
+For a direct launch on any platform:
+
+```bash
+python3 v13/server.py --port 8766 --open
 ```
 
-All v11 sandboxes advance on one server-owned clock. Play, pause, step, speed
-and reset affect every sandbox. A new sandbox simulates up to the current tick
-using its own starting seed and policy. On MCP playback tools, scope selects
-which sandbox snapshots are returned.
+On Windows, use `py` in place of `python3`. Running `v13/server.py` without a port argument uses port **8813**.
 
-Each sandbox keeps its own shipments, flights, decisions and environment
-settings. The Control Tower and shipment tracking views each let you select a
-sandbox. Order fan-out assigns one synthetic AWB for cross-policy comparison.
-Check `complete`, `results`, and `failed` on batch operations. Reviews and task
-completion may fail in sandboxes with different decision or task IDs.
+<details>
+<summary>Run with Docker</summary>
 
-Reset stays in the dashboard and REST API. Open the Evidence Lab to run
-benchmarks. Orders, reviews, and ground work through MCP are synthetic.
-
-#### Agent workflow (MCP)
-
-The MCP `initialize.instructions` field contains the operational playbook,
-and each tool describes its inputs and effects. An agent can
-follow this example without referring to application source code:
-
-1. **Inspect and pause:** `control_get_state`, `ground_pause_simulation`,
-   `control_set_review_mode(mode="MANUAL_REVIEW")`.
-2. **Create and track:** `customer_place_order` returns a synthetic AWB;
-   pass it to `customer_track_shipment`. The request is not a booking.
-3. **Stress the scenario:** change resources/weather with
-   `ground_configure_environment`, or inject an event through
-   `ground_inject_incident` (the server selects the affected entity).
-4. **Recompute and review:** `control_recalculate_decision`, then read
-   `control_get_state.decision` for its ID, **decision.snapshot_version**,
-   warnings, status, model outputs and scope. Only then call
-   `control_review_decision` with a matching ID/version. Do not use the
-   top-level snapshot version in place of the decision's own version.
-5. **Follow dependent work:** inspect `tasks[].depends_on_task_id`, and
-   use `control_mark_task_done` only for appropriate synthetic tasks.
-6. **Advance and verify:** `ground_step_simulation(count=3)` while paused
-   (10 simulated minutes per tick), then read state and track the AWB again.
-   New ticks may replace the current decision, even after prior approval.
-
-**Interpretation:** Model I is bounded 2D placement, not aircraft-certified
-3D loading; Model II is a one-step uncertainty gate, not full sequential
-Bayesian control; Model III is finite-candidate routing MILP, not a carrier
-booking or an unbounded optimum. Ground staging completion is not a flight
-milestone; approval and tentative arrival do not change confirmed customer
-ETA. `AUTO_SHADOW` auto-reviews eligible sandbox proposals;
-`MANUAL_REVIEW` requires explicit approval; `ADVISORY` disables
-automatic review. Views and MCP clients targeting the same sandbox share its state.
-
-### AI chat tab
-
-`/v11#chat` is a chat with an agent that operates the three twins. The harness
-is in `v11/chat.py`: a LangChain agent whose tools are read from the MCP server
-at startup, so adding, removing or changing an MCP tool needs no harness change.
-One extra local tool, `create_artifact`, renders an interactive HTML panel in
-the chat; the panel runs in a sandboxed frame and reaches the simulation only
-through `POST /v11/api/chat/tool`, which accepts MCP tool names. The agent can
-also write `<relay-twin view="ground|tower|customer" />` in a reply to embed a
-live twin. Add `sandbox_id="…"` to show a specific sandbox and `awb="…"`
-on a Customer Twin to focus a shipment. **Open tab** carries that selection
-into the workspace.
-
-`POST /v11/api/chat` speaks the Vercel AI SDK UI message stream protocol, so an
-AI SDK `useChat` client can use it as well as the bundled tab.
-
-| Setting | Meaning |
-|---|---|
-| `AI_GATEWAY_API_KEY` | Vercel AI Gateway key, from the environment or a `.env` file in the project folder. Model calls go to `https://ai-gateway.vercel.sh`. |
-| `RELAY_CHAT_MODEL` | Gateway model ID (default `google/gemini-4-hydrogen`), or `demo` for a scripted offline model that needs no key. |
-| `ANTHROPIC_API_KEY` | Used only when no gateway key is set: calls Anthropic directly (default model `claude-opus-5-5`). |
-| `RELAY_CHAT_EFFORT` | Thinking effort for Claude models: `low`, `medium` (default), `high`, `xhigh` or `max`. |
-
-The harness is built for prompt caching. The system prompt and tool list never
-change between requests, and the server keeps each chat's exact messages, so
-every turn re-sends the previous request unchanged and appends to it. History
-is only cut once it passes about 150k tokens, and then at fixed block
-boundaries so the cut does not move on every turn.
-
-## Windows: install and start
-
-1. Open the project folder containing `run_windows.bat`.
-2. Stop any previous RELAY server using `127.0.0.1:8766` (Ctrl+C).
-3. Double-click `run_windows.bat`. It makes a standalone `.venv` and installs requirements if missing.
-4. Open **http://127.0.0.1:8766/** or **http://127.0.0.1:8766/v11** for the Ground, Control Tower, and Customer twins.
-5. Open **http://127.0.0.1:8766/v11/evidence** for interactive cost, SLA, risk, probability, convergence and strictly hypothetical ROI visualizations.
-6. API docs: **http://127.0.0.1:8766/docs**.
-
-PowerShell (from the folder containing `launch.py`):
-
-```powershell
-py -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe launch.py
-```
-
-## Run with Docker
-
-From the project folder:
-
-```sh
+```bash
 docker build -t relay-fusion .
 docker run --rm -p 127.0.0.1:8766:8766 relay-fusion
 ```
 
-Open [RELAY v13 Live Apron](http://127.0.0.1:8766/). To enable chat with your local
-`.env` file, add `--env-file .env` before the image name in the run command.
+Open [localhost:8766](http://127.0.0.1:8766/).
 
-On Railway, browser writes use the HTTPS origin of `RAILWAY_PUBLIC_DOMAIN`.
-If you open RELAY through a different public hostname, set `RELAY_PUBLIC_DOMAIN`
-to that hostname, for example `relay.example.com`, without a scheme or path.
+</details>
 
-## What changed in v11
+## A five-minute judge walkthrough
 
-- **Original v10 Ground / Control Tower / Customer visual design preserved.** It keeps WebGL2/Cinematic ground simulation, Bayesian/2D/MILP visual cards, animated elevated customer flight arcs, event feed and shared clock.
-- **Ground-stage policy improved** with a small exact within-tick two-class (normal/cold) candidate selection using observable deadline risk, priority, job duration and recovery-sensitive urgency. Under one-server scarcity it explicitly falls back to feasible FCFS; this is NOT a globally optimal airline recovery controller.
-- **Nonpreemptive cold job outage guard:** sudden loss of cold-capacity does not crash an already active cold job. New cold assignments remain forbidden until capacity recovers. Real cold-chain safety should be explicitly audited and externally certified.
-- **New paired benchmark**: 24 ticks of synthetic Poisson arrivals, then up to 110 drain ticks; all admitted work remains in the SLA denominator, and unresolved tasks have explicit penalties. Three policies (FCFS, v10, v11) use identical episode inputs.
-- **6 synthetic operating conditions × 500 paired episodes**, pinned seed 2026, plus an independent seed 707 replicate. Percentage savings, paired-bootstrap CI, on-time rate (pp), tail episode CVaR, distribution of adverse cases, backlog and lead time.
-- **Evidence & KPI Studio** with 10 charts, frequency, statistical convergence, risk distribution, cost composition, scenario probability mixing, hypothetical ROI and a negative recovery-clearance counterexample. Charts available as presentation-ready PNGs and episode-level raw CSVs in `reports/`.
-- **Data/lineage audits** on the 30-day synthetic historical dataset and cross-Twin read-only consistency.
-- **Local cross-site write protection**, not authentication/RBAC/customer tenancy.
+1. **See the operation.** Open Live Apron and start the clock. Follow cargo from the inbound line into staging, then watch the available aircraft and flight cutoffs.
+2. **Test a decision.** Pause and drag a shipment toward a stand. Green or red feedback shows feasibility; inspect the reason for a rejected assignment. Try an eligible shipment to see an accepted action.
+3. **Add pressure.** Increase Cargo rate and advance the clock. Observe the priority ranking, staging occupancy, exceptions and free handling teams. New demand is admitted over time, so the effect is not instantaneous.
+4. **Use decision support.** Enable Autopilot and observe how it assigns work. The event log makes the resulting actions inspectable.
+5. **Check the evidence.** Open Evidence and run a paired study. Compare manual and assisted policies for both simulated new and senior operators; inspect differences and export the rows.
 
-## Reproduce results
+Use **How it works** to explain the decision logic. The agent is an optional extension; the apron and evidence demo do not require an AI API key.
 
-```powershell
-.\.venv\Scripts\python.exe scripts\export_v11_report.py
-.\.venv\Scripts\python.exe scripts\export_v11_advanced.py
-.\.venv\Scripts\python.exe scripts\export_v11_operational.py
-.\.venv\Scripts\python.exe -m pytest -q upstream_tests tests\test_v11_quality.py
+## How the decision engine works
+
+| Layer | Role in v13 | Scope |
+| --- | --- | --- |
+| **Model I — Feasibility** | Checks aircraft policy, route, booking authorisation, documents, holds, capacity, crew, cutoff and cold-chain limits. | Backend rules for this synthetic world; not certified aircraft loading. |
+| **Model II — Priority** | Recomputes cargo priority as the simulated operation changes. | A modelled ranking policy, not an empirically validated airline policy. |
+| **Model III — Assignment** | Uses bounded exact subset selection for assisted dispatch under limited handling capacity. | Exact within the bounded candidate problem; not a globally optimal airport schedule. |
+
+The browser sends actions to the Python server. The server owns the simulation state and validates load requests. Chat and MCP use the shared tool registry to access that same world.
+
+**Implementation:** Python simulation and HTTP server · Three.js 3D interface · Streamable HTTP MCP · optional gateway-backed chat.
+
+## Evidence judges can inspect
+
+The v13 Evidence tab runs four **simulated operator policies** on each generated world:
+
+| | Manual | RELAY-assisted |
+| --- | --- | --- |
+| New operator | Novice manual policy | Novice assisted policy |
+| Senior operator | Expert manual policy | Expert assisted policy |
+
+All four receive identical exogenous arrivals, incidents and flights for each seed. This paired design supports comparisons within the simulator without confusing different input scenarios with policy effects. It is **not a study of human participants**.
+
+The study reports booked-flight uplift, priority-one misses, unserved shipments, peak backlog, red-zone time, caught operator errors, modelled loss and average staging use. It includes per-world results and paired differences. Confidence intervals use mean ± 1.96 × standard error across seeds; they describe synthetic sampling variability, not real-world transferability. Small studies should be treated as exploratory.
+
+**No real airline savings claim is made.** Modelled loss units have no validated currency conversion. The live study is the place to inspect v13 results for the chosen configuration.
+
+## Why this matters
+
+RELAY demonstrates three useful capabilities together:
+
+- **Explainable operational decisions:** the interface exposes why a proposed load is blocked and makes the resulting action visible.
+- **Testable assistance:** paired replay lets reviewers examine where a policy helps, where it does not, and what tradeoffs appear.
+- **A shared interface for people and agents:** direct manipulation, chat and MCP operate on the same simulated state.
+
+The intended value is better prioritisation under pressure, fewer avoidable assignment errors, and a practical environment for testing decision support. Establishing that value in airline operations would require calibrated data and an operational evaluation.
+
+## From demonstrator to operational pilot
+
+A credible next step is a read-only shadow pilot using authorised historical or operational data. That would require validating cargo rules with domain experts, calibrating arrival and handling assumptions, comparing recommendations against actual outcomes, and measuring both benefits and adverse cases.
+
+Production use would additionally need identity and access controls, auditability, monitoring, integration contracts and operational certification where applicable. The prototype’s host and origin checks do not establish production readiness.
+
+## Explore the implementation
+
+| Resource | Contents |
+| --- | --- |
+| [v13 guide](v13/README.md) | Detailed controls, configuration, aircraft assets and MCP setup |
+| [Simulation engine](v13/relay13/engine.py) | World generation, state transitions, guards, ranking and dispatch |
+| [Evidence runner](v13/relay13/evidence.py) | Paired study, metrics and confidence intervals |
+| [Agent tool registry](v13/relay13/tools.py) | Tools shared by chat and MCP |
+| [Integrated research paper](docs/papers%20v13/RELAY_Integrated_Research.pdf) | Research background and model formulation |
+| [Economic and operational value paper](docs/papers%20v13/RELAY_Economic_Operational_Value.pdf) | Supporting value analysis |
+
+Run the v13 tests:
+
+```bash
+python3 -m unittest discover -s v13/tests
 ```
 
-The test suite includes slow stress and benchmark cases. `scripts/v11_offline_visual_qa.py` is an optional offline UI check that needs Chromium and Playwright.
-
-## Key pinned synthetic percentages (seed 2026, 500 paired episodes per case)
-
-| Scenario | v11 cost reduction vs FCFS | Full-cohort on-time rate gain (pp) | Cost CVaR90 tail reduction |
-|---|---:|---:|---:|
-| Normal | +8.045% | +23.562 | +11.417% |
-| Peak | +16.658% | +28.066 | +16.495% |
-| Crew shortage | 0.000% | 0.000 | 0.000% |
-| Cold outage | +2.411% | +23.756 | +2.423% |
-| High capacity | +9.951% | +28.755 | +15.004% |
-| Temporary disruption | +9.537% | +14.171 | +10.197% |
-
-Cost is **modeled unitless penalty**, not real airline expenditure. The 95% confidence intervals are *synthetic sampling uncertainty*, not uncertainty in transferring results to Cathay.
-
-Under the temporary disruption scenario, v11 is **15.1% slower** than FCFS to clear 90% of the already-affected backlog. This material counterexample must be disclosed. Real-world risk probabilities, dollar mapping, and trip recovery speed are unvalidated.
-
-## Reuse / responsibilities
-
-- `relay/` — bounded physical diagnostics, finite one-step PIVOT, finite-column HiGHS scenario MILP; the incomplete research-to-production scope remains intact.
-- `v11/` — reproducible benchmark, read-only QA and original-v10 percentage denominators.
-- `static/v11.html` — three synced digital-twin views; `static/v11_evidence.html` — KPI evidence/report interface.
-- `reports/` — pinned JSON, raw CSV (18 policy-scenario pairs and 9,000 episode-policy rows), charts and example browser QA images.
-- [v11 engineering QA and ROI](docs/V11_ENG_QA_AND_ROI.md) — benchmark methodology, results, and limitations.
-- [Research paper traceability](docs/THREE_PAPERS_TRACEABILITY.md) — how the three source models map to the simulation.
-- [Engine architecture](engine_reference_docs/ARCHITECTURE.md) and [synthetic data dictionary](engine_reference_docs/DATA_DICTIONARY.md).
-
-## Papers
-
-- RELAY Final QA and Benchmark Report — [PDF](docs/v11/RELAY_Final_QA_Benchmark_Report_v11.pdf) · [LaTeX](docs/v11/RELAY_Final_QA_Benchmark_Report_v11.tex).
-- RELAY Research and Development Report, covering the v12 arena and its dispatch experiments — [PDF](docs/v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.pdf) · [LaTeX](docs/v11/RELAY_v12_%5Bv11%2BModelA%5D_Research%26DEV_Report.tex). This paper records the earlier experiment.
-
-**v11 is scientifically more auditable, not certified or proven perfect.**
+For optional chat, configure `AI_GATEWAY_API_KEY` and `RELAY_CHAT_MODEL`, or set `RELAY_CHAT_MODEL=demo` for the scripted offline agent. See the [v13 guide](v13/README.md#tab-4--agent-and-mcp) for configuration and the MCP connection URL.
