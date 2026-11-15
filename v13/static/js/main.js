@@ -124,7 +124,11 @@ $('#btnStep').addEventListener('click', e => runControl(e.currentTarget, () => a
 $('#autoIn').addEventListener('change', e => runControl(e.currentTarget, () => api.control({ autopilot: e.target.checked })));
 $('#btnReset').addEventListener('click', e => runControl(e.currentTarget, () => api.reset({ seed: Math.floor(Math.random() * 99999) + 1 })));
 window.addEventListener('keydown', e => {
-  if (e.code === 'Space' && !e.defaultPrevented && !['INPUT', 'BUTTON', 'SUMMARY'].includes(document.activeElement.tagName)) { e.preventDefault(); playButton.click(); }
+  if (e.code !== 'Space' || e.defaultPrevented || e.isComposing) return;
+  const focused = document.activeElement;
+  if (focused?.isContentEditable || focused?.matches('input, textarea, button, select, summary')) return;
+  e.preventDefault();
+  playButton.click();
 });
 
 function renderTop(s) {
