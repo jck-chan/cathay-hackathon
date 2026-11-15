@@ -9,3 +9,5 @@ Historical research and evaluation material for earlier RELAY versions. These do
 Code and data paths mentioned inside these historical documents are repository-root references from the original versions.
 
 For the current implementation, see the [project README](../../README.md), [v13 guide](../../v13/README.md), and [v13 papers](../papers%20v13/).
+
+Legacy application code, datasets and benchmark outputs were removed from the current branch to keep the submission focused on v13. They remain available in Git history before the v13-only cleanup.

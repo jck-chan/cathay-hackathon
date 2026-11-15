@@ -4,13 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
-
-COPY requirements.txt .
-RUN python -m pip install --no-cache-dir -r requirements.txt \
-    && useradd --system --user-group relay
-
-COPY . .
-RUN chown relay:relay /app/data
+RUN useradd --system --user-group relay
+COPY --chown=relay:relay v13/ ./v13/
 
 USER relay
 EXPOSE 8766

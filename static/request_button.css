@@ -1,4 +1,0 @@
-button[data-request-pending="true"]:disabled {
-  opacity: .72 !important;
-  cursor: progress !important;
-}
