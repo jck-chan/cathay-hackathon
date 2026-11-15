@@ -39,7 +39,9 @@ class Clock:
 
     def __init__(self):
         self.lock = threading.RLock()
-        self.playing = False; self.tps = 1.0; self.autopilot = False
+        self.playing = False
+        self.tps = 32.0
+        self.autopilot = True
         self.measured = 0.0; self._ticks = []
         self.params = dict(seed=2026, days=3, load=1.0, scenario='mixed', stands=5, role='novice_assisted')
         self.reset()
