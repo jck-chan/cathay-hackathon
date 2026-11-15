@@ -57,6 +57,18 @@ class TestMcp(unittest.TestCase):
         self.assertEqual(self.clock.sim.t, t + 30)
         self.assertEqual(b['result']['structuredContent']['advanced_minutes'], 30)
 
+    def test_event_cursor_recovers_after_reset_with_same_seed(self):
+        self.clock.sim.log('arrival', 'Before reset', '')
+        before = self.clock.state()
+        self.assertEqual(self.clock.state(before['event_seq'], before['world_id'])['events'], [])
+
+        self.clock.reset()
+        self.clock.sim.log('arrival', 'After reset', '')
+        after = self.clock.state(before['event_seq'], before['world_id'])
+        self.assertNotEqual(after['world_id'], before['world_id'])
+        self.assertEqual(after['seed'], before['seed'])
+        self.assertEqual(after['events'][-1]['title'], 'After reset')
+
     def test_bad_arguments_are_tool_errors(self):
         for args in ({'ticks': 0}, {'ticks': 'ten'}, {}, {'ticks': 5, 'extra': 1}):
             _, b = rpc(self.clock, 'tools/call', {'name': 'step_simulation', 'arguments': args})

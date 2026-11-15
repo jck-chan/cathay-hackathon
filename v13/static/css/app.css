@@ -176,6 +176,7 @@ body.dragging .plane-tag.drop-hover { transform: scale(1.08); }
 .chips button.on { background: var(--jade); border-color: var(--jade); color: #fff; }
 .log-list { overflow-y: auto; flex: 1; min-height: 0; }
 .log-item { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #edf1f0; align-items: start; }
+.log-item[hidden] { display: none; }
 .log-item.new { animation: lin .9s; }
 @keyframes lin { 0% { background: #fff8db; transform: translateX(-6px); } 100% { background: #fff; } }
 .li-icon { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: #e7f0fa; color: var(--info); }

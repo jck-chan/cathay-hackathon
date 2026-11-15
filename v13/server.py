@@ -18,6 +18,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import uuid
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -54,7 +55,9 @@ class Clock:
             cfg = AirportConfig(stands=p['stands'])
             self.world = generate(p['seed'], days=p['days'], load=p['load'], scenario=p['scenario'], config=cfg)
             self.sim = Simulation(self.world, p['role'])
+            self.world_id = uuid.uuid4().hex
             self.playing = False
+            self.measured = 0.0; self._ticks.clear()
 
     def tick(self, n=1):
         with self.lock:
@@ -69,23 +72,27 @@ class Clock:
         while True:
             time.sleep(0.01)
             now = time.monotonic(); dt = now - last; last = now
-            if not self.playing:
-                acc = 0.0
-            else:
-                acc += dt * self.tps
-                n = int(acc)
-                if n:
-                    acc -= n; self.tick(min(n, 240))
-            cut = now - 2.0
-            self._ticks = [x for x in self._ticks if x > cut]
-            self.measured = len(self._ticks) / 2.0
+            with self.lock:
+                if not self.playing:
+                    acc = 0.0
+                else:
+                    acc += dt * self.tps
+                    n = int(acc)
+                    if n:
+                        acc -= n; self.tick(min(n, 4))
+                cut = now - 2.0
+                self._ticks = [x for x in self._ticks if x > cut]
+                self.measured = len(self._ticks) / 2.0
 
-    def state(self, since=0):
+    def state(self, since=0, world_id=None):
         with self.lock:
+            if world_id is not None and world_id != self.world_id:
+                since = 0
             snap = self.sim.snapshot(since)
+            snap['world_id'] = self.world_id
             snap['control'] = {'playing': self.playing, 'tps': self.tps, 'autopilot': self.autopilot,
                                'effective_tps': self.tps, 'measured_tps': round(self.measured, 1),
-                               'params': self.params, 'server_time': time.time()}
+                               'params': self.params.copy(), 'server_time': time.time()}
             return snap
 
 
@@ -213,7 +220,7 @@ class Handler(BaseHTTPRequestHandler):
         if route == '/api/chat/config':
             self.send(CHAT.config() | {'mcp_path': '/mcp'}); return
         if route == '/api/state':
-            self.send(CLOCK.state(num(q.get('since', [0])[0], 0, 0, 10 ** 9, int))); return
+            self.send(CLOCK.state(num(q.get('since', [0])[0], 0, 0, 10 ** 9, int), q.get('world_id', [None])[0])); return
         if route == '/api/check':
             cargo = q.get('cargo', [''])[0]
             with CLOCK.lock:
@@ -276,10 +283,10 @@ class Handler(BaseHTTPRequestHandler):
                 if 'autopilot' in d: CLOCK.autopilot = bool(d['autopilot'])
                 if 'demand' in d: CLOCK.sim.set_demand(num(d['demand'], CLOCK.sim.demand, .2, 3.))
                 if 'demand' in d: CLOCK.params['load'] = CLOCK.sim.demand  # keep it across New world
-            self.send(CLOCK.state(num(d.get('since', 0), 0, 0, 10 ** 9, int))); return
+            self.send(CLOCK.state(num(d.get('since', 0), 0, 0, 10 ** 9, int), d.get('world_id'))); return
         if route == '/api/step':
             CLOCK.tick(num(d.get('n', 1), 1, 1, 1440, int))
-            self.send(CLOCK.state(num(d.get('since', 0), 0, 0, 10 ** 9, int))); return
+            self.send(CLOCK.state(num(d.get('since', 0), 0, 0, 10 ** 9, int), d.get('world_id'))); return
         if route == '/api/reset':
             scenario = d.get('scenario'); scenario = scenario if scenario in SCENARIOS or scenario == 'mixed' else None
             CLOCK.reset(seed=num(d.get('seed'), None, 1, 10 ** 7, int) if 'seed' in d else None,
@@ -294,7 +301,7 @@ class Handler(BaseHTTPRequestHandler):
                     r = sim.request(str(d.get('cargo', '')), str(d.get('flight', '')), actor='operator')
                 else:
                     r = sim.revoke(str(d.get('cargo', '')), actor='operator')
-            self.send({**r, 'state': CLOCK.state(num(d.get('since', 0), 0, 0, 10 ** 9, int))}); return
+            self.send({**r, 'state': CLOCK.state(num(d.get('since', 0), 0, 0, 10 ** 9, int), d.get('world_id'))}); return
         self.send({'ok': False, 'error': 'unknown endpoint'}, 404)
 
 

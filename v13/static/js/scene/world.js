@@ -277,6 +277,7 @@ export function createWorld(container, layout) {
 
   // ---- time of day -------------------------------------------------------------------
   let lastSunKey = null;
+  let lastEnvironmentUpdate = -Infinity;
   function setTimeOfDay(minuteOfDay) {
     const sunrise = 6 * 60 + 15, sunset = 18 * 60 + 50;
     const f = (minuteOfDay - sunrise) / (sunset - sunrise);
@@ -298,9 +299,13 @@ export function createWorld(container, layout) {
     for (const l of lamps) l.intensity = 700 * night;
     lampMat.emissiveIntensity = 4 * night;
     scene.fog.color.setHSL(0.57, 0.2 + 0.1 * day, 0.08 + 0.7 * day);
-    if (envRT) envRT.dispose();
-    envRT = pmrem.fromScene(envScene, 0, 1, 20000);
-    scene.environment = envRT.texture;
+    const now = performance.now();
+    if (now - lastEnvironmentUpdate >= 1000) {
+      lastEnvironmentUpdate = now;
+      if (envRT) envRT.dispose();
+      envRT = pmrem.fromScene(envScene, 0, 1, 20000);
+      scene.environment = envRT.texture;
+    }
     scene.environmentIntensity = 0.25 + 0.75 * day;
   }
 

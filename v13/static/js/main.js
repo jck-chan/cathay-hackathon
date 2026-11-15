@@ -12,20 +12,23 @@ import { initModel } from './ui/model.js';
 import { initChat } from './ui/chat.js';
 
 const $ = s => document.querySelector(s);
-async function post(url, body) {
-  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+async function requestJson(url, options) {
+  const response = await fetch(url, { ...options, signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error(`Request failed (${response.status})`);
   return response.json();
 }
-let lastEvent = 0;
+function post(url, body) {
+  return requestJson(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+}
+let cursor = { since: 0 };
 const api = {
-  state: () => fetch(`/api/state?since=${lastEvent}`).then(r => r.json()),
-  control: b => post('/api/control', { ...b, since: lastEvent }),
-  step: n => post('/api/step', { n, since: lastEvent }),
+  state: () => requestJson(`/api/state?${new URLSearchParams(cursor)}`),
+  control: b => post('/api/control', { ...b, ...cursor }),
+  step: n => post('/api/step', { n, ...cursor }),
   reset: b => post('/api/reset', b),
-  check: id => fetch(`/api/check?cargo=${encodeURIComponent(id)}`).then(r => r.json()),
-  load: (cargo, flight) => post('/api/load', { cargo, flight, since: lastEvent }),
-  offload: cargo => post('/api/offload', { cargo, since: lastEvent }),
+  check: id => requestJson(`/api/check?cargo=${encodeURIComponent(id)}`),
+  load: (cargo, flight) => post('/api/load', { cargo, flight, ...cursor }),
+  offload: cargo => post('/api/offload', { cargo, ...cursor }),
 };
 
 const hhmm = t => { const m = ((Math.floor(t) % 1440) + 1440) % 1440; return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; };
@@ -51,8 +54,7 @@ initModel($('#tab-model'));
 initChat();
 
 // ---- boot ------------------------------------------------------------------------------
-let state = await fetch('/api/state').then(r => r.json());
-lastEvent = 0;
+let state = await api.state();
 let layout = makeLayout(state.stands, state.staging.capacity);
 const world = createWorld($('#viewport'), layout);
 const actors = new Map();
@@ -68,20 +70,24 @@ $('#loading').remove();
 
 let recvAt = performance.now(), simT = state.t;
 function apply(s) {
-  if (!s) return;
-  if (s.t < state.t - 1 || s.seed !== state.seed) { // a new world
+  if (!s || s.control.server_time < state.control.server_time) return;
+  const newWorld = s.world_id !== state.world_id;
+  if (newWorld) {
     for (const a of actors.values()) a.dispose(); actors.clear();
     for (const o of [...cargo.objs.values()]) cargo.remove(o);
     cargo.slots.fill(null); cargo.exSlots.fill(null); cargo.dolly.clear(); cargo.lineOrder = [];
     logs.clear(); ranking.rankT = null; simT = s.t;
   }
   state = s; recvAt = performance.now();
-  if (s.events.length) { logs.add(s.events); lastEvent = s.event_seq; }
+  const since = newWorld ? 0 : cursor.since;
+  logs.add(s.events.filter(event => event.id > since));
+  const animateArrivals = !newWorld && cursor.world_id === s.world_id;
+  cursor = { since: s.event_seq, world_id: s.world_id };
   for (const f of s.flights) {
     const a = actors.get(f.id);
     if (a) a.update(f); else actors.set(f.id, new AircraftActor(world.scene, layout, f));
   }
-  cargo.sync(s.cargo, actors);
+  cargo.sync(s.cargo, actors, animateArrivals);
   drag.updatePreview();
   ranking.render(s); staging.render(s.staging); renderTop(s);
   window.dispatchEvent(new CustomEvent('relay:state', { detail: s }));  // chat artifacts subscribe to this
@@ -95,6 +101,10 @@ async function runControl(control, request) {
   const hadFocus = document.activeElement === control;
   control.disabled = true;
   control.setAttribute('aria-busy', 'true');
+  if (control === playButton) {
+    playButton.dataset.pending = state.control.playing ? 'Pausing…' : 'Starting…';
+    renderPlay(state);
+  }
   try {
     apply(await request());
   } catch (error) {
@@ -102,6 +112,10 @@ async function runControl(control, request) {
     toast('bad', 'Simulation control request failed', error.message);
   } finally {
     control.removeAttribute('aria-busy');
+    if (control === playButton) {
+      delete playButton.dataset.pending;
+      renderPlay(state);
+    }
     control.disabled = control === playButton && state.done;
     if (hadFocus && !control.disabled && document.activeElement === document.body) control.focus();
   }
@@ -131,10 +145,16 @@ window.addEventListener('keydown', e => {
   playButton.click();
 });
 
+function renderPlay(s) {
+  const playing = s.control.playing;
+  const label = playButton.dataset.pending ?? (s.done ? 'Finished' : playing ? 'Pause' : 'Start');
+  playButton.innerHTML = `${playing ? ICON.pause : ICON.play}<span>${label}</span>`;
+  playButton.disabled = s.done || playButton.hasAttribute('aria-busy');
+}
+
 function renderTop(s) {
   const c = s.control;
-  playButton.innerHTML = c.playing ? `${ICON.pause}<span>Pause</span>` : `${ICON.play}<span>${s.done ? 'Finished' : 'Start'}</span>`;
-  playButton.disabled = s.done || playButton.hasAttribute('aria-busy');
+  renderPlay(s);
   tpsBox.set(c.tps); rateDd.set(RATES.reduce((a, b) => (Math.abs(b - s.demand) < Math.abs(a - s.demand) ? b : a)));
   $('#tpsMeasured').textContent = `${c.measured_tps.toFixed(1)} actual`;
   $('#autoIn').checked = c.autopilot;
@@ -184,7 +204,7 @@ function frame(now) {
   const c = state.control || {};
   // interpolate the sim clock between polls, never running ahead more than a tick
   const predicted = state.t + (c.playing ? Math.min(1, ((now - recvAt) / 1000) * c.effective_tps) : 0);
-  simT = Math.abs(predicted - simT) > 3 ? predicted : Math.max(simT, predicted);
+  simT = !c.playing || Math.abs(predicted - simT) > 3 ? predicted : Math.max(simT, predicted);
   $('#clockTime').textContent = hhmm(simT); $('#clockDay').textContent = `Day ${Math.floor(simT / 1440) + 1}`;
   world.setTimeOfDay(simT % 1440);
   for (const [id, a] of actors) {
@@ -192,9 +212,10 @@ function frame(now) {
     if (a.gone) { a.dispose(); actors.delete(id); continue; }
     if (a.root.visible) planeLabel(a, simT);
   }
-  const flow = c.playing ? 4 * Math.min(6, Math.max(0.6, c.effective_tps)) : 0;
-  world.animateBelt(dt, flow);
-  cargo.update(dt, simT, flow);
+  const beltSpeed = layout.beltLen / 3 * Math.max(1, Math.min(2, c.effective_tps / 8));
+  const beltMoving = c.playing || cargo.hasStagingTransit();
+  world.animateBelt(dt, beltMoving ? beltSpeed : 0);
+  cargo.update(dt, simT, beltMoving ? beltSpeed : 0);
   if (activeTab === 'apron') world.render();  // no GPU work while another tab is showing
   requestAnimationFrame(frame);
 }

@@ -123,7 +123,7 @@ export class CargoManager {
     this.hovered = null; this.highlight = null;
   }
 
-  ensure(c) {
+  ensure(c, animateArrivals) {
     let o = this.objs.get(c.id);
     if (o) return o;
     const group = build(c.category);
@@ -131,7 +131,8 @@ export class CargoManager {
     const el = document.createElement('div'); el.className = 'ctag-wrap';
     const tag = new CSS2DObject(el); tag.position.set(0, 1.9, 0); tag.center.set(0.5, 1); group.add(tag);
     o = { id: c.id, group, el, tag, data: c, pos: new THREE.Vector3(), html: '', s: 0, state: c.state, dragging: false, leaving: 0 };
-    if (c.state === 2) o.pos.copy(this.layout.beltStart);
+    o.onBelt = c.state === 2 || (animateArrivals && c.state === 3);
+    if (o.onBelt) o.pos.copy(this.layout.beltStart);
     else o.pos.copy(this.targetFor(o, c) || this.layout.beltEnd);
     group.position.copy(o.pos); this.scene.add(group); this.objs.set(c.id, o);
     return o;
@@ -155,15 +156,16 @@ export class CargoManager {
     return null;
   }
 
-  sync(cargo, actors) {
+  sync(cargo, actors, animateArrivals) {
     const seen = new Set();
     for (const c of cargo) {
-      seen.add(c.id); const o = this.ensure(c);
+      seen.add(c.id); const o = this.ensure(c, animateArrivals);
       if (o.state !== c.state) {
         if (o.state === 3) this.freeSlot(this.slots, c.id);
         if (o.state === 7) this.freeSlot(this.exSlots, c.id);
         if ((o.state === 4 || o.state === 5) && !(c.state === 4 || c.state === 5)) this.dropDolly(c.id);
-        if (c.state === 2) { o.s = Math.max(0, Math.min(this.layout.beltLen, this.layout.beltStart.distanceTo(o.pos))); }
+        if (c.state === 2) { o.s = 0; o.onBelt = true; }
+        else if (c.state !== 3) o.onBelt = false;
         o.state = c.state;
       }
       o.data = c;
@@ -176,8 +178,11 @@ export class CargoManager {
       o.leaving = 1; o.leaveTo = actor ? actor.root.position.clone().add(new THREE.Vector3(-3, 3, 14)) : null;
       this.dropDolly(id, true);
     }
-    this.lineOrder = cargo.filter(c => c.state === 2).sort((a, b) => (this.objs.get(b.id).s - this.objs.get(a.id).s) || (a.arrival - b.arrival)).map(c => c.id);
+    this.lineOrder = cargo.map(c => this.objs.get(c.id)).filter(o => o.onBelt)
+      .sort((a, b) => b.s - a.s || b.state - a.state || a.data.arrival - b.data.arrival);
   }
+
+  hasStagingTransit() { return this.lineOrder.some(o => o.onBelt && o.state === 3 && !o.leaving); }
 
   dropDolly(id, keep) { for (const list of this.dolly.values()) { const k = list.indexOf(id); if (k >= 0 && !keep) list.splice(k, 1); else if (k >= 0) list[k] = null; } }
 
@@ -189,12 +194,15 @@ export class CargoManager {
 
   update(dt, t, flow) {
     const L = this.layout; const pitch = 6.4;
-    // belt queue: advance, but never closer than one pitch to the unit ahead
-    this.lineOrder.forEach((id, k) => {
-      const o = this.objs.get(id); if (!o || o.dragging) return;
-      const limit = L.beltLen - k * pitch;
-      o.s = Math.min(Math.max(o.s, 0) + flow * dt, Math.max(0, limit));
-    });
+    // Keep units spaced from the one ahead, including at the terminal entrance.
+    let limit = L.beltLen, stop = L.beltLen;
+    for (const o of this.lineOrder) {
+      if (!o.onBelt || o.leaving || o.dragging) continue;
+      o.s = Math.max(0, Math.min(o.s + flow * dt, limit));
+      o.atBeltStop = stop > 0 && o.s === stop;
+      limit = o.s - pitch;
+      stop -= pitch;
+    }
     for (const o of [...this.objs.values()]) {
       const c = o.data;
       if (o.leaving) {
@@ -207,11 +215,14 @@ export class CargoManager {
       }
       if (!o.dragging) {
         let target;
-        if (c.state === 2) target = L.beltStart.clone().addScaledVector(this.beltDir, o.s).setY(0);
+        if (o.onBelt) target = L.beltStart.clone().addScaledVector(this.beltDir, o.s);
         else target = this.targetFor(o, c) || o.pos;
-        const base = c.state === 2 ? L.beltStart.y : 0;
+        const base = o.onBelt ? L.beltStart.y : 0;
         const d = Math.hypot(target.x - o.pos.x, target.z - o.pos.z);
-        if (c.state === 2 && d < 8) { o.pos.set(target.x, base, target.z); }
+        if (o.onBelt && d < 8) {
+          o.pos.set(target.x, base, target.z);
+          if (o.state === 3 && o.atBeltStop) o.onBelt = false;
+        }
         else {
           const step = Math.min(d, Math.max(90, d * 21) * dt);
           if (d > 0.001) { o.pos.x += (target.x - o.pos.x) / d * step; o.pos.z += (target.z - o.pos.z) / d * step; }
