@@ -41,8 +41,7 @@ class TestWorld(unittest.TestCase):
     def test_every_type_has_a_model_file(self):
         root = Path(__file__).resolve().parents[1] / 'static' / 'assets' / 'aircraft'
         for t in AIRCRAFT_TYPES.values():
-            if t.model != 'a330-300.glb':  # local-only (CC BY-NC-SA); the frontend falls back to the A350
-                self.assertTrue((root / t.model).is_file(), t.model)
+            self.assertTrue((root / t.model).is_file(), f'{t.code}: {t.model}')
 
     def test_cargo_rate_changes_admissions(self):
         w = generate(5, days=1)

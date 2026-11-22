@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { arrivalPaths, departurePaths, STAND_Z } from './layout.js';
 
-const FALLBACKS = ['a330-300.glb', 'a350-cathay.glb'];
+const FALLBACK_MODEL = 'a350-cathay.glb';
 const BASE_COLOR_SCALE = { 'a350-cathay.glb': 0.78, 'b777-300er.glb': 0.82 };
 const loader = new GLTFLoader();
 const templates = new Map();
@@ -19,10 +19,7 @@ function loadModel(file) {
   if (!templates.has(file)) {
     templates.set(file, new Promise((resolve, reject) => {
       loader.load(`/assets/aircraft/${file}`, g => resolve(prepare(g.scene, file)), undefined, reject);
-    }).catch(() => { // missing GLB: fall back A330 → A350 so a stand is never empty
-      const next = FALLBACKS[FALLBACKS.indexOf(file) + 1] ?? (FALLBACKS.includes(file) ? null : FALLBACKS[0]);
-      return next ? loadModel(next) : null;
-    }));
+    }).catch(() => file === FALLBACK_MODEL ? null : loadModel(FALLBACK_MODEL)));
   }
   return templates.get(file);
 }
@@ -42,8 +39,6 @@ function prepare(root, file) {
     if (material.map) material.map.anisotropy = 8;
     material.envMapIntensity = 1.0;
     material.color?.multiplyScalar(BASE_COLOR_SCALE[file] ?? 1);
-    // The A330 export uses fully metallic paint. Let the livery pick up diffuse light.
-    if (file === 'a330-300.glb' && material.metalness === 1) material.metalness = 0.7;
   }
   drop.forEach(o => o.parent && o.parent.remove(o));
   root.updateMatrixWorld(true);

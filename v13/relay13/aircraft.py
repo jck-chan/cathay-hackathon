@@ -15,6 +15,9 @@ CATEGORY_NAMES = {
     'AVI': 'Live animals', 'DG': 'Dangerous goods', 'VALUABLE': 'Valuables',
 }
 
+# The renderer scales the bundled A350 to each aircraft type's length and span.
+FALLBACK_MODEL = 'a350-cathay.glb'
+
 
 @dataclass(frozen=True)
 class AircraftType:
@@ -28,18 +31,16 @@ class AircraftType:
     categories: tuple         # special-handling codes this type can accept
     hold: str                 # 'ULD' (containerised lower deck), 'MAIN' (freighter main deck) or 'BULK'
     notes: dict = field(default_factory=dict)  # category -> human reason when refused
-    model: str = 'a330-300.glb'  # 3D asset under static/assets/aircraft (scaled to length/span)
+    model: str = FALLBACK_MODEL  # 3D asset under static/assets/aircraft
     weight: float = 1.0       # default fleet mix weight
 
 
 # 3D assets live in static/assets/aircraft (credits: assets_src/aircraft/ASSET_CREDITS.md).
 # The loader turns each model nose-forward and stretches it to the type's real length/span,
 # so one airframe can stand in for a sibling (A350-900/-1000) or a type with no model yet.
-FALLBACK_MODEL = 'a330-300.glb'
-
 AIRCRAFT_TYPES: dict[str, AircraftType] = {t.code: t for t in (
     AircraftType('A333', 'Airbus A330-300', 63.7, 60.3, 10, 7000, 500, CATS, 'ULD',
-                 model='a330-300.glb', weight=.20),
+                 weight=.20),
     AircraftType('A359', 'Airbus A350-900', 66.8, 64.8, 12, 8400, 500, CATS, 'ULD',
                  model='a350-cathay.glb', weight=.25),
     AircraftType('A35K', 'Airbus A350-1000', 73.8, 64.8, 14, 9800, 500, CATS, 'ULD',
@@ -53,7 +54,7 @@ AIRCRAFT_TYPES: dict[str, AircraftType] = {t.code: t for t in (
     AircraftType('A21N', 'Airbus A321neo', 44.5, 35.8, 4, 2600, 200, ('GEN', 'FRESH', 'AVI', 'VALUABLE'), 'BULK',
                  notes={'PHARMA': 'bulk-only hold has no position for an active temperature-controlled container',
                         'DG': 'synthetic policy: no dangerous goods in the narrowbody bulk hold'},
-                 model=FALLBACK_MODEL, weight=.08),  # no A321neo model yet: scaled A330 stand-in
+                 weight=.08),
 )}
 
 DEFAULT_ENABLED_TYPES = ('A333', 'A359', 'A35K', 'B77W', 'B748F', 'B744F', 'A21N')

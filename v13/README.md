@@ -102,19 +102,17 @@ cargo policy (hold type, positions, payload, maximum piece weight, accepted cate
 
 | Type | Model file (`static/assets/aircraft/`) | Hold |
 | --- | --- | --- |
-| Airbus A330-300 | `a330-300.glb` (local only, see below) | ULD |
+| Airbus A330-300 | `a350-cathay.glb` (scaled stand-in) | ULD |
 | Airbus A350-900 | `a350-cathay.glb` | ULD |
 | Airbus A350-1000 | `a350-cathay.glb` (same airframe, stretched) | ULD |
 | Boeing 777-300ER | `b777-300er.glb` | ULD |
 | Boeing 747-8F | `b747-8f.glb` | freighter main deck |
 | Boeing 747-400ERF | `b747-400erf.glb` | freighter main deck |
-| Airbus A321neo | no model yet, uses the A330 stand-in | bulk only: no DG, no active pharma, ≤200 kg pieces |
+| Airbus A321neo | `a350-cathay.glb` (scaled stand-in) | bulk only: no DG, no active pharma, ≤200 kg pieces |
 
 The loader turns every model nose-forward automatically and stretches it to the type's real
-length and span. If a GLB is missing it falls back to the A330, then the A350.
+length and span. If another model fails to load, the loader uses the bundled A350.
 Credits, licences and editable sources are in [`assets_src/aircraft`](assets_src/aircraft/ASSET_CREDITS.md).
-The A330 GLB is CC BY-NC-SA and kept out of Git as a local-use copy, like the upstream
-asset folder does; without it the A330 and A321neo stands show the A350 airframe.
 
 `AirportConfig` holds the class-level settings: `stands` (default 5), `enabled_types`,
 `shipments_per_flight`, staging cap, handling teams and so on. The frontend builds the apron from

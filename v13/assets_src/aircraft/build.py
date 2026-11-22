@@ -212,7 +212,7 @@ def render_preview(path):
     center = (low + high) * 0.5
     size = max(high - low)
     # Use the model's length axis for a consistent three-quarter angle.
-    camera_dir = Vector((1.0, 0.69, 0.56) if path.stem != "a330-300" else (1.0, -0.69, 0.56))
+    camera_dir = Vector((1.0, 0.69, 0.56))
     bpy.ops.object.camera_add(location=center + camera_dir * size * 1.45)
     camera = bpy.context.object
     camera.rotation_euler = (center - camera.location).to_track_quat("-Z", "Y").to_euler()
@@ -271,10 +271,7 @@ def main():
             build_boeing(source, slug, materials)
         export_model(slug)
     if "--no-renders" not in args:
-        slugs = [slug for _, slug in targets]
-        if not selected:
-            slugs.append("a330-300")
-        for slug in slugs:
+        for _, slug in targets:
             path = MODELS / f"{slug}.glb"
             if path.is_file():
                 render_preview(path)
