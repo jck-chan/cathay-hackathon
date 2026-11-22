@@ -102,7 +102,7 @@ cargo policy (hold type, positions, payload, maximum piece weight, accepted cate
 
 | Type | Model file (`static/assets/aircraft/`) | Hold |
 | --- | --- | --- |
-| Airbus A330-300 | `a350-cathay.glb` (scaled stand-in) | ULD |
+| Airbus A330-300 | `a330-300-cathay.glb` | ULD |
 | Airbus A350-900 | `a350-cathay.glb` | ULD |
 | Airbus A350-1000 | `a350-cathay.glb` (same airframe, stretched) | ULD |
 | Boeing 777-300ER | `b777-300er.glb` | ULD |

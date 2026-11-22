@@ -2,6 +2,7 @@
 
 | GLB | Source and author | License and changes |
 | --- | --- | --- |
+| a330-300-cathay.glb | [FlightGear IDG-A33X at `1956d9b`](https://github.com/FGDATA/IDG-A33X/tree/1956d9b49272e510295949c8bf63b3f4bcd1c572/Models), it0uchpods Design Group and FlightGear contributors. A330-300 exterior and Trent 772B-60 engines. | [GPL v2](source/a330/LICENSE) for the source model. Applied jade tail and wingtip paint and projected Cathay markings onto both sides. Retained the upstream window, door and wing details. Original files are under [`source/a330/`](source/a330/) and the editable repaint is [`a330-300-cathay.blend`](a330-300-cathay.blend). |
 | a350-generic-cathay.glb | [A350_nologo.glb](https://github.com/amvlab/aircraft-models/blob/main/models/A350_nologo.glb), amvlab. | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Jade tail, white rear fuselage, brushwing and Cathay Pacific markings added. Centered and aligned nose-forward. Generic A350 airframe with unverified exact subtype. |
 | 777-300er.glb | [Boeing 777-300ER AC3D exterior](https://github.com/franck-vmd/Boeing-777-Flightgear/tree/cfa61378d1210a33e0520d4459d0baf1cf1511f5/777-VMD/Models/Liveries-300ER), Franck VMD and FlightGear contributors listed in `source/777-AUTHORS`. | [GPL v2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html). Selected exterior parts, replaced textures with white, grey and jade materials, added Cathay Pacific markings, grounded and centered, merged GLB meshes by material. |
 | 747-8f.glb | [FlightGear 747-8F](https://github.com/LincolnWorks-FlightGear/747-8i/tree/322e77bb5a454e04faea5cae6df2dd1daa9187f5), John Williams and LincolnWorks with Grupo FGBr, Gijs de Rooy and other FlightGear contributors. | [GPL v2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.html). Repainted the exterior white, grey and jade with Cathay Cargo markings. Gear-up exterior. |
@@ -9,7 +10,13 @@
 
 GPL permits redistribution and commercial use under its terms. Keep the license and editable sources with the Boeing exports. The GLBs are static.
 
-The brushwing is sourced from [Cathay Pacific’s published artwork](https://www.cathaypacific.com/content/dam/header-footer/cx_brushwing_logo.originalimage.png). The white tail version and custom-set livery lettering are in `source/livery/`. The open mesh licenses apply to the underlying models. Cathay owns the brand marks, and permission for public or competition distribution of the branded assets is unverified.
+The brushwing is sourced from [Cathay Pacific’s published artwork](https://www.cathaypacific.com/content/dam/header-footer/cx_brushwing_logo.originalimage.png). The white tail version and custom-set livery lettering are in `livery/`. The open mesh licenses apply to the underlying models. Cathay owns the brand marks, and permission for public or competition distribution of the branded assets is unverified.
+
+To rebuild the A330 from its included source, run this from this directory. The command updates the editable Blender file and the GLB served by RELAY. Omit `--no-renders` to render a preview in `previews/`.
+
+```sh
+blender -b -t 8 --factory-startup --python-exit-code 1 -P build.py -- a330-300-cathay --no-renders
+```
 
 To rebuild the A350 and Boeing GLBs and render the previews, run this from this directory.
 

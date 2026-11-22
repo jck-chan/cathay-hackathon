@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parent
 SOURCES = ROOT / "source"
 MODELS = ROOT / "models"
 PREVIEWS = ROOT / "previews"
+STATIC_MODELS = ROOT.parents[1] / "static" / "assets" / "aircraft"
 sys.path.insert(0, str(ROOT))
 from livery import apply_cathay, load_a350
 
@@ -63,7 +64,7 @@ def ac_objects(path):
         from mathutils import Matrix
         rotation = Matrix.Identity(3)
         location = Vector((0, 0, 0))
-        name, texture, vertices, faces, smooth = "", "", [], [], []
+        name, texture, vertices, faces, smooth, uvs = "", "", [], [], [], []
         for line in lines:
             key, _, value = line.partition(" ")
             if key == "name":
@@ -83,16 +84,18 @@ def ac_objects(path):
                     refs = next(lines)
                     while not refs.startswith("refs "):
                         refs = next(lines)
-                    indices = [int(next(lines).split()[0]) for _ in range(int(refs.split()[1]))]
+                    corners = [next(lines).split() for _ in range(int(refs.split()[1]))]
+                    indices = [int(corner[0]) for corner in corners]
                     if flags & 0xf == 0 and len(set(indices)) == len(indices) and len(indices) >= 3:
                         faces.append(indices)
                         smooth.append(bool(flags & 0x10))
+                        uvs.append([tuple(map(float, corner[1:3])) for corner in corners])
             elif key == "kids":
                 transform = rotation.to_4x4()
                 transform.translation = location
                 transform = parent_transform @ transform
                 if faces:
-                    yield name, texture, [transform @ Vector(v) for v in vertices], faces, smooth
+                    yield name, texture, [transform @ Vector(v) for v in vertices], faces, smooth, uvs
                 for _ in range(int(value)):
                     if not next(lines).startswith("OBJECT "):
                         raise ValueError(f"Expected a child object in {path}")
@@ -118,7 +121,7 @@ def paint(name, texture):
     return "Fuselage white"
 
 
-def mesh_object(name, vertices, faces, material, smooth):
+def mesh_object(name, vertices, faces, material, smooth, uvs=None):
     mesh = bpy.data.meshes.new(name)
     mesh.from_pydata(vertices, [], faces)
     mesh.validate(verbose=False)
@@ -128,6 +131,11 @@ def mesh_object(name, vertices, faces, material, smooth):
     obj.data.materials.append(material)
     for polygon, flag in zip(mesh.polygons, smooth):
         polygon.use_smooth = flag
+    if uvs:
+        layer = mesh.uv_layers.new(name="AC3D UVs")
+        for polygon, corners in zip(mesh.polygons, uvs, strict=True):
+            for index, uv in zip(polygon.loop_indices, corners, strict=True):
+                layer.data[index].uv = uv
     return obj
 
 
@@ -141,7 +149,7 @@ def mean_bounds(objects):
 
 def build_boeing(source, slug, materials):
     is_777 = source == "777-300er"
-    for name, texture, vertices, faces, smooth in ac_objects(SOURCES / f"{source}.ac"):
+    for name, texture, vertices, faces, smooth, _ in ac_objects(SOURCES / f"{source}.ac"):
         if is_777 and not EXTERIOR_777.match(name):
             continue
         if not is_777 and INTERIOR_747.match(name):
@@ -173,7 +181,50 @@ def build_boeing(source, slug, materials):
 
 
 
-def export_model(slug):
+def build_a330(materials):
+    source = SOURCES / "a330"
+    textures = {
+        "323_blank.png": "343_blank.png",
+        "343_blank.png": "343_blank.png",
+        "wings_main.png": "wings_main.png",
+        "wings_tail.png": "wings_tail.png",
+        "windshield_pane.png": "windshield_pane.png",
+    }
+    textured = {}
+    for filename in sorted(set(textures.values())):
+        material = materials["Fuselage white"].copy()
+        material.name = f"A330 {Path(filename).stem}"
+        nodes = material.node_tree.nodes
+        image = nodes.new("ShaderNodeTexImage")
+        image.image = bpy.data.images.load(str(source / filename))
+        image.image.pack()
+        shader = nodes.get("Principled BSDF")
+        material.node_tree.links.new(image.outputs["Color"], shader.inputs["Base Color"])
+        textured[filename] = material
+
+    for filename in ("a330-300-main.ac", "trent772b-60.ac"):
+        for name, texture, vertices, faces, smooth, uvs in ac_objects(source / filename):
+            if name.startswith(("slat.in.open", "sphere")):
+                continue
+            key = name.lower()
+            if key.startswith(("vstab", "rudder", "winglet")):
+                material = materials["Jade"]
+            elif texture == "windshield.png":
+                material = materials["Glazing"]
+            elif key == "intake" or key.startswith(("rr.exhaust", "fan", "pw.nacelle")):
+                material = materials["Metal"]
+            elif texture in textures:
+                material = textured[textures[texture]]
+            elif texture == "landing-gears.png":
+                material = materials["Tyres" if "wheel" in key else "Metal"]
+            else:
+                material = materials[paint(name, texture)]
+            # AC3D Y-up, nose -X. Blender Z-up, nose +Y.
+            mesh_object(name, [(-v.z, -v.x, v.y) for v in vertices], faces,
+                        material, smooth, uvs)
+
+
+def export_model(slug, source_path, model_path):
     scene = bpy.context.scene
     objects = [obj for obj in scene.objects if obj.type == "MESH"]
     low, high = mean_bounds(objects)
@@ -185,7 +236,7 @@ def export_model(slug):
     bpy.context.view_layer.update()
     # Join by material for the browser export, preserving named source parts in the blend.
     bpy.context.preferences.filepaths.save_version = 0
-    bpy.ops.wm.save_as_mainfile(filepath=str(SOURCES / f"{slug}.blend"), compress=True)
+    bpy.ops.wm.save_as_mainfile(filepath=str(source_path), compress=True)
     parts_by_material = {}
     for obj in objects:
         parts_by_material.setdefault(obj.data.materials[0], []).append(obj)
@@ -198,7 +249,7 @@ def export_model(slug):
         bpy.context.view_layer.objects.active = parts[0]
         bpy.ops.object.join()
         bpy.context.object.name = material.name
-    bpy.ops.export_scene.gltf(filepath=str(MODELS / f"{slug}.glb"), export_format="GLB",
+    bpy.ops.export_scene.gltf(filepath=str(model_path), export_format="GLB",
                               export_cameras=False, export_lights=False)
 
 
@@ -254,27 +305,31 @@ def render_preview(path):
 def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     targets = (("777-300er", "777-300er"), ("747-8f", "747-8f"),
-               ("747-8f", "747-400erf-visual-proxy"), (None, "a350-generic-cathay"))
+               ("747-8f", "747-400erf-visual-proxy"), (None, "a350-generic-cathay"),
+               ("IDG-A33X", "a330-300-cathay"))
     selected = {arg for arg in args if not arg.startswith("--")}
     if selected:
         targets = tuple(target for target in targets if target[1] in selected)
         if selected != {slug for _, slug in targets}:
             raise ValueError(f"Unknown aircraft selection: {selected}")
     for source, slug in targets:
-        if "--render-only" in args:
-            break
-        bpy.ops.wm.read_factory_settings(use_empty=True)
-        materials = make_materials()
-        if source is None:
-            load_a350(SOURCES / "a350-amvlab-original.glb", materials["Jade"])
-        else:
-            build_boeing(source, slug, materials)
-        export_model(slug)
-    if "--no-renders" not in args:
-        for _, slug in targets:
-            path = MODELS / f"{slug}.glb"
-            if path.is_file():
-                render_preview(path)
+        source_dir, model_dir = SOURCES, MODELS
+        if source == "IDG-A33X":
+            source_dir, model_dir = ROOT, STATIC_MODELS
+        model_path = model_dir / f"{slug}.glb"
+        if "--render-only" not in args:
+            bpy.ops.wm.read_factory_settings(use_empty=True)
+            materials = make_materials()
+            if source is None:
+                load_a350(SOURCES / "a350-amvlab-original.glb", materials["Jade"])
+            elif source == "IDG-A33X":
+                build_a330(materials)
+            else:
+                build_boeing(source, slug, materials)
+            export_model(slug, source_dir / f"{slug}.blend", model_path)
+        if "--no-renders" not in args and model_path.is_file():
+            PREVIEWS.mkdir(exist_ok=True)
+            render_preview(model_path)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import bpy
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
-ART = Path(__file__).resolve().parent / "source" / "livery"
+ART = Path(__file__).resolve().parent / "livery"
 
 
 def decal_material(name):
@@ -112,6 +112,9 @@ def apply_cathay(slug, low, high):
     if is_a350:
         text_y, text_z = high.y - 15.0, 2.82
         tail_y, tail_z = low.y + 5.0, top - 4.05
+    elif slug.startswith("a330"):
+        text_y, text_z = high.y - 14.5, 2.33
+        tail_y, tail_z = low.y + 5.0, top - 3.8
     elif cargo:
         text_y, text_z = high.y - 21.0 * length / 76.3, low.z + 4.95
         tail_y, tail_z = low.y + 5.6 * length / 76.3, top - 4.45

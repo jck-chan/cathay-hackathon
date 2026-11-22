@@ -40,7 +40,7 @@ class AircraftType:
 # so one airframe can stand in for a sibling (A350-900/-1000) or a type with no model yet.
 AIRCRAFT_TYPES: dict[str, AircraftType] = {t.code: t for t in (
     AircraftType('A333', 'Airbus A330-300', 63.7, 60.3, 10, 7000, 500, CATS, 'ULD',
-                 weight=.20),
+                 model='a330-300-cathay.glb', weight=.20),
     AircraftType('A359', 'Airbus A350-900', 66.8, 64.8, 12, 8400, 500, CATS, 'ULD',
                  model='a350-cathay.glb', weight=.25),
     AircraftType('A35K', 'Airbus A350-1000', 73.8, 64.8, 14, 9800, 500, CATS, 'ULD',
