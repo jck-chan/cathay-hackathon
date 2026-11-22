@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>RELAY v13 · Flight Deck</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/css/cockpit.css">
+  <script type="importmap">
+  { "imports": { "three": "/vendor/three/three.module.min.js", "three/addons/": "/vendor/three/addons/" } }
+  </script>
+  <script type="module" src="/js/cockpit/main.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="identity">
+      <a class="mark" href="/" aria-label="Return to RELAY Live Apron">R</a>
+      <div><h1>Flight Deck</h1><span>RELAY v13</span></div>
+    </div>
+    <div class="airport" aria-label="Departure from RELAY Field runway 36">
+      <span>RELAY FIELD</span><b>RWY 36</b>
+    </div>
+    <div class="actions">
+      <button id="sound" type="button" aria-pressed="false" title="Toggle aircraft sound">Sound <b id="sound-state">START</b></button>
+      <button id="pause" type="button">Pause <kbd>P</kbd></button>
+      <button id="reset" type="button">Restart</button>
+      <button id="help" type="button" aria-expanded="false" aria-controls="controls">Controls <kbd>H</kbd></button>
+    </div>
+  </header>
+  <main id="sim">
+    <section class="viewport" aria-label="Flight deck viewport">
+      <div id="view" tabindex="0" aria-label="3D cockpit. Drag to look, or hold Shift and move the mouse to fly."></div>
+      <div id="mouse-yoke" aria-hidden="true" hidden><i></i><span>Release Shift to center</span></div>
+      <div class="scene-top">
+        <section class="session" aria-label="Flight status">
+          <div class="phase" id="phase-label" data-tint="normal"><i></i><span id="phase">On runway</span></div>
+          <p id="flight-tip">Hold + for takeoff thrust. At 145 kt, hold Shift and move the mouse down.</p>
+        </section>
+      </div>
+      <div id="notice" role="status" hidden></div>
+      <div class="failure" id="failure" hidden>
+        <strong id="failure-title"></strong>
+        <p id="failure-description"></p>
+        <button id="failure-action" type="button"></button>
+      </div>
+      <div class="view-caption"><span id="view-status">Pilot seat</span><span id="mouse-hint">Drag to look · Shift + mouse to fly</span></div>
+      <aside id="controls" class="controls" aria-labelledby="controls-title" hidden>
+        <div class="controls-top">
+          <h2 id="controls-title">Flight controls</h2>
+          <button id="close-help" type="button" aria-label="Close flight controls">×</button>
+        </div>
+        <div class="control-groups">
+          <section>
+            <h3>Fly</h3>
+            <dl>
+              <dt>Mouse pitch and bank</dt><dd>Hold <kbd>Shift</kbd> and move</dd>
+              <dt>Pitch down / up</dt><dd><kbd>↑</kbd> <kbd>↓</kbd></dd>
+              <dt>Bank left / right</dt><dd><kbd>←</kbd> <kbd>→</kbd></dd>
+              <dt>Rudder / steer</dt><dd><kbd>Q</kbd> <kbd>E</kbd></dd>
+              <dt>Increase / decrease thrust</dt><dd><kbd>+</kbd> <kbd>−</kbd></dd>
+              <dt>Wheel brakes</dt><dd>Hold <kbd>B</kbd></dd>
+              <dt>Reverse at idle</dt><dd><kbd>R</kbd></dd>
+              <dt>Extend / retract flaps</dt><dd><kbd>F</kbd> / <kbd>Shift</kbd> <kbd>F</kbd></dd>
+              <dt>Speedbrake / gear</dt><dd><kbd>X</kbd> <kbd>G</kbd></dd>
+            </dl>
+          </section>
+          <section>
+            <h3>Cockpit</h3>
+            <dl>
+              <dt>Look around</dt><dd>Drag the view</dd>
+              <dt>Leave seat / sit</dt><dd><kbd>V</kbd></dd>
+              <dt>Walk when standing</dt><dd><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></dd>
+              <dt>Open or close a nearby door</dt><dd>Click the door button</dd>
+              <dt>Return to pilot seat</dt><dd><kbd>C</kbd></dd>
+              <dt>Landing / panel light</dt><dd><kbd>L</kbd> <kbd>N</kbd></dd>
+              <dt>Pause / resume</dt><dd><kbd>P</kbd></dd>
+              <dt>Free a captured mouse</dt><dd><kbd>Esc</kbd></dd>
+            </dl>
+          </section>
+        </div>
+        <p>Move the mouse down while holding Shift to raise the nose. Release Shift to center the controls. If mouse capture is unavailable, hold Shift and drag to keep tracking at the edges. For landing, lower the gear, extend flaps and aim for 135–150 kt on final.</p>
+      </aside>
+    </section>
+    <footer class="deck">
+      <section class="instruments" aria-label="Flight instruments">
+        <div class="instrument primary"><span>Airspeed</span><div><strong id="ias">000</strong> <small>KT</small></div></div>
+        <div class="instrument primary"><span title="Height above runway elevation">Altitude</span><div><strong id="altitude">0</strong> <small>FT</small></div></div>
+        <div class="instrument"><span>Heading</span><div><strong id="heading">360°</strong></div></div>
+        <div class="instrument"><span>Vertical speed</span><div><strong id="vertical">0</strong> <small>FPM</small></div></div>
+        <div class="instrument thrust"><span>Thrust</span><div><strong id="power">0%</strong><span id="throttle">CMD 0%</span></div><meter id="thrust-meter" min="0" max="100" value="0" aria-label="Engine thrust"></meter></div>
+      </section>
+      <div class="configuration" aria-label="Aircraft configuration" role="group">
+        <div class="flap-controls" role="group" aria-label="Flaps">
+          <button id="flaps-less" type="button" aria-label="Retract flaps one step" title="Retract flaps (Shift+F)">−</button>
+          <span>Flaps <b id="flaps">1</b></span>
+          <button id="flaps-more" type="button" aria-label="Extend flaps one step" title="Extend flaps (F)">+</button>
+        </div>
+        <button id="gear-toggle" type="button" title="Toggle landing gear (G)">Gear <b id="gear">DOWN</b></button>
+        <button id="spoiler-toggle" type="button" aria-pressed="false" title="Toggle speedbrake (X)">Speedbrake <b id="spoiler">IN</b></button>
+        <button id="landing-toggle" type="button" aria-pressed="true" title="Toggle landing lights (L)">Landing lights <b id="lights">ON</b></button>
+        <button id="panel-toggle" type="button" aria-pressed="true" title="Toggle panel light (N)">Panel light</button>
+        <button id="reverse-toggle" type="button" aria-pressed="false" title="Toggle reverse thrust (R)">Reverse</button>
+        <div class="view-switches" role="group" aria-label="Cockpit view">
+          <button id="door-toggle" type="button" hidden></button>
+          <button id="seat-toggle" type="button">Leave seat <kbd>V</kbd></button>
+          <button id="mouse-capture" type="button" aria-pressed="false">Capture mouse</button>
+        </div>
+      </div>
+    </footer>
+    <noscript>The Flight Deck requires JavaScript.</noscript>
+  </main>
+</body>
+</html>

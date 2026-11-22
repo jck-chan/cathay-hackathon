@@ -233,6 +233,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send({'scenarios': ['mixed', *SCENARIOS], 'roles': list(ROLES)}); return
         if route in ('/', '/index.html'):
             route = '/index.html'
+        if route in ('/cockpit', '/cockpit/'):
+            route = '/cockpit.html'
         path = (STATIC / route.lstrip('/')).resolve()
         if STATIC not in path.parents or not path.is_file():
             self.send({'error': 'not found'}, 404); return

@@ -137,3 +137,33 @@ change applies mid-run without regenerating the world. **New world** keeps the c
 | `relay13/aircraft.py` | aircraft types, per-type policy, `AirportConfig` |
 | `static/js/scene/*` | renderer and sky (`world.js`), aircraft motion (`aircraft.js`), cargo units and tags (`cargo.js`), drag and drop (`interaction.js`), procedural PBR textures (`textures.js`), coordinates and paths (`layout.js`) |
 | `static/js/ui/*` | ranking, log and staging panels; icons |
+
+## Hidden Flight Deck
+
+Click the top-left **R** 15 times to open `/cockpit` in a separate tab. Drag to look through the
+windows. Click **Leave seat** or press **V**, then use **WASD** to walk. The door button appears
+when you approach a cockpit or cabin door. Click **Sit in pilot seat** or press **C** to return
+to the controls. From the seat, hold **Shift** and move the mouse to pitch or bank. Moving the
+mouse down raises the nose.
+Use **Capture mouse** for relative tracking at the window edges, then press **Esc** to release it.
+If the browser declines capture, hold **Shift** and drag to keep tracking at the edges.
+The buttons at the bottom control gear, flaps, speedbrake, landing and panel lights, and reverse.
+Sound starts after you interact with the cockpit. Use **Sound** to toggle it and **H** for the full
+control list.
+
+The mode models a generic twin-engine jet. It runs independently of the apron clock and uses
+a fixed-step flight model with lift, drag, ground effect, angle-of-attack stalls, engine spool-up,
+and gear and reverse-thrust interlocks. Independent main and nose struts compress under load.
+Wheel load, tire slip, speed, and surface drive touchdown and rolling audio. Grass changes rolling
+resistance and steering grip.
+A survivable ditching decelerates into a float, and a gentle gear-up landing slides to a stop.
+Run the flight-model tests with Node.js 22.7 or newer.
+
+```bash
+node --test v13/tests/test_cockpit.mjs
+```
+
+The [coastal sky panorama](static/assets/cockpit/coastal-sky.jpg) was created with the built-in
+image generator using this prompt.
+
+> Photorealistic natural. Generate an environment texture for a 3D flight simulator. A strictly 2:1 equirectangular spherical 360 degree sky-only panorama for a fictional coastal airport, mid-morning with pale blue low haze near the horizon and layered white maritime cumulus and cirrus across the dome. Upper 50 percent is the sky hemisphere from zenith at the top to a level pale bluish horizon exactly at the vertical midpoint, lower half is smooth color-matched atmospheric haze without objects. A clear diffuse brightness from the upper left, muted coastal colors, natural contrast, detailed cloud formations but large clear openings. Horizontally seamless left/right, no mountains, no land, no ocean details, no city, no aircraft, no text, no framing. Photographic, no illustration, no lens artifacts.

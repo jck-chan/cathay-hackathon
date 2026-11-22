@@ -16,7 +16,8 @@ button { font: inherit; color: inherit; }
 /* ---- top bar ---------------------------------------------------------------- */
 .topbar { height: var(--top); display: flex; align-items: center; gap: 18px; padding: 0 14px; background: #0d2b2a; color: #e6f1ef; position: relative; z-index: 5; }
 .brand { display: flex; align-items: center; gap: 8px; font-size: 15px; letter-spacing: .2px; white-space: nowrap; }
-.brand-mark { width: 28px; height: 28px; border-radius: 7px; background: linear-gradient(145deg, #12a39c, #006564); display: grid; place-items: center; font-weight: 800; color: #fff; }
+.brand-mark { width: 28px; height: 28px; padding: 0; border: 0; border-radius: 7px; background: linear-gradient(145deg, #12a39c, #006564); display: grid; place-items: center; font-weight: 800; color: #fff; cursor: pointer; }
+.brand-mark:focus-visible { outline: 2px solid #aef1e8; outline-offset: 3px; }
 .tabs { display: flex; gap: 2px; background: rgba(255,255,255,.06); padding: 3px; border-radius: 9px; }
 .tab { border: 0; background: none; padding: 6px 12px; border-radius: 7px; cursor: pointer; color: #a9c4c0; font-weight: 600; }
 .tab.on { background: #e6f1ef; color: #0d2b2a; }
